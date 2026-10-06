@@ -3,11 +3,27 @@ import { createInitialState, GameEngine } from '../../src/game/engine';
 
 async function startJourney(page: Page): Promise<void> {
   await page.goto('./');
-  await page.locator('[data-open="levels"]').click();
-  await page.locator('[data-level="level1"]').click();
+  await page.locator('[data-open="saves"]').click();
   await page.locator('[data-new="0"]').click();
+  await page.locator('[data-level="level1"]').click();
   await expect(page.locator('#gameScreen')).toBeVisible();
+  await expect(page.locator('.perch')).toHaveCount(8);
 }
+
+test('the eighth gorge roost supports placement, upgrading, selling and reload', async ({ page }) => {
+  await startJourney(page);
+  await page.locator('[data-type="fire"]').click();
+  await page.getByRole('button', { name: 'Empty perch 8', exact: true }).click();
+  await page.locator('#upgrade').click();
+  expect((await savedState(page)).towers[7]).toMatchObject({ type: 'fire', level: 2 });
+  await page.reload();
+  await page.locator('[data-open="saves"]').click();
+  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.getByRole('button', { name: 'Ember, level 2, perch 8', exact: true }).click();
+  await page.locator('#sell').click();
+  expect((await savedState(page)).towers).toHaveLength(8);
+  expect((await savedState(page)).towers[7]).toBeNull();
+});
 
 async function savedState(page: Page) {
   return page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
@@ -37,8 +53,9 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   expect((await savedState(page)).simulationTime).toBe(state.simulationTime);
   await page.locator('#pauseMenu').click();
   await expect(page.locator('#menuScreen')).toBeVisible();
+  await page.locator('#journeyExit').click();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click();
+  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   expect((await savedState(page)).spawnSchedule).toEqual(state.spawnSchedule);
   await page.locator('#resumeBattle').click();
@@ -66,7 +83,7 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
   await page.reload();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click();
+  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await expect(page.locator('#enemies > g')).toHaveCount(2);
   await expect(page.locator('#eggObjects > g')).toHaveCount(5);
@@ -74,7 +91,7 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   expect(await savedState(page)).toEqual({ ...state, paused: true });
   await page.reload();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click();
+  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await page.locator('#resumeBattle').click();
   await page.waitForTimeout(200);
@@ -111,7 +128,7 @@ test('completed results survive reload without awarding rewards twice', async ({
   await page.goto('./');
   await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
   for (let i = 0; i < 2; i++) {
-    await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click();
+    await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
     await expect(page.locator('#resultTitle')).toHaveText('Valley defended');
     await expect(page.locator('#resultGold')).toHaveText('62 gold');
     await page.locator('#resultContinue').click();
@@ -138,7 +155,7 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await page.locator('[data-type="fire"]').click();
   await page.getByRole('button', { name: 'Empty perch 1', exact: true }).click();
   const newer = await context.newPage(); await newer.goto('./');
-  await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click();
+  await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click(); await newer.locator("#journeyResume").click();
   await newer.locator('#upgrade').click();
   expect((await savedState(newer)).towers[0].level).toBe(2);
   await page.evaluate(() => {
@@ -155,7 +172,7 @@ test('failed result saves keep the result open until saving succeeds', async ({ 
   state.phase = 'battle'; state.wave = 5; state.paused = true; state.enemiesKilled = 1; state.enemiesSummoned = 1;
   await page.goto('./');
   await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
-  await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click();
+  await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
     (window as unknown as { restoreStorage: () => void }).restoreStorage = () => { Storage.prototype.setItem = original; };
@@ -213,7 +230,8 @@ test('manifest, icons, service worker and offline cold launch work at repository
   const requests: string[] = [];
   context.on('request', request => requests.push(request.url()));
   await startJourney(page);
-  await expect(page.locator('#pwaPanel')).toContainText(/offline ready|ready to play offline/i);
+  expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).active?.state)).toBe('activated');
+  await expect(page.locator('#pwaPanel')).toHaveCount(0);
   const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute('href');
   const response = await request.get(new URL(manifestUrl!, page.url()).href);
   const manifest = await response.json();
@@ -226,7 +244,7 @@ test('manifest, icons, service worker and offline cold launch work at repository
   await context.setOffline(true);
   await page.close();
   const cold = await context.newPage(); await cold.goto('./');
-  await cold.locator('[data-open="saves"]').click(); await cold.locator('[data-load="0"]').click();
+  await cold.locator('[data-open="saves"]').click(); await cold.locator('[data-load="0"]').click(); await cold.locator("#journeyResume").click();
   await expect(cold.locator('#pauseOverlay')).toBeVisible();
   await cold.evaluate(() => document.fonts.ready);
   expect(await cold.evaluate(() => document.fonts.check('14px "DM Sans"'))).toBe(true);

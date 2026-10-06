@@ -1,4 +1,4 @@
-import { map } from '../content/catalog';
+import { routeFor, sharesTrail } from './geometry';
 import { battleRules } from './rules';
 import type { Enemy, Egg, GameState } from './types';
 
@@ -8,6 +8,7 @@ function carryEgg(enemy: Enemy, egg: Egg): void {
   egg.progress = null;
   enemy.carryingEgg = egg.id;
   enemy.returning = true;
+  if (enemy.routeId !== undefined) egg.routeId = enemy.routeId;
 }
 
 export function dropEgg(state: GameState, enemy: Enemy): void {
@@ -17,6 +18,7 @@ export function dropEgg(state: GameState, enemy: Enemy): void {
     egg.status = 'dropped';
     egg.progress = enemy.progress;
     egg.carrier = null;
+    if (enemy.routeId !== undefined) egg.routeId = enemy.routeId;
   }
   enemy.carryingEgg = null;
 }
@@ -30,16 +32,18 @@ export function moveEnemy(state: GameState, enemy: Enemy, elapsedMs: number): bo
   const travel = enemy.spd * elapsedMs * battleRules.movementPerMillisecond;
   if (enemy.returning) return moveReturningEnemy(state, enemy, travel);
   const previous = enemy.progress;
-  const next = Math.min(map.path.length - 1, previous + travel);
+  const routeEnd = routeFor(state, enemy.routeId).length - 1;
+  const next = Math.min(routeEnd, previous + travel);
   const dropped = state.eggs.find(egg => egg.status === 'dropped'
-    && egg.progress !== null && egg.progress >= previous && egg.progress <= next);
+    && egg.progress !== null && egg.progress >= previous && egg.progress <= next
+    && sharesTrail(state, enemy.routeId, egg.routeId, egg.progress));
   if (dropped && dropped.progress !== null) {
     enemy.progress = dropped.progress;
     carryEgg(enemy, dropped);
     return false;
   }
   enemy.progress = next;
-  if (enemy.progress >= map.path.length - 1) {
+  if (enemy.progress >= routeEnd) {
     const egg = state.eggs.find(item => item.status === 'nest');
     if (egg) carryEgg(enemy, egg);
     else enemy.returning = true;

@@ -24,7 +24,18 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
       type: 'choose', dragon: button.dataset.type as DragonType,
     }), { signal });
   });
-  elements<SVGGElement>('.perch').forEach(perch => bindPerch(perch, actions.dispatch, signal));
+  const map = element('#map');
+  map.addEventListener('click', event => {
+    if (!(event.target instanceof Element)) return;
+    const perch = event.target.closest<SVGGElement>('.perch');
+    // Large phone touch targets can overlap; use the closest roost center.
+    if (perch) activatePerch(closestPerch(event, perch), actions.dispatch);
+  }, { signal });
+  map.addEventListener('keydown', event => {
+    if (!(event.target instanceof Element) || !['Enter', ' '].includes(event.key)) return;
+    const perch = event.target.closest<SVGGElement>('.perch');
+    if (perch) { event.preventDefault(); activatePerch(perch, actions.dispatch); }
+  }, { signal });
   const touchSizer = new ResizeObserver(sizePerchTargets);
   touchSizer.observe(element('#map'));
 
@@ -47,30 +58,29 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   };
 }
 
-function bindPerch(perch: SVGGElement, dispatch: BattleControlActions['dispatch'], signal: AbortSignal): void {
-  perch.setAttribute('role', 'button');
-  perch.setAttribute('tabindex', '0');
-  // Keep visible artwork unchanged while enlarging the transparent touch area.
-  const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  hit.setAttribute('r', '60');
-  hit.setAttribute('fill', 'transparent');
-  hit.setAttribute('pointer-events', 'all');
-  perch.append(hit);
-  const activate = () => {
-    if (perch.getAttribute('aria-disabled') !== 'true') {
-      dispatch({ type: 'perch', index: Number(perch.dataset.id) });
-    }
-  };
-  perch.addEventListener('click', activate, { signal });
-  perch.addEventListener('keydown', event => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      activate();
-    }
-  }, { signal });
+function activatePerch(perch: SVGGElement, dispatch: BattleControlActions['dispatch']): void {
+  if (perch.getAttribute('aria-disabled') !== 'true') {
+    dispatch({ type: 'perch', index: Number(perch.dataset.id) });
+  }
 }
 
-function sizePerchTargets(): void {
+function closestPerch(event: MouseEvent, fallback: SVGGElement): SVGGElement {
+  if (event.detail === 0) return fallback;
+  let closest = fallback;
+  let best = Infinity;
+  for (const perch of elements<SVGGElement>('.perch')) {
+    const matrix = perch.getScreenCTM();
+    const hit = perch.querySelector<SVGCircleElement>('.perch-hit');
+    if (!matrix || !hit) continue;
+    const dx = (event.clientX - matrix.e) / matrix.a;
+    const dy = (event.clientY - matrix.f) / matrix.d;
+    const distance = Math.hypot(dx, dy);
+    if (distance <= hit.r.baseVal.value && distance < best) { best = distance; closest = perch; }
+  }
+  return closest;
+}
+
+export function sizePerchTargets(): void {
   const scale = element<SVGSVGElement>('#map').getScreenCTM();
   if (!scale || !scale.a || !scale.d) return;
   const minimumTouchRadiusPx = 22;

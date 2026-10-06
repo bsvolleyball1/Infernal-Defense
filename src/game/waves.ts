@@ -1,4 +1,4 @@
-import { waves } from '../content/catalog';
+import { getMap, routesFor, waves } from '../content/catalog';
 import { finishBattle } from './rewards';
 import { battleRules, waveReward } from './rules';
 import type { GameEvent, GameState } from './types';
@@ -13,9 +13,12 @@ export function startWave(state: GameState): GameEvent[] {
     battleRules.initialSpawnIntervalMs - state.wave * battleRules.spawnIntervalReductionMs);
   let at = state.simulationTime;
   state.spawnSchedule = [];
+  const routeCount = routesFor(getMap(state.activeLevel)).length;
   for (const group of waves[state.wave - 1]) {
     for (let index = 0; index < group.n; index++) {
-      state.spawnSchedule.push({ kind: group.kind, hp: group.hp, spd: group.spd, at });
+      state.spawnSchedule.push({ kind: group.kind, hp: group.hp, spd: group.spd, at,
+        ...(routeCount > 1 ? { routeId: state.spawnSchedule.length % routeCount } : {}),
+      });
       at += interval;
     }
   }
@@ -31,6 +34,7 @@ export function spawnNextEnemy(state: GameState): void {
     id: state.nextEntityId++, kind: spawn.kind, hp: spawn.hp, max: spawn.hp,
     spd: spawn.spd, progress: 0, slow: 0, poison: 0, poisonD: 0,
     carryingEgg: null, returning: false, escaped: false, rewarded: false,
+    ...(spawn.routeId !== undefined ? { routeId: spawn.routeId } : {}),
   });
   state.enemiesSummoned++;
 }

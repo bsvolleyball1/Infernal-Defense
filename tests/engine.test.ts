@@ -28,7 +28,7 @@ describe('original content and initial state', () => {
     expect(map.width).toBe(700);
     expect(map.height).toBe(430);
     expect(map.path).toHaveLength(17);
-    expect(map.perches).toEqual([{ x: 90, y: 202 }, { x: 260, y: 68 }, { x: 355, y: 279 }, { x: 485, y: 83 }, { x: 563, y: 307 }]);
+    expect(map.perches).toEqual([{ x: 90, y: 202 }, { x: 230, y: 155 }, { x: 365, y: 205 }, { x: 430, y: 78 }, { x: 594, y: 205 }, { x: 220, y: 345 }, { x: 410, y: 385 }, { x: 590, y: 345 }]);
     expect(Object.values(dragons).map(({ name, cost, damage, rate, range }) => [name, cost, damage, rate, range])).toEqual([
       ['Ember', 60, 27, 680, 132], ['Frost', 55, 8, 820, 145], ['Thorn', 50, 7, 760, 125],
     ]);
@@ -41,17 +41,17 @@ describe('original content and initial state', () => {
     expect(positionAt(-1)).toEqual([-30, 300]);
     expect(positionAt(0.5)).toEqual([25, 300]);
     expect(positionAt(1.5)).toEqual([112.5, 290]);
-    expect(positionAt(100)).toEqual([663, 185]);
+    expect(positionAt(100)).toEqual([640, 85]);
     const endpoint = positionAt(16);
     endpoint[0] = 0;
-    expect(positionAt(16)).toEqual([663, 185]);
+    expect(positionAt(16)).toEqual([640, 85]);
   });
 
-  it('creates independent version-free state with five eggs and five empty perches', () => {
+  it('creates independent version-free state with five eggs and eight empty perches', () => {
     const state = createInitialState();
     expect(state).toMatchObject({ phase: 'ready', paused: false, simulationTime: 0, speed: 1, gold: 120, bankedGold: 0, wave: 0, activeLevel: 'level1', rewardsApplied: false, rewardGold: 0, selected: null, chosen: null });
     expect(state).not.toHaveProperty('version');
-    expect(state.towers).toEqual([null, null, null, null, null]);
+    expect(state.towers).toEqual(Array(8).fill(null));
     expect(state.eggs).toEqual([1, 2, 3, 4, 5].map(id => ({ id, status: 'nest', progress: null, carrier: null })));
     state.eggs[0].status = 'escaped';
     expect(createInitialState().eggs[0].status).toBe('nest');
@@ -101,7 +101,7 @@ describe('commands and economy', () => {
     const engine = new GameEngine({ ...createInitialState(), gold: 10 });
     engine.dispatch({ type: 'choose', dragon: 'poison' });
     const state = engine.snapshot();
-    for (const index of [-1, 5, 0.5, NaN]) expect(engine.dispatch({ type: 'perch', index })).toEqual([]);
+    for (const index of [-1, map.perches.length, 0.5, NaN]) expect(engine.dispatch({ type: 'perch', index })).toEqual([]);
     expect(engine.dispatch({ type: 'perch', index: 1 })).toEqual([{ type: 'message', text: 'Not enough gold' }]);
     expect(engine.dispatch({ type: 'upgrade' })).toEqual([]);
     expect(engine.dispatch({ type: 'sell' })).toEqual([]);

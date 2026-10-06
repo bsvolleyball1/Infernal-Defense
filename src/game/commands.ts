@@ -1,4 +1,4 @@
-import { dragons, map } from '../content/catalog';
+import { dragons, getMap } from '../content/catalog';
 import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
 import { startWave } from './waves';
 import type { GameCommand, GameEvent, GameState } from './types';
@@ -29,7 +29,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
 }
 
 function selectPerch(state: GameState, index: number): GameEvent[] {
-  if (!Number.isInteger(index) || index < 0 || index >= map.perches.length) return [];
+  if (!Number.isInteger(index) || index < 0 || index >= getMap(state.activeLevel).perches.length) return [];
   if (state.towers[index]) {
     state.selected = index;
     state.chosen = null;

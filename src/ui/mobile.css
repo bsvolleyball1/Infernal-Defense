@@ -12,14 +12,8 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--gold)
 .perch:focus-visible circle { stroke:var(--gold); stroke-width:5px; }
 .legend { flex-wrap:wrap; }
 .stats { flex-wrap:wrap; }
-.toast { position:fixed; z-index:80; top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); text-align:center; }
-.pwa-panel { position:relative; z-index:60; width:min(1120px,100%); padding-bottom:env(safe-area-inset-bottom); }
-.pwa-panel:empty { display:none; }
-.pwa-panel>div { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-top:8px; box-shadow:0 8px 30px #0008; }
-.pwa-panel button { color:var(--ink); background:#273027; border:1px solid #6e805f; border-radius:5px; padding:8px 12px; margin:4px; }
-.pwa-panel p { line-height:1.5; margin:4px; }
-.pwa-panel>div { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-.pwa-panel [role=group] { flex-basis:100%; }
+.toast { position:fixed; z-index:80; top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); text-align:center; display:flex; align-items:center; gap:8px; }
+.toast button { color:var(--ink); background:#273027; border:1px solid #6e805f; border-radius:5px; padding:8px 12px; font:inherit; cursor:pointer; }
 .pause-overlay { position:absolute; inset:0; z-index:15; display:flex; justify-content:center; align-items:center; background:#080d0baa; }
 .battlefield { position:relative; }
 .pause-overlay[hidden] { display:none; }
@@ -31,6 +25,13 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--gold)
 .game-over.show { position:fixed; }
 .game-over .result-card { max-height:calc(100dvh - 32px); overflow:auto; }
 .error-card { border-color:var(--red); }
+.menu-card[hidden],.journey-actions button[hidden] { display:none; }
+.journey-summary { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); color:var(--gold); }
+.journey-summary span { color:var(--muted); }
+.journey-actions { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
+.journey-actions .btn { width:auto; padding:12px 18px; }
+.level-card:disabled { opacity:.55; cursor:not-allowed; }
+.level-card.level-cleared { border-color:#6e805f; }
 .save-notice { color:var(--red); line-height:1.5; }
 @media(max-width:760px) {
   body { padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); align-items:flex-start; }
@@ -75,11 +76,14 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--gold)
   .nest { margin-bottom:12px; }
   .map { min-height:0; height:100%; }
   .brand small { display:none; }
-  .pwa-panel>div { padding:4px 12px; margin-top:0; }
   .pause-card p { display:none; }
   .pause-card { padding:8px; }
   .pause-card .btn { margin-top:4px; }
 }
 @media(prefers-reduced-motion:reduce) {
   *,*::before,*::after { transition:none!important; scroll-behavior:auto!important; }
+}
+.map {
+  background: #2c4646;
+  border-color: #5d7569;
 }

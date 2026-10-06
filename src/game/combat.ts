@@ -1,4 +1,5 @@
-import { map, positionAt } from '../content/catalog';
+import { getMap } from '../content/catalog';
+import { entityPosition } from './geometry';
 import { moveEnemy } from './eggs';
 import { defeatEnemy, finishBattle } from './rewards';
 import { battleRules, towerAttackInterval, towerDamage, towerRange } from './rules';
@@ -38,11 +39,11 @@ function applyPoisonTick(enemy: Enemy, elapsedMs: number): void {
   }
 }
 
-function selectTarget(enemies: Enemy[], tower: Tower, perch: { x: number; y: number }): Enemy | undefined {
+function selectTarget(state: GameState, tower: Tower, perch: { x: number; y: number }): Enemy | undefined {
   const range = towerRange(tower);
   let target: Enemy | undefined;
-  for (const enemy of enemies) {
-    const [x, y] = positionAt(enemy.progress);
+  for (const enemy of state.enemies) {
+    const [x, y] = entityPosition(state, enemy);
     const withinRange = (x - perch.x) ** 2 + (y - perch.y) ** 2 < range ** 2;
     if (withinRange && (!target || enemy.progress > target.progress)) target = enemy;
   }
@@ -54,8 +55,8 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
     if (!tower) return;
     tower.cooldown = Math.max(0, tower.cooldown - elapsedMs);
     if (tower.cooldown > 0) return;
-    const perch = map.perches[index];
-    const target = selectTarget(state.enemies, tower, perch);
+    const perch = getMap(state.activeLevel).perches[index];
+    const target = selectTarget(state, tower, perch);
     if (!target) return;
     state.projectiles.push({
       id: state.nextEntityId++, x: perch.x, y: perch.y - battleRules.projectileOriginOffset,
@@ -73,7 +74,7 @@ export function updateProjectiles(state: GameState, elapsedMs: number, events: G
   for (const shot of state.projectiles) {
     const target = state.enemies.find(enemy => enemy.id === shot.targetId);
     if (!target || target.hp <= 0) continue;
-    const [x, y] = positionAt(target.progress);
+    const [x, y] = entityPosition(state, target);
     const dx = x - shot.x;
     const dy = y - shot.y;
     const distance = Math.hypot(dx, dy);

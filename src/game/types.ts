@@ -1,6 +1,6 @@
 export type DragonType = 'fire' | 'ice' | 'poison';
 export type MonsterKind = 'scout' | 'shield' | 'runner' | 'chief';
-export type Level = 'level1' | 'tutorial';
+export type Level = 'level1' | 'tutorial' | 'meadow' | 'volcanic';
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 
@@ -12,6 +12,8 @@ export interface Tower {
 }
 
 export interface Enemy {
+  /** Omitted for legacy single-route battles. */
+  routeId?: number;
   id: number;
   kind: MonsterKind;
   hp: number;
@@ -39,6 +41,8 @@ export interface Projectile {
 }
 
 export interface Egg {
+  /** Route on which the egg is carried or dropped. */
+  routeId?: number;
   id: number;
   status: 'nest' | 'carried' | 'dropped' | 'escaped';
   progress: number | null;
@@ -46,6 +50,7 @@ export interface Egg {
 }
 
 export interface Spawn {
+  routeId?: number;
   kind: MonsterKind;
   hp: number;
   spd: number;

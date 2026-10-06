@@ -1,8 +1,13 @@
 import template from './template.html?raw';
 import { element } from './dom';
+import { battlefieldArtwork } from './battlefield';
+import { renderLevelSelect } from './menus';
 
 export function mountApplication(): void {
   element('#app').innerHTML = template;
+  renderLevelSelect();
+  element('#map').innerHTML = battlefieldArtwork();
+  element('#map').setAttribute('aria-label', 'A switchback trail across a river gorge, eight dragon roosts, and a cliffside nest');
   const pauseOverlay = document.createElement('div');
   pauseOverlay.id = 'pauseOverlay';
   pauseOverlay.className = 'pause-overlay';

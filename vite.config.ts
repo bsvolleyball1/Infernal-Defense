@@ -7,6 +7,8 @@ export default defineConfig(({ command, mode, isPreview }) => ({
   base: command === 'build' || isPreview ? productionBase : '/',
   plugins: mode === 'test' ? [] : [VitePWA({
     strategies: 'generateSW',
+    // The app automatically activates at saved, safe checkpoints. Plugin-level
+    // autoUpdate would bypass the running-wave and storage-failure guards.
     registerType: 'prompt',
     injectRegister: false,
     includeAssets: ['icons/*.png', 'icons/*.svg', 'licenses/*.txt'],

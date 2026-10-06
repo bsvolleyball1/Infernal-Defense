@@ -1,5 +1,8 @@
-import { dragons, map, positionAt } from '../content/catalog';
-import type { GameState } from '../game/types';
+import { dragons, getMap } from '../content/catalog';
+import type { GameState, Level } from '../game/types';
+import { entityPosition } from '../game/geometry';
+import { battlefieldArtwork } from './battlefield';
+import { sizePerchTargets } from './controls';
 import { towerRange, towerUpgradeCost } from '../game/rules';
 import { element, elements, setText } from './dom';
 
@@ -16,6 +19,7 @@ export class SvgRenderer implements Renderer {
   private eggNodes = new Map<number, SVGElement>();
   private shotNodes = new Map<number, SVGElement>();
   private range = node('circle');
+  private activeLevel: Level | null = null;
 
   constructor() {
     attr(this.range, 'fill', 'none');
@@ -25,6 +29,7 @@ export class SvgRenderer implements Renderer {
   }
 
   render(state: GameState, showResults: boolean): void {
+    this.ensureBattlefield(state);
     this.renderHud(state);
     this.renderPerches(state);
     this.renderEnemies(state);
@@ -32,6 +37,19 @@ export class SvgRenderer implements Renderer {
     this.renderEggs(state);
     this.renderSelectionRange(state);
     this.renderResults(state, showResults);
+  }
+
+  private ensureBattlefield(state: GameState): void {
+    if (this.activeLevel === state.activeLevel) return;
+    this.activeLevel = state.activeLevel;
+    const geometry = getMap(state.activeLevel);
+    const map = element<SVGSVGElement>('#map');
+    map.innerHTML = battlefieldArtwork(state.activeLevel);
+    map.setAttribute('aria-label', `${geometry.name}: ${geometry.perches.length} dragon roosts. ${geometry.description}`);
+    map.style.background = geometry.background;
+    this.enemyNodes.clear(); this.eggNodes.clear(); this.shotNodes.clear();
+    element('#effects').append(this.range);
+    sizePerchTargets();
   }
 
   private renderHud(state: GameState): void {
@@ -50,7 +68,7 @@ export class SvgRenderer implements Renderer {
     setText('#waveState', battle ? state.paused ? 'PAUSED' : 'UNDER ATTACK' : state.phase === 'won' ? 'CLEARED' : state.phase === 'lost' ? 'FALLEN' : 'READY');
     setText('#waveTitle', battle ? 'Raiders on the pass' : state.phase === 'won' ? 'The eggs are safe' : state.phase === 'lost' ? 'The nest has fallen' : 'The raiders are gathering');
     setText('#waveDesc', battle ? 'Dragons attack automatically when raiders enter range.' : state.phase === 'won' ? 'All five waves repelled. The valley is yours.' : state.phase === 'lost' ? 'Return to the menu to begin another journey.' : state.activeLevel === 'tutorial' ? 'Training exercise: place dragons, then begin the wave.' : 'Place your dragons, then begin the wave.');
-    setText('#levelHeading', state.activeLevel === 'tutorial' ? 'Tutorial · The Ashen Pass' : 'The Ashen Pass');
+    setText('#levelHeading', `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel).name}`);
     setText('#speed', `▶ ${state.speed}×`);
     setText('#pause', state.paused ? 'Resume' : 'Pause');
     element<HTMLButtonElement>('#pause').disabled = !battle;
@@ -96,7 +114,7 @@ export class SvgRenderer implements Renderer {
         this.enemyNodes.set(enemy.id, group);
         element('#enemies').append(group);
       }
-      const [x, y] = positionAt(enemy.progress);
+      const [x, y] = entityPosition(state, enemy);
       attr(group, 'transform', `translate(${x} ${y})`);
       attr(group.querySelector('.health')!, 'width', 22 * Math.max(0, enemy.hp / enemy.max));
       attr(group.querySelector('.frozen')!, 'visibility', enemy.slow > 0 ? 'visible' : 'hidden');
@@ -130,11 +148,12 @@ export class SvgRenderer implements Renderer {
         group.innerHTML = '<ellipse cy="5" rx="5" ry="2" fill="#263324" opacity=".3"/><ellipse rx="4" ry="6" fill="#f1e3b0" stroke="#8c7448"/><ellipse cx="-1" cy="-2" rx="1" ry="2" fill="#fff9de"/>';
         this.eggNodes.set(egg.id, group); element('#eggObjects').append(group);
       }
-      let x = 647 + (egg.id - 1) * 8, y = 165;
-      if (egg.status === 'dropped') { [x, y] = positionAt(egg.progress ?? 0); y -= 7; }
+      const map = getMap(state.activeLevel);
+      let x = map.nest.x - 16 + (egg.id - 1) * 8, y = map.nest.y + 1;
+      if (egg.status === 'dropped') { [x, y] = entityPosition(state, { progress: egg.progress ?? 0, routeId: egg.routeId }); y -= 7; }
       if (egg.status === 'carried') {
         const carrier = state.enemies.find(enemy => enemy.id === egg.carrier);
-        if (carrier) { [x, y] = positionAt(carrier.progress); y -= 18; }
+        if (carrier) { [x, y] = entityPosition(state, carrier); y -= 18; }
       }
       attr(group, 'transform', `translate(${x} ${y})`);
     }
@@ -145,7 +164,7 @@ export class SvgRenderer implements Renderer {
     const selected = state.selected === null ? null : state.towers[state.selected];
     attr(this.range, 'visibility', selected ? 'visible' : 'hidden');
     if (selected && state.selected !== null) {
-      const perch = map.perches[state.selected];
+      const perch = getMap(state.activeLevel).perches[state.selected];
       attr(this.range, 'cx', perch.x); attr(this.range, 'cy', perch.y);
       attr(this.range, 'r', towerRange(selected));
       attr(this.range, 'stroke', dragons[selected.type].color);

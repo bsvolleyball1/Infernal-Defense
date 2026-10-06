@@ -9,7 +9,8 @@ const sourceRoot = resolve('src');
 const domainPaths = [
   ...readdirSync(resolve(sourceRoot, 'game')).filter(name => name.endsWith('.ts'))
     .map(name => resolve(sourceRoot, 'game', name)),
-  resolve(sourceRoot, 'content/catalog.ts'),
+  ...readdirSync(resolve(sourceRoot, 'content')).filter(name => name.endsWith('.ts'))
+    .map(name => resolve(sourceRoot, 'content', name)),
 ];
 
 function parse(path: string): ts.SourceFile {

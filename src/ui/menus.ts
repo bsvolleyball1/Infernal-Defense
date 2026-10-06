@@ -1,5 +1,9 @@
-import { monsters } from '../content/catalog';
+import { getMap, monsters } from '../content/catalog';
+import { battlefields } from '../content/maps';
 import type { Settings, SlotResult } from '../services/storage';
+import type { GameState } from '../game/types';
+import type { JourneyProgress } from '../game/journey';
+import { importJourney } from '../game/journey';
 import { element, elements, setText } from './dom';
 
 const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
@@ -21,6 +25,49 @@ export function showBattle(): void {
   element('#gameScreen').style.display = 'block';
 }
 
+export function renderLevelSelect(): void {
+  element('#levelList').innerHTML = Object.entries(battlefields).map(([id, map]) => `
+    <button class="level-card" data-level="${id}">
+      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : `${map.perches.length} dragon roosts`}</div>
+      <strong>${id === 'tutorial' ? 'Tutorial' : map.name}</strong>
+      <small>${map.description}</small>
+      <span class="level-number">${map.forks.length ? '⑂' : map.perches.length}</span>
+    </button>`).join('');
+}
+
+export function renderJourney(slot: number, state: GameState, journey: JourneyProgress): void {
+  setText('#journeyHeading', `Save slot ${slot + 1} · Your journey`);
+  setText('#journeyGold', `${state.bankedGold} gold banked`);
+  setText('#journeyCleared', `${journey.completedLevels.length} / ${Object.keys(battlefields).length} levels cleared`);
+  setText('#journeyLevelNotice', journey.activeBattle
+    ? `${getMap(state.activeLevel).name} is in progress. Continue it, or end this attempt before choosing another level.`
+    : 'Choose your next level. Your banked gold and cleared levels stay with this player save.');
+  const resume = element<HTMLButtonElement>('#journeyResume');
+  const terminal = state.phase === 'won' || state.phase === 'lost';
+  resume.hidden = !journey.activeBattle && !terminal;
+  resume.textContent = journey.activeBattle ? `Continue ${getMap(state.activeLevel).name}` : 'View last result';
+  element('#abandonBattle').hidden = !journey.activeBattle;
+  elements<HTMLButtonElement>('[data-level]').forEach(button => {
+    button.disabled = journey.activeBattle;
+    const cleared = journey.completedLevels.includes(button.dataset.level as GameState['activeLevel']);
+    button.classList.toggle('level-cleared', cleared);
+    button.querySelector('.level-number')!.textContent = cleared ? '✓' : button.dataset.level === 'volcanic' ? '⑂' : String(getMap(button.dataset.level as GameState['activeLevel']).perches.length);
+    button.setAttribute('aria-label', `${button.querySelector('strong')!.textContent}${cleared ? ', cleared' : ''}${journey.activeBattle ? ', finish your current attempt first' : ''}`);
+  });
+}
+
+export function renderContinue(readSlot: (index: number) => SlotResult): number | null {
+  let latest: { slot: number; time: number } | null = null;
+  for (let index = 0; index < 3; index++) {
+    const read = readSlot(index);
+    if (read.status === 'valid' && (!latest || read.data.savedAt > latest.time)) latest = { slot: index, time: read.data.savedAt };
+  }
+  const button = element<HTMLButtonElement>('#continueJourney');
+  button.hidden = latest === null;
+  if (latest) setText('#continueJourneyDetail', `Load player save ${latest.slot + 1} and keep your progress`);
+  return latest?.slot ?? null;
+}
+
 export function renderSaveSlots(readSlot: (index: number) => SlotResult): void {
   const host = element('#saveList');
   host.replaceChildren();
@@ -39,7 +86,9 @@ function createSaveCard(index: number, read: SlotResult): HTMLElement {
   const meta = document.createElement('small');
   if (read.status === 'valid') {
     const state = read.data.state;
-    meta.textContent = `${state.activeLevel === 'tutorial' ? 'Tutorial' : 'The Ashen Pass'} · Wave ${state.wave}/5 · ${Math.floor(state.gold)} gold · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
+    const journey = read.data.journey ?? importJourney(state);
+    const current = journey.activeBattle ? `${getMap(state.activeLevel).name} · Wave ${state.wave}/5` : 'Choose a level';
+    meta.textContent = `${journey.completedLevels.length} levels cleared · ${state.bankedGold} gold banked · ${current} · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
   } else {
     meta.textContent = read.status === 'error'
       ? read.message + ' Your stored save has been preserved.' : 'No journey saved in this slot yet.';

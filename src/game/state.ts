@@ -1,4 +1,4 @@
-import { map } from '../content/catalog';
+import { getMap } from '../content/catalog';
 import { battleRules } from './rules';
 import type { GameState, Level } from './types';
 
@@ -7,7 +7,7 @@ export function createInitialState(level: Level = 'level1', bankedGold = 0): Gam
     phase: 'ready', paused: false, simulationTime: 0, speed: 1,
     gold: battleRules.startingGold, bankedGold, wave: 0, enemiesKilled: 0, enemiesSummoned: 0,
     rewardGold: 0, rewardsApplied: false, activeLevel: level, knownMonsters: [],
-    selected: null, chosen: null, towers: Array.from({ length: map.perches.length }, () => null),
+    selected: null, chosen: null, towers: Array.from({ length: getMap(level).perches.length }, () => null),
     enemies: [], projectiles: [],
     eggs: Array.from({ length: battleRules.eggCount }, (_, index) => ({
       id: index + 1, status: 'nest', progress: null, carrier: null,

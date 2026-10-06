@@ -1,12 +1,15 @@
 import { mountApplication } from '../ui/mount';
 import { bindBattleControls } from '../ui/controls';
-import { isMenuPage, renderBestiary, renderOptions, renderSaveSlots, showBattle, showMenu } from '../ui/menus';
+import { isMenuPage, renderBestiary, renderContinue, renderJourney, renderOptions, renderSaveSlots, showBattle, showMenu } from '../ui/menus';
 import type { MenuPage } from '../ui/menus';
 import { GameEngine, createInitialState } from '../game/engine';
-import type { GameCommand, GameEvent, Level } from '../game/types';
+import type { GameCommand, GameEvent, GameState, Level } from '../game/types';
+import { createJourney, importJourney, recordJourneyResult } from '../game/journey';
+import type { JourneyProgress } from '../game/journey';
 import { SaveRepository } from '../services/storage';
 import { AudioService } from '../services/audio';
 import { initPwa } from '../services/pwa';
+import type { PwaController, PwaMessageAction } from '../services/pwa';
 import { element, elements, setText } from '../ui/dom';
 import { SvgRenderer } from '../ui/renderer';
 import { startRuntime } from './runtime';
@@ -23,25 +26,31 @@ export function startApplication(): void {
   audio.setSettings(settings);
   let bestiary = repository.readBestiary();
   let slot: number | null = null;
-  let pendingLevel: Level | null = null;
+  let journey = createJourney();
+  let continueSlot: number | null = null;
   let gameVisible = false;
   let showResults = true;
   let toastTimer = 0;
   let saveFailure: string | null = null;
+  let pwa: PwaController = { onJourneySaved: () => {}, checkPendingUpdate: () => {} };
 
   const renderer = new SvgRenderer();
 
-  function showMessage(text: string): void {
+  function showMessage(text: string, action?: PwaMessageAction): void {
     // Background PWA notices must not hide an unresolved journey-save failure.
-    setText('#toast', saveFailure ?? text);
-    element('#toast').classList.add('show');
+    const toast = element('#toast');
+    const actionButton = element<HTMLButtonElement>('#toastAction');
+    setText('#toastText', saveFailure ?? text);
+    actionButton.hidden = !action;
+    actionButton.textContent = action?.label ?? '';
+    actionButton.onclick = action ? action.onClick : null;
+    toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => element('#toast').classList.remove('show'), 3500);
+    if (!action?.persistent) toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
-  function saveJourney(report = false): boolean {
-    if (slot === null) return true;
-    const result = repository.saveSlot(slot, engine.snapshot());
+  function writeJourney(index: number, state: GameState, progress: JourneyProgress): boolean {
+    const result = repository.saveSlot(index, state, progress);
 
     if (!result.ok) {
       saveFailure = result.message;
@@ -55,7 +64,25 @@ export function startApplication(): void {
     }
     saveFailure = null;
     setText('#saveNotice', '');
+    return true;
+  }
+
+  function saveJourney(report = false): boolean {
+    if (slot === null) return true;
+    journey = recordJourneyResult(journey, engine.state);
+    if (!writeJourney(slot, engine.snapshot(), journey)) return false;
     if (report) showMessage(`Journey saved to slot ${slot + 1}`);
+    pwa.onJourneySaved();
+    return true;
+  }
+
+  /** Commit level/player changes only after their complete save succeeds. */
+  function commitJourney(index: number, state: GameState, progress: JourneyProgress): boolean {
+    if (!writeJourney(index, state, progress)) return false;
+    slot = index;
+    engine.restore(state);
+    journey = progress;
+    pwa.onJourneySaved();
     return true;
   }
 
@@ -93,11 +120,15 @@ export function startApplication(): void {
     handleEngineEvents(engine.dispatch(command));
     saveJourney();
     renderer.render(engine.state, showResults);
+    pwa.checkPendingUpdate();
   }
 
   function navigateToMenu(name: MenuPage): void {
+    if (name === 'levels' && slot === null) name = 'saves';
     gameVisible = false;
     showMenu(name);
+    if (name === 'home') continueSlot = renderContinue(index => repository.readSlot(index));
+    if (name === 'levels' && slot !== null) renderJourney(slot, engine.state, journey);
     if (name === 'saves') renderSaveSlots(index => repository.readSlot(index));
     if (name === 'bestiary') renderBestiary(bestiary);
     if (name === 'options') renderOptions(settings);
@@ -112,9 +143,7 @@ export function startApplication(): void {
         return;
       }
     }
-    slot = null;
-    pendingLevel = null;
-    navigateToMenu('home');
+    navigateToMenu(slot === null ? 'home' : 'levels');
   }
 
   function showBattleScreen(): void {
@@ -125,24 +154,19 @@ export function startApplication(): void {
   }
 
   function newJourney(index: number): void {
-    const existing = repository.readSlot(index, true);
+    if (slot !== null && slot !== index && !saveJourney()) return;
+    const existing = repository.readSlot(index);
     if (existing.status === 'error') {
       showMessage(existing.message);
       return;
     }
     if (existing.status === 'valid' && !window.confirm(`Start a new journey in Save Slot ${index + 1}? This replaces its saved progress.`)) return;
-    slot = index;
-    const initial = createInitialState(pendingLevel ?? 'level1');
-    initial.knownMonsters = [...bestiary];
-    engine.restore(initial);
-    saveJourney();
-    if (pendingLevel) {
-      pendingLevel = null;
-      showBattleScreen();
-    } else navigateToMenu('levels');
+    repository.readSlot(index, true);
+    if (commitJourney(index, createInitialState(), createJourney())) navigateToMenu('levels');
   }
 
   function loadJourney(index: number): void {
+    if (slot !== null && slot !== index && !saveJourney()) return;
     const read = repository.readSlot(index, true);
     if (read.status !== 'valid') {
       if (read.status === 'error') showMessage(read.message);
@@ -150,31 +174,35 @@ export function startApplication(): void {
     }
     slot = index;
     engine.restore(read.data.state);
+    journey = read.data.journey ?? importJourney(engine.state);
     if (engine.state.phase === 'battle') engine.dispatch({ type: 'pause' });
     bestiary = [...new Set([...bestiary, ...engine.state.knownMonsters])];
     const result = repository.writeBestiary(bestiary);
     if (!result.ok) showMessage(result.message);
-    showBattleScreen();
-    if (read.migrated) saveJourney();
+    navigateToMenu('levels');
+    if (read.migrated || !read.data.journey) saveJourney();
     showMessage(`Save Slot ${index + 1} loaded${engine.state.phase === 'battle' ? ' · battle paused' : ''}`);
   }
 
   function launchLevel(level: Level): void {
     audio.unlock();
     if (slot === null) {
-      pendingLevel = level;
-      setText('#saveIntro', 'Choose a save slot for this new journey.');
+      setText('#saveIntro', 'Create or load a player save before choosing a level.');
       navigateToMenu('saves');
       return;
     }
-    const unfinished = engine.state.phase === 'battle' || engine.state.phase === 'ready' && engine.state.wave > 0;
-    if (unfinished && !window.confirm('Begin a new battle? This replaces the current battle in this save slot.')) return;
+    if (journey.activeBattle) { showMessage('Finish or end your current attempt before choosing another level.'); return; }
     const state = createInitialState(level, engine.state.bankedGold);
-    state.knownMonsters = [...bestiary];
-    engine.restore(state);
-    pendingLevel = null;
-    saveJourney();
-    showBattleScreen();
+    state.knownMonsters = [...engine.state.knownMonsters];
+    if (commitJourney(slot, state, { ...journey, activeBattle: true })) showBattleScreen();
+  }
+
+  function abandonBattle(): void {
+    if (slot === null || !journey.activeBattle) return;
+    if (!window.confirm('End this attempt? Its towers, wave progress, and unbanked battle gold will be lost. Your banked gold and cleared levels remain.')) return;
+    const state = createInitialState(engine.state.activeLevel, engine.state.bankedGold);
+    state.knownMonsters = [...engine.state.knownMonsters];
+    if (commitJourney(slot, state, { ...journey, activeBattle: false })) navigateToMenu('levels');
   }
 
   bindBattleControls({
@@ -198,11 +226,18 @@ export function startApplication(): void {
   });
   elements<HTMLButtonElement>('[data-open]').forEach(button => button.addEventListener('click', () => {
     void audio.unlock();
-    pendingLevel = null;
-    setText('#saveIntro', 'Choose a journey to continue, or start a new one in an empty slot.');
+    setText('#saveIntro', 'Each slot is one player journey across all levels. Create or load a player save.');
     if (isMenuPage(button.dataset.open)) navigateToMenu(button.dataset.open);
   }));
   elements('[data-home]').forEach(button => button.addEventListener('click', returnHome));
+  element('#continueJourney').addEventListener('click', () => { if (continueSlot !== null) loadJourney(continueSlot); });
+  element('#journeyResume').addEventListener('click', () => { if (slot !== null) showBattleScreen(); });
+  element('#abandonBattle').addEventListener('click', abandonBattle);
+  element('#journeyExit').addEventListener('click', () => {
+    if (!saveJourney()) return;
+    slot = null;
+    navigateToMenu('home');
+  });
   elements<HTMLButtonElement>('[data-level]').forEach(button => button.addEventListener('click', () => launchLevel(button.dataset.level as Level)));
   element('#saveList').addEventListener('click', event => {
     if (!(event.target instanceof Element)) return;
@@ -231,12 +266,13 @@ export function startApplication(): void {
     engine,
     isVisible: () => gameVisible,
     onEvents: handleEngineEvents,
-    onRender: () => renderer.render(engine.state, showResults),
+    onRender: () => { renderer.render(engine.state, showResults); pwa.checkPendingUpdate(); },
     onSave: () => { saveJourney(); },
     onBackground: () => { void audio.suspend(); },
   });
-  initPwa({
+  pwa = initPwa({
     onMessage: showMessage,
+    canAutoUpdate: () => !document.hidden && !(gameVisible && engine.state.phase === 'battle' && !engine.state.paused),
     beforeUpdate: () => {
       engine.dispatch({ type: 'pause' });
       if (gameVisible) renderer.render(engine.state, showResults);

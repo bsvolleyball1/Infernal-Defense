@@ -1,11 +1,16 @@
 import type { GameState } from '../game/types';
 import { createInitialState } from '../game/state';
-import { dragons, map, monsters } from '../content/catalog';
+import { dragons, getMap, map, monsters, routesFor } from '../content/catalog';
+import { battlefields } from '../content/maps';
+import type { Battlefield } from '../content/maps';
+import type { JourneyProgress } from '../game/journey';
 
 export interface SaveDataV2 {
   version: 2;
   savedAt: number;
   state: GameState;
+  /** Absent in older battle-only saves; imported by the application. */
+  journey?: JourneyProgress;
 }
 
 export type SlotResult =
@@ -51,7 +56,14 @@ function own(value: RecordValue, key: string): boolean {
 }
 function monster(value: unknown): void { choice(value, Object.keys(monsters), 'Monster kind'); }
 function dragon(value: unknown): void { choice(value, Object.keys(dragons), 'Dragon type'); }
-function progress(value: unknown): void { number(value, 'Path progress', 0, map.path.length - 1); }
+function progress(value: unknown, geometry = map, routeId = 0): void {
+  number(value, 'Path progress', 0, routesFor(geometry)[routeId].length - 1);
+}
+function route(value: RecordValue, geometry: Battlefield): number {
+  const count = routesFor(geometry).length;
+  if (count > 1 || own(value, 'routeId')) integer(value.routeId, 'Route id', 0, count - 1);
+  return (value.routeId as number | undefined) ?? 0;
+}
 function kinds(value: unknown, unique = true): asserts value is string[] {
   array(value, 'Bestiary');
   for (const kind of value) monster(kind);
@@ -66,16 +78,19 @@ function tower(value: unknown, legacy = false): void {
     if (own(value, 'last')) number(value.last, 'Legacy tower timer');
   } else number(value.cooldown, 'Tower cooldown');
 }
-function towers(value: unknown, legacy = false): asserts value is unknown[] {
+function towers(value: unknown, legacy = false, count = map.perches.length): asserts value is unknown[] {
   array(value, 'Towers');
-  check(value.length === 5, 'Exactly five tower slots are required.');
+  check(value.length === count || legacy && value.length === 5, 'Tower slots must match the battlefield.');
   for (const item of value) tower(item, legacy);
 }
-function egg(value: unknown, legacy = false): asserts value is RecordValue {
+function egg(value: unknown, legacy = false, geometry = map): asserts value is RecordValue {
   object(value, 'Egg');
   integer(value.id, 'Egg id', 1, 5);
   choice(value.status, ['nest', 'carried', 'dropped', 'escaped'], 'Egg status');
-  if (value.progress !== null) progress(value.progress);
+  const routeId = value.status === 'dropped' || value.status === 'carried' || own(value, 'routeId')
+    ? route(value, geometry) : 0;
+  if (value.progress !== null) progress(value.progress, geometry, routeId);
+  if (value.status === 'nest') check(!own(value, 'routeId'), 'A nest egg cannot have a route.');
   if (value.carrier !== null) {
     // Original enemy ids were Math.random(), not integer entity ids.
     if (legacy) number(value.carrier, 'Legacy egg carrier');
@@ -88,12 +103,12 @@ function egg(value: unknown, legacy = false): asserts value is RecordValue {
   if (value.status === 'dropped') check(value.progress !== null, 'A dropped egg requires progress.');
   if (value.status === 'nest') check(value.progress === null, 'A nest egg cannot have path progress.');
 }
-function eggs(value: unknown, legacy = false): asserts value is RecordValue[] {
+function eggs(value: unknown, legacy = false, geometry = map): asserts value is RecordValue[] {
   array(value, 'Eggs');
   check(value.length === 5, 'Exactly five eggs are required.');
   const ids = new Set<number>();
   for (const item of value) {
-    egg(item, legacy);
+    egg(item, legacy, geometry);
     check(!ids.has(item.id as number), 'Egg ids must be unique.');
     ids.add(item.id as number);
   }
@@ -113,13 +128,14 @@ function validateState(value: unknown): asserts value is GameState {
   check(value.enemiesKilled <= value.enemiesSummoned, 'Kill count exceeds summoned count.');
   number(value.rewardGold, 'Reward gold');
   boolean(value.rewardsApplied, 'Rewards applied');
-  choice(value.activeLevel, ['level1', 'tutorial'], 'Level');
+  choice(value.activeLevel, Object.keys(battlefields), 'Level');
+  const geometry = getMap(value.activeLevel as GameState['activeLevel']);
   kinds(value.knownMonsters);
-  if (value.selected !== null) integer(value.selected, 'Selected perch', 0, 4);
+  if (value.selected !== null) integer(value.selected, 'Selected perch', 0, geometry.perches.length - 1);
   if (value.chosen !== null) dragon(value.chosen);
-  towers(value.towers);
+  towers(value.towers, false, geometry.perches.length);
   check(value.selected === null || value.towers[value.selected as number] !== null, 'Selected perch must contain a tower.');
-  eggs(value.eggs);
+  eggs(value.eggs, false, geometry);
   array(value.enemies, 'Enemies');
   array(value.projectiles, 'Projectiles');
   array(value.spawnSchedule, 'Spawn schedule');
@@ -142,7 +158,7 @@ function validateState(value: unknown): asserts value is GameState {
     number(enemy.max, 'Enemy maximum health', Number.MIN_VALUE);
     check(enemy.hp <= enemy.max, 'Enemy health exceeds maximum.');
     number(enemy.spd, 'Enemy speed', Number.MIN_VALUE);
-    progress(enemy.progress);
+    progress(enemy.progress, geometry, route(enemy, geometry));
     number(enemy.slow, 'Slow timer');
     number(enemy.poison, 'Poison timer');
     number(enemy.poisonD, 'Poison damage timer');
@@ -172,6 +188,7 @@ function validateState(value: unknown): asserts value is GameState {
     number(item.hp, 'Spawn health', Number.MIN_VALUE);
     number(item.spd, 'Spawn speed', Number.MIN_VALUE);
     number(item.at, 'Spawn time');
+    route(item, geometry);
     check(item.at >= previousSpawnTime, 'Spawn schedule must be ordered by time.');
     previousSpawnTime = item.at;
   }
@@ -180,6 +197,7 @@ function validateState(value: unknown): asserts value is GameState {
       const carrier = enemies.get(item.carrier as number);
       check(carrier && carrier.carryingEgg === item.id && carrier.returning && !carrier.escaped && (carrier.hp as number) > 0,
         'Egg carrier reference is inconsistent.');
+      check((carrier.routeId ?? 0) === (item.routeId ?? 0), 'Egg carrier route is inconsistent.');
     }
   }
   for (const enemy of enemies.values()) {
@@ -212,6 +230,20 @@ function validateSave(value: unknown): asserts value is SaveDataV2 {
   check(value.version === 2, 'Unsupported save version.');
   integer(value.savedAt, 'Save timestamp');
   validateState(value.state);
+  if (own(value, 'journey')) {
+    object(value.journey, 'Journey');
+    boolean(value.journey.activeBattle, 'Active battle');
+    array(value.journey.completedLevels, 'Completed levels');
+    for (const level of value.journey.completedLevels) choice(level, Object.keys(battlefields), 'Completed level');
+    check(new Set(value.journey.completedLevels).size === value.journey.completedLevels.length, 'Completed levels must be unique.');
+    const terminal = value.state.phase === 'won' || value.state.phase === 'lost';
+    check(!terminal || value.journey.activeBattle === false, 'Finished battles cannot remain active.');
+    if (value.state.phase === 'won') check(value.journey.completedLevels.includes(value.state.activeLevel), 'Won level must be recorded in the journey.');
+    if (!terminal && !value.journey.activeBattle) {
+      check(value.state.phase === 'ready' && value.state.wave === 0 && value.state.towers.every(t => t === null)
+        && value.state.eggs.every(egg => egg.status === 'nest'), 'An inactive journey cannot contain an unfinished battle.');
+    }
+  }
 }
 
 function migrate(value: RecordValue): SaveDataV2 {
@@ -244,6 +276,7 @@ function migrate(value: RecordValue): SaveDataV2 {
       const t = item as RecordValue;
       return { type: t.type, level: t.level, cooldown: 0 } as NonNullable<GameState['towers'][number]>;
     });
+    while (state.towers.length < map.perches.length) state.towers.push(null);
   }
   if (own(value, 'eggs')) {
     eggs(value.eggs, true);
@@ -319,16 +352,30 @@ export class SaveRepository {
         if (adopt || !this.revisions.has(index)) this.revisions.set(index, raw);
         return { status: 'valid', data, migrated: true };
       }
+      let expanded = false;
+      if (value.version === 2) {
+        object(value.state, 'State');
+        if (['level1', 'tutorial'].includes(value.state.activeLevel as string)
+          && Array.isArray(value.state.towers) && value.state.towers.length === 5) {
+          value.state.towers = [...value.state.towers, ...Array(map.perches.length - 5).fill(null)];
+          expanded = true;
+        }
+      }
       validateSave(value);
       if (adopt || !this.revisions.has(index)) this.revisions.set(index, raw);
-      return { status: 'valid', data: value, migrated: false };
+      return { status: 'valid', data: value, migrated: expanded };
     } catch (error) { return { status: 'error', message: `Could not read this save: ${message(error)}` }; }
   }
 
-  saveSlot(index: number, state: GameState): WriteResult {
+  saveSlot(index: number, state: GameState, journey?: JourneyProgress): WriteResult {
     try {
       const key = slot(index);
-      const data: SaveDataV2 = { version: 2, savedAt: Date.now(), state };
+      // Preserve campaign metadata if a compatibility caller updates only battle state.
+      const previous = this.revisions.get(index);
+      const progress = journey ?? (previous ? (JSON.parse(previous) as SaveDataV2).journey : undefined);
+      const data: SaveDataV2 = { version: 2, savedAt: Date.now(), state,
+        ...(progress ? { journey: progress } : {}),
+      };
       validateSave(data);
       const raw = JSON.stringify(data);
       validateSave(JSON.parse(raw));

@@ -1,6 +1,6 @@
 # Infernal Defense
 
-A browser tower defense game about protecting a dragon nest. The app uses TypeScript, Vite, local fonts, synthesized Web Audio, and a prompt-to-update PWA for offline play.
+A browser tower defense game about protecting a dragon nest. The app uses TypeScript, Vite, local fonts, synthesized Web Audio, and an automatically updating PWA for offline play.
 
 Use Node.js 24 and npm. From the repository root:
 
@@ -22,9 +22,11 @@ Development runs at `http://127.0.0.1:5173/`. Production builds and previews use
 
 Before the first browser test run, install Chromium with `npm exec playwright install chromium`. CI installs the Linux browser dependencies as well.
 
-Install through the app's install controls or your browser menu. On iPhone/iPad, use Safari → Share → Add to Home Screen. Offline play requires one successful online production visit and completed service-worker caching. Updates offer **Update now** and **Later**; applying an update requires a successful save. Browser-local saves remain specific to the device, browser, and origin; they are not cloud backups.
+Install through your browser's Install app/Add to Home screen menu. There is no in-app Install button, and browser installation prompts are not intercepted. On iPhone/iPad, use Safari → Share → Add to Home Screen. Offline play requires one successful online production visit and completed service-worker caching. Updates apply automatically after successfully saving, in menus, between waves, or while paused. Running waves and hidden tabs are not interrupted. Save failures postpone the update; the next successful save retries it, and a Retry update button is available for errors. Update checks run on launch, foreground return, reconnection, and every minute while visible and online. Existing installations of the older prompt-based build need one last Update now to receive the automatic-update behavior. Browser-local saves remain specific to the device, browser, and origin; they are not cloud backups.
 
-Three save slots store version 2 simulation snapshots. Active foreground battles attempt autosave at a two-second threshold and save on commands, important engine events, manual Save, and background/navigation actions. Loaded battles resume paused; time spent away is not simulated. Frame delays, abrupt termination, or storage failures can prevent the latest save. Invalid slots are preserved for attention rather than silently reset. Legacy saves migrate as restartable checkpoints. See Architecture for the precise triggers and limits.
+Three save slots represent three independent players, not three levels. Startup offers Continue journey and Player saves. Create or load a player first, then choose levels inside that journey. Each save retains cleared levels, banked gold, discoveries, and one exact active battle. Return to the journey hub to continue that battle; other levels remain unavailable until it finishes or you explicitly end the attempt. Ending an attempt keeps player progress but discards its towers, wave progress, and unbanked battle gold. New players and level changes are committed only after saving succeeds.
+
+Version 2 saves keep the battle snapshot and optional journey metadata; older saves import their current level/result without inventing prior completion history. Active foreground battles attempt autosave at a two-second threshold and save on commands, important engine events, manual Save, and background/navigation actions. Loaded battles resume paused; time spent away is not simulated. Frame delays, abrupt termination, or storage failures can prevent the latest save. Invalid slots are preserved for attention rather than silently reset. Version 1 saves retain checkpoint semantics. See Architecture for the precise triggers and limits.
 
 The source SVG at `public/icons/sigil.svg` is the deterministic geometric icon source. Builds generate normal and maskable 192/512 PNGs and an Apple 180 PNG using Sharp. Fonts come from `@fontsource/dm-sans`, `@fontsource/dm-mono`, and `@fontsource/uncial-antiqua`, imported locally by the application. Runtime assets require no external font or media services.
 

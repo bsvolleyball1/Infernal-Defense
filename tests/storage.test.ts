@@ -183,7 +183,7 @@ describe('version 2 snapshots', () => {
     ['kill counter inconsistency', s => { s.enemiesKilled = 11; }],
     ['unknown level', s => { s.activeLevel = 'level2' as GameState['activeLevel']; }],
     ['unknown chosen dragon', s => { s.chosen = 'water' as GameState['chosen']; }],
-    ['selected out of range', s => { s.selected = 5; }],
+    ['selected out of range', s => { s.selected = map.perches.length; }],
     ['selected empty perch', s => { s.selected = 1; }],
     ['wrong tower count', s => { s.towers.pop(); }],
     ['unknown tower', s => { s.towers[0]!.type = 'water' as NonNullable<GameState['chosen']>; }],

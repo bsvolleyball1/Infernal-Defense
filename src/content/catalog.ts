@@ -1,4 +1,6 @@
-import type { DragonType, MonsterKind } from '../game/types';
+import type { DragonType, Level, MonsterKind } from '../game/types';
+import { battlefields, gorge } from './maps';
+import type { Battlefield } from './maps';
 
 export interface DragonDefinition {
   name: string;
@@ -17,20 +19,12 @@ export interface WaveGroup {
   spd: number;
 }
 
-export const map = {
-  width: 700,
-  height: 430,
-  path: [
-    [-30, 300], [80, 300], [145, 280], [195, 220], [195, 165],
-    [180, 105], [250, 105], [315, 115], [350, 155], [385, 205],
-    [440, 207], [492, 176], [540, 172], [570, 205], [590, 250],
-    [625, 253], [663, 185],
-  ] as [number, number][],
-  perches: [
-    { x: 90, y: 202 }, { x: 260, y: 68 }, { x: 355, y: 279 },
-    { x: 485, y: 83 }, { x: 563, y: 307 },
-  ],
-};
+/** Compatibility default for the original level and its saves. */
+export const map = gorge;
+export function getMap(level: Level): Battlefield { return battlefields[level]; }
+export function routesFor(geometry: Battlefield): [number, number][][] {
+  return [geometry.path, ...geometry.forks];
+}
 
 export const dragons: Record<DragonType, DragonDefinition> = {
   fire: { name: 'Ember', cost: 60, color: '#ee7959', damage: 27, rate: 680, range: 132, icon: '🐉' },
@@ -54,12 +48,13 @@ export const monsters: Record<MonsterKind, { name: string; description: string }
 };
 
 /** Progress is measured in path segments, matching the original movement formula. */
-export function positionAt(progress: number): [number, number] {
-  const u = Math.max(0, Math.min(map.path.length - 1, progress));
+export function positionAt(progress: number, geometry: Pick<typeof map, 'path'> = map): [number, number] {
+  const path = geometry.path;
+  const u = Math.max(0, Math.min(path.length - 1, progress));
   const i = Math.floor(u);
-  const point = map.path[i];
-  if (i >= map.path.length - 1) return [...point];
-  const next = map.path[i + 1];
+  const point = path[i];
+  if (i >= path.length - 1) return [...point];
+  const next = path[i + 1];
   const fraction = u - i;
   return [point[0] + (next[0] - point[0]) * fraction, point[1] + (next[1] - point[1]) * fraction];
 }
