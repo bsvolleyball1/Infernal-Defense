@@ -3,6 +3,7 @@ import { updateEnemies, updateProjectiles, updateTowers } from './combat';
 import { copyState, createInitialState } from './state';
 import { finishWaveIfClear, spawnNextEnemy } from './waves';
 import type { GameCommand, GameEvent, GameState, SimulationEngine } from './types';
+import { stepDefense } from './defense-simulation';
 
 // Preserve the existing public import while keeping construction/copying separate.
 export { createInitialState } from './state';
@@ -31,6 +32,7 @@ export class GameEngine implements SimulationEngine {
   /** elapsedMs is foreground time; the runtime supplies fixed steps. */
   step(elapsedMs: number): GameEvent[] {
     const state = this.state;
+    if (state.defense && !state.paused && (state.phase==='battle' || state.phase==='ready') && Number.isFinite(elapsedMs) && elapsedMs>0) return stepDefense(state,elapsedMs);
     if (state.paused || state.phase !== 'battle' || !Number.isFinite(elapsedMs) || elapsedMs <= 0) return [];
     const events: GameEvent[] = [];
     const simulationElapsedMs = elapsedMs * state.speed;

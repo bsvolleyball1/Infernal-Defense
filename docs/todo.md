@@ -1,5 +1,13 @@
 # Dev 1.0 review and integration TODO
 
+## October 6 integration status
+
+The review below is historical: it describes `6053e80`, not current remote heads. All five approved groups from later GitHub `main` revision `b01e5b5` are now implemented in the modular architecture. [Main gameplay port](UPSTREAM_PORT.md) is the current integration record; [Verification](VERIFICATION.md) records acceptance checks and remaining physical-device work.
+
+The unchecked historical items are superseded by explicit speed conversion, simulation timers/PRNG, legacy-rules compatibility, expanded checkpoint import, level-six fire damage, inclusive poison ticks, retained SVG effects, and shared attack profiles. They are not a second pending implementation list.
+
+## Historical review
+
 Reviewed 2026-10-05. This is an assessment, not an implemented merge.
 
 Follow-up: the current branch has now received a behavior-preserving CLEAN refactor. Commands, combat, egg movement, waves, rewards, state copying, UI controls, and menu views have focused modules, shared rules are named, and architecture/trace regression tests enforce the boundaries. The upstream content and balance changes below remain pending. Use these new boundaries for the eventual port; do not reintroduce a monolithic engine or browser-dependent combat.

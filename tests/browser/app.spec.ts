@@ -20,6 +20,8 @@ test('the eighth gorge roost supports placement, upgrading, selling and reload',
   await page.reload();
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  // Expanded pre-wave countdowns also require an explicit Resume after loading.
+  await page.locator('#resumeBattle').click();
   await page.getByRole('button', { name: 'Ember, level 2, perch 8', exact: true }).click();
   await page.locator('#sell').click();
   expect((await savedState(page)).towers).toHaveLength(8);
@@ -157,6 +159,8 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await page.getByRole('button', { name: 'Empty perch 1', exact: true }).click();
   const newer = await context.newPage(); await newer.goto('./');
   await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click(); await newer.locator("#journeyResume").click();
+  await expect(newer.locator('#pauseOverlay')).toBeVisible();
+  await newer.locator('#resumeBattle').click();
   await newer.locator('#upgrade').click();
   expect((await savedState(newer)).towers[0].level).toBe(2);
   await page.evaluate(() => {
@@ -236,6 +240,8 @@ test('manifest, icons, service worker and offline cold launch work at repository
   await waitForServiceWorkerControl(page);
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-load="0"]').click(); await page.locator('#journeyResume').click();
+  await expect(page.locator('#pauseOverlay')).toBeVisible();
+  await page.locator('#resumeBattle').click();
   await expect(page.locator('#pwaPanel')).toHaveCount(0);
   const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute('href');
   const response = await request.get(new URL(manifestUrl!, page.url()).href);

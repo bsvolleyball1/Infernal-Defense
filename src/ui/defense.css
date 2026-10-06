@@ -1,0 +1,102 @@
+#spellControls[hidden],
+#testControls[hidden],
+#manaStat[hidden] {
+  display: none;
+}
+.spell-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.spell-buttons button,
+.upgrade-row button {
+  min-height: 44px;
+  border: 1px solid #6e805f;
+  background: #273027;
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.spell-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.spell-buttons button[aria-pressed='true'] {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+#spellControls,
+#testControls {
+  border-top: 1px solid var(--line);
+  margin: 16px 0;
+  padding-top: 12px;
+}
+#spellControls,
+#testControls {
+  grid-column: 1/-1;
+}
+#spellHelp,
+#testControls p,
+.upgrade-tree p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.test-roster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.test-roster label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 4px;
+}
+.test-roster input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #6e805f;
+  background: #172017;
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 8px;
+}
+.upgrade-tree {
+  margin: 24px 0;
+  text-align: left;
+}
+.upgrade-tree h3 {
+  font: 20px 'Uncial Antiqua';
+  color: var(--gold);
+}
+.upgrade-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.upgrade-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.upgrade-row button {
+  flex-shrink: 0;
+}
+.upgrade-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 480px) {
+  .upgrade-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

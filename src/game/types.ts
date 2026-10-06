@@ -1,5 +1,22 @@
 export type DragonType = 'fire' | 'ice' | 'poison';
-export type MonsterKind = 'scout' | 'shield' | 'runner' | 'chief';
+export type MonsterKind = 'scout' | 'shield' | 'runner' | 'chief' | 'imp' | 'seaSerpent' | 'demon' | 'hellhound' | 'fury' | 'devil' | 'ghost' | 'gargoyle' | 'witch' | 'hag' | 'troll' | 'necromancer' | 'zombieTrain' | 'lich' | 'skeleton' | 'phantom' | 'shade';
+export type SpellKind = 'poison' | 'ice' | 'fire';
+export interface Point { x: number; y: number }
+export interface DefenseState {
+  ruleset: 'defense-1';
+  mode: 'journey' | 'sandbox';
+  ranks: Record<DragonType, number[]>;
+  mana: number;
+  maxMana: number;
+  rng: number;
+  countdown: number | null;
+  spellCooldowns: Record<SpellKind, number>;
+  targeting: 'poison' | 'fire' | null;
+  preview: Point | null;
+  impacts: { id: number; x: number; y: number; remaining: number; damage: number }[];
+  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number }[];
+  testWave: Partial<Record<MonsterKind, number>>;
+}
 export type Level = 'level1' | 'tutorial' | 'meadow' | 'volcanic';
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
@@ -9,6 +26,9 @@ export interface Tower {
   level: number;
   /** Remaining simulation milliseconds before the next shot. */
   cooldown: number;
+  charges?: number;
+  chargeTimer?: number;
+  beamIds?: number[];
 }
 
 export interface Enemy {
@@ -27,6 +47,17 @@ export interface Enemy {
   returning: boolean;
   escaped: boolean;
   rewarded: boolean;
+  frozen?: number;
+  poisonDamage?: number;
+  poisonSource?: DragonType | 'spell';
+  untargetable?: number;
+  ghostTriggered?: boolean;
+  invulnerable?: number;
+  deathDelay?: number;
+  lastHitAgo?: number;
+  summonClock?: number;
+  summonPause?: number;
+  empowered?: boolean;
 }
 
 export interface Projectile {
@@ -38,6 +69,10 @@ export interface Projectile {
   damage: number;
   speed: number;
   level: number;
+  towerIndex?: number;
+  freezeChance?: number;
+  poisonDuration?: number;
+  slowDuration?: number;
 }
 
 export interface Egg {
@@ -47,6 +82,8 @@ export interface Egg {
   status: 'nest' | 'carried' | 'dropped' | 'escaped';
   progress: number | null;
   carrier: number | null;
+  returnTimer?: number;
+  direct?: boolean;
 }
 
 export interface Spawn {
@@ -60,6 +97,8 @@ export interface Spawn {
 
 /** Save-file schema versions belong to persistence, not the simulation. */
 export interface GameState {
+  /** Missing means the original ruleset, retained for interrupted legacy saves. */
+  defense?: DefenseState;
   phase: GamePhase;
   paused: boolean;
   simulationTime: number;
@@ -89,6 +128,11 @@ export type GameCommand =
   | { type: 'upgrade' }
   | { type: 'sell' }
   | { type: 'startWave' }
+  | { type: 'spell'; spell: SpellKind; point?: Point }
+  | { type: 'spellTarget'; spell: 'poison' | 'fire' | null }
+  | { type: 'previewSpell'; point: Point }
+  | { type: 'buyPermanent'; dragon: DragonType; node: number }
+  | { type: 'testWave'; counts: Partial<Record<MonsterKind, number>> }
   | { type: 'speed'; speed: GameSpeed }
   | { type: 'pause' }
   | { type: 'resume' };

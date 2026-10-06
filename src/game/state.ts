@@ -21,7 +21,8 @@ export function copyState(state: GameState): GameState {
   return {
     ...state,
     knownMonsters: [...state.knownMonsters],
-    towers: state.towers.map(tower => tower ? { ...tower } : null),
+    ...(state.defense ? { defense: structuredClone(state.defense) } : {}),
+    towers: state.towers.map(tower => tower ? { ...tower, ...(tower.beamIds ? { beamIds: [...tower.beamIds] } : {}) } : null),
     enemies: state.enemies.map(enemy => ({ ...enemy })),
     projectiles: state.projectiles.map(projectile => ({ ...projectile })),
     eggs: state.eggs.map(egg => ({ ...egg })),

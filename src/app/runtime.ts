@@ -20,7 +20,8 @@ export function startRuntime(options: RuntimeOptions): () => void {
   const resetClock = () => { previous = performance.now(); accumulator = 0; };
   function frame(now: number): void {
     const elapsed = Math.max(0, Math.min(250, now - previous)); previous = now;
-    if (options.isVisible() && !document.hidden && engine.state.phase === 'battle' && !engine.state.paused) {
+    const simulationActive=engine.state.phase==='battle'||engine.state.defense && engine.state.phase==='ready';
+    if (options.isVisible() && !document.hidden && simulationActive && !engine.state.paused) {
       accumulator += elapsed;
       const events: GameEvent[] = [];
       while (accumulator >= step) { events.push(...engine.step(step)); accumulator -= step; }

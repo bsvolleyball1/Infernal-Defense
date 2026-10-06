@@ -1,8 +1,25 @@
 import { mountApplication } from '../ui/mount';
 import { bindBattleControls } from '../ui/controls';
-import { isMenuPage, renderBestiary, renderContinue, renderJourney, renderOptions, renderSaveSlots, showBattle, showMenu } from '../ui/menus';
+import {
+  isMenuPage,
+  renderBestiary,
+  renderContinue,
+  renderJourney,
+  renderOptions,
+  renderSaveSlots,
+  showBattle,
+  showMenu,
+} from '../ui/menus';
 import type { MenuPage } from '../ui/menus';
-import { GameEngine, createInitialState } from '../game/engine';
+import { GameEngine } from '../game/engine';
+import { createDefenseState, nextBattle } from '../game/defense-state';
+import { defenseRules } from '../content/defense-rules';
+import {
+  bindDefenseControls,
+  mountDefenseControls,
+  permanentCommand,
+  renderPermanent,
+} from '../ui/defense-controls';
 import type { GameCommand, GameEvent, GameState, Level } from '../game/types';
 import { createJourney, importJourney, recordJourneyResult } from '../game/journey';
 import type { JourneyProgress } from '../game/journey';
@@ -16,9 +33,10 @@ import { startRuntime } from './runtime';
 
 export function startApplication(): void {
   mountApplication();
+  mountDefenseControls();
   const engine = new GameEngine();
   const repository = new SaveRepository({
-    getItem: key => window.localStorage.getItem(key),
+    getItem: (key) => window.localStorage.getItem(key),
     setItem: (key, value) => window.localStorage.setItem(key, value),
   });
   const audio = new AudioService();
@@ -114,7 +132,7 @@ export function startApplication(): void {
   function dispatchGameCommand(command: GameCommand): void {
     audio.unlock();
     handleEngineEvents(engine.dispatch(command));
-    saveJourney();
+    if (command.type !== 'previewSpell') saveJourney();
     renderer.render(engine.state, showResults);
     pwa.checkPendingUpdate();
   }
@@ -123,12 +141,15 @@ export function startApplication(): void {
     if (name === 'levels' && slot === null) name = 'saves';
     gameVisible = false;
     showMenu(name);
-    if (name === 'home') continueSlot = renderContinue(index => repository.readSlot(index));
+    if (name === 'home') continueSlot = renderContinue((index) => repository.readSlot(index));
     if (name === 'levels' && slot !== null) renderJourney(slot, engine.state, journey);
-    if (name === 'saves') renderSaveSlots(index => repository.readSlot(index));
+    if (name === 'saves') renderSaveSlots((index) => repository.readSlot(index));
     if (name === 'bestiary') renderBestiary(bestiary);
     if (name === 'options') renderOptions(settings);
-    if (name === 'upgrades') setText('#bankedGold', `${engine.state.bankedGold} gold`);
+    if (name === 'upgrades') {
+      setText('#bankedGold', `${engine.state.bankedGold} gold`);
+      renderPermanent(engine.state);
+    }
   }
 
   function returnHome(): void {
@@ -156,9 +177,13 @@ export function startApplication(): void {
       showMessage(existing.message);
       return;
     }
-    if (existing.status === 'valid' && !window.confirm(`Start a new journey in Save Slot ${index + 1}? This replaces its saved progress.`)) return;
+    if (
+      existing.status === 'valid' &&
+      !window.confirm(`Start a new journey in Save Slot ${index + 1}? This replaces its saved progress.`)
+    )
+      return;
     repository.readSlot(index, true);
-    if (commitJourney(index, createInitialState(), createJourney())) navigateToMenu('levels');
+    if (commitJourney(index, createDefenseState(), createJourney())) navigateToMenu('levels');
   }
 
   function loadJourney(index: number): void {
@@ -171,13 +196,13 @@ export function startApplication(): void {
     slot = index;
     engine.restore(read.data.state);
     journey = read.data.journey ?? importJourney(engine.state);
-    if (engine.state.phase === 'battle') engine.dispatch({ type: 'pause' });
+    if (journey.activeBattle) engine.dispatch({ type: 'pause' });
     bestiary = [...new Set([...bestiary, ...engine.state.knownMonsters])];
     const result = repository.writeBestiary(bestiary);
     if (!result.ok) showMessage(result.message);
     navigateToMenu('levels');
     if (read.migrated || !read.data.journey) saveJourney();
-    showMessage(`Save Slot ${index + 1} loaded${engine.state.phase === 'battle' ? ' · battle paused' : ''}`);
+    showMessage(`Save Slot ${index + 1} loaded${engine.state.paused ? ' · battle paused' : ''}`);
   }
 
   function launchLevel(level: Level): void {
@@ -187,20 +212,30 @@ export function startApplication(): void {
       navigateToMenu('saves');
       return;
     }
-    if (journey.activeBattle) { showMessage('Finish or end your current attempt before choosing another level.'); return; }
-    const state = createInitialState(level, engine.state.bankedGold);
+    if (journey.activeBattle) {
+      showMessage('Finish or end your current attempt before choosing another level.');
+      return;
+    }
+    const state = nextBattle(engine.state, level);
+    state.defense!.countdown = defenseRules.waveCountdownMs;
     state.knownMonsters = [...engine.state.knownMonsters];
     if (commitJourney(slot, state, { ...journey, activeBattle: true })) showBattleScreen();
   }
 
   function abandonBattle(): void {
     if (slot === null || !journey.activeBattle) return;
-    if (!window.confirm('End this attempt? Its towers, wave progress, and unbanked battle gold will be lost. Your banked gold and cleared levels remain.')) return;
-    const state = createInitialState(engine.state.activeLevel, engine.state.bankedGold);
+    if (
+      !window.confirm(
+        'End this attempt? Its towers, wave progress, and unbanked battle gold will be lost. Your banked gold and cleared levels remain.',
+      )
+    )
+      return;
+    const state = nextBattle(engine.state, engine.state.activeLevel);
     state.knownMonsters = [...engine.state.knownMonsters];
     if (commitJourney(slot, state, { ...journey, activeBattle: false })) navigateToMenu('levels');
   }
 
+  bindDefenseControls(() => engine.state, dispatchGameCommand);
   bindBattleControls({
     dispatch: dispatchGameCommand,
     readState: () => engine.state,
@@ -210,7 +245,9 @@ export function startApplication(): void {
       dispatchGameCommand({ type: 'resume' });
     },
     returnHome,
-    save: () => { saveJourney(true); },
+    save: () => {
+      saveJourney(true);
+    },
   });
   element('#sound').addEventListener('click', () => {
     settings = { ...settings, quiet: !settings.quiet };
@@ -220,22 +257,64 @@ export function startApplication(): void {
     const result = repository.writeSettings(settings);
     if (!result.ok) showMessage(result.message);
   });
-  elements<HTMLButtonElement>('[data-open]').forEach(button => button.addEventListener('click', () => {
-    void audio.unlock();
-    setText('#saveIntro', 'Each slot is one player journey across all levels. Create or load a player save.');
-    if (isMenuPage(button.dataset.open)) navigateToMenu(button.dataset.open);
-  }));
-  elements('[data-home]').forEach(button => button.addEventListener('click', returnHome));
-  element('#continueJourney').addEventListener('click', () => { if (continueSlot !== null) loadJourney(continueSlot); });
-  element('#journeyResume').addEventListener('click', () => { if (slot !== null) showBattleScreen(); });
+  elements<HTMLButtonElement>('[data-open]').forEach((button) =>
+    button.addEventListener('click', () => {
+      void audio.unlock();
+      setText(
+        '#saveIntro',
+        'Each slot is one player journey across all levels. Create or load a player save.',
+      );
+      if (isMenuPage(button.dataset.open)) navigateToMenu(button.dataset.open);
+    }),
+  );
+  elements('[data-home]').forEach((button) => button.addEventListener('click', returnHome));
+  element('#continueJourney').addEventListener('click', () => {
+    if (continueSlot !== null) loadJourney(continueSlot);
+  });
+  element('#openPermanent').addEventListener('click', () => {
+    if (saveJourney()) navigateToMenu('upgrades');
+  });
+  element('#permanentControls').addEventListener('click', (event) => {
+    if (!(event.target instanceof Element) || slot === null || journey.activeBattle) return;
+    const button = event.target.closest<HTMLElement>('[data-permanent]');
+    if (!button) return;
+    const candidate = new GameEngine(engine.snapshot()),
+      events = candidate.dispatch(permanentCommand(button));
+    if (!events.length) return;
+    const state =
+      candidate.state.phase === 'ready'
+        ? createDefenseState(candidate.state.activeLevel, candidate.state)
+        : candidate.snapshot();
+    if (commitJourney(slot, state, journey)) {
+      renderPermanent(engine.state);
+      setText('#bankedGold', `${engine.state.bankedGold} gold`);
+      showMessage('Permanent upgrade purchased');
+    }
+  });
+  element('#startTestMode').addEventListener('click', () => {
+    engine.dispatch({ type: 'pause' });
+    if (!saveJourney()) return;
+    slot = null;
+    journey = createJourney();
+    engine.restore(createDefenseState('tutorial', undefined, true));
+    elements<HTMLInputElement>('[data-test-count]').forEach((i) => {
+      i.value = i.dataset.testCount === 'imp' ? '3' : '0';
+    });
+    showBattleScreen();
+  });
+  element('#journeyResume').addEventListener('click', () => {
+    if (slot !== null) showBattleScreen();
+  });
   element('#abandonBattle').addEventListener('click', abandonBattle);
   element('#journeyExit').addEventListener('click', () => {
     if (!saveJourney()) return;
     slot = null;
     navigateToMenu('home');
   });
-  elements<HTMLButtonElement>('[data-level]').forEach(button => button.addEventListener('click', () => launchLevel(button.dataset.level as Level)));
-  element('#saveList').addEventListener('click', event => {
+  elements<HTMLButtonElement>('[data-level]').forEach((button) =>
+    button.addEventListener('click', () => launchLevel(button.dataset.level as Level)),
+  );
+  element('#saveList').addEventListener('click', (event) => {
     if (!(event.target instanceof Element)) return;
     const load = event.target.closest<HTMLElement>('[data-load]');
     const fresh = event.target.closest<HTMLElement>('[data-new]');
@@ -243,7 +322,7 @@ export function startApplication(): void {
     if (fresh) newJourney(Number(fresh.dataset.new));
   });
   for (const field of ['music', 'sound'] as const) {
-    element<HTMLInputElement>(`#${field}Volume`).addEventListener('input', event => {
+    element<HTMLInputElement>(`#${field}Volume`).addEventListener('input', (event) => {
       settings = { ...settings, [field]: Number((event.target as HTMLInputElement).value) };
       renderOptions(settings);
       audio.setSettings(settings);
@@ -262,13 +341,26 @@ export function startApplication(): void {
     engine,
     isVisible: () => gameVisible,
     onEvents: handleEngineEvents,
-    onRender: () => { renderer.render(engine.state, showResults); pwa.checkPendingUpdate(); },
-    onSave: () => { saveJourney(); },
-    onBackground: () => { void audio.suspend(); },
+    onRender: () => {
+      renderer.render(engine.state, showResults);
+      pwa.checkPendingUpdate();
+    },
+    onSave: () => {
+      saveJourney();
+    },
+    onBackground: () => {
+      void audio.suspend();
+    },
   });
   pwa = initPwa({
     onMessage: showMessage,
-    canAutoUpdate: () => !document.hidden && !(gameVisible && engine.state.phase === 'battle' && !engine.state.paused),
+    canAutoUpdate: () =>
+      !document.hidden &&
+      !(
+        gameVisible &&
+        (engine.state.phase === 'battle' || engine.state.defense?.countdown != null) &&
+        !engine.state.paused
+      ),
     beforeUpdate: () => {
       engine.dispatch({ type: 'pause' });
       if (gameVisible) renderer.render(engine.state, showResults);
@@ -278,5 +370,4 @@ export function startApplication(): void {
   setText('#sound', settings.quiet ? '♫ sound off' : '♫ sound on');
   renderer.render(engine.state, showResults);
   navigateToMenu('home');
-
 }

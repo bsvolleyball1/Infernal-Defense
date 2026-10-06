@@ -5,7 +5,12 @@ export function routeFor(state: GameState, routeId = 0): [number, number][] {
   return routesFor(getMap(state.activeLevel))[routeId];
 }
 
-export function entityPosition(state: GameState, entity: { progress: number; routeId?: number }): [number, number] {
+export function entityPosition(state: GameState, entity: { progress: number; routeId?: number; kind?: string; direct?: boolean }): [number, number] {
+  if (state.defense && (entity.kind === 'shade' || entity.direct)) {
+    const path = routeFor(state,entity.routeId), t = entity.progress/(path.length-1);
+    const first = path[0], last = path[path.length-1];
+    return [first[0]+(last[0]-first[0])*t,first[1]+(last[1]-first[1])*t];
+  }
   return positionAt(entity.progress, { path: routeFor(state, entity.routeId) });
 }
 

@@ -24,6 +24,8 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }
       await page.reload(); await page.locator('[data-open="saves"]').click();
       await expect(page.locator('#saveList')).toContainText(level.name);
       await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+      await expect(page.locator('#pauseOverlay')).toBeVisible();
+      await page.locator('#resumeBattle').click();
       await expect(page.locator('.perch')).toHaveCount(level.count);
       const occupied = page.getByRole('button', { name: `Ember, level 2, perch ${level.count}`, exact: true });
       await occupied.focus(); await page.keyboard.press('Enter'); await page.locator('#sell').click();

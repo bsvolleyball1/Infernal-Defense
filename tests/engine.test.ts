@@ -34,7 +34,7 @@ describe('original content and initial state', () => {
     ]);
     expect(waves.map(groups => groups.reduce((sum, group) => sum + group.n, 0))).toEqual([10, 12, 18, 18, 19]);
     expect(waves[4][2]).toEqual({ kind: 'chief', n: 1, hp: 900, spd: 0.4 });
-    expect(Object.values(monsters).map(monster => monster.name)).toEqual(['Pass raider', 'Iron guard', 'Ash runner', 'Raid chief']);
+    expect((['scout','shield','runner','chief'] as const).map(kind => monsters[kind].name)).toEqual(['Pass raider', 'Iron guard', 'Ash runner', 'Raid chief']);
   });
 
   it('interpolates fractional path progress and clamps the endpoints', () => {

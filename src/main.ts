@@ -8,6 +8,7 @@ import '@fontsource/dm-mono/500.css';
 import '@fontsource/uncial-antiqua/400.css';
 import './ui/styles.css';
 import './ui/mobile.css';
+import './ui/defense.css';
 import { startApplication } from './app/application';
 
 startApplication();

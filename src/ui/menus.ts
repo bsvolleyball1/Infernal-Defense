@@ -1,5 +1,6 @@
 import { getMap, monsters } from '../content/catalog';
 import { battlefields } from '../content/maps';
+import { enemyRoster, isDefenseMonster } from '../content/enemies';
 import type { Settings, SlotResult } from '../services/storage';
 import type { GameState } from '../game/types';
 import type { JourneyProgress } from '../game/journey';
@@ -47,6 +48,8 @@ export function renderJourney(slot: number, state: GameState, journey: JourneyPr
   resume.hidden = !journey.activeBattle && !terminal;
   resume.textContent = journey.activeBattle ? `Continue ${getMap(state.activeLevel).name}` : 'View last result';
   element('#abandonBattle').hidden = !journey.activeBattle;
+  const upgrades=document.querySelector<HTMLButtonElement>('#openPermanent');
+  if(upgrades) upgrades.disabled=journey.activeBattle;
   elements<HTMLButtonElement>('[data-level]').forEach(button => {
     button.disabled = journey.activeBattle;
     const cleared = journey.completedLevels.includes(button.dataset.level as GameState['activeLevel']);
@@ -132,7 +135,9 @@ export function renderBestiary(bestiary: string[]): void {
     const title = document.createElement('strong');
     const description = document.createElement('small');
     title.textContent = entry.name;
-    description.textContent = entry.description;
+    description.textContent = isDefenseMonster(kind)
+      ? `Speed rating ${enemyRoster[kind].rating} · ${enemyRoster[kind].hp} HP · ${entry.description}`
+      : entry.description;
     card.append(title, description);
     list.append(card);
   }

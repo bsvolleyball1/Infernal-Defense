@@ -2,6 +2,10 @@
 
 A browser tower defense game about protecting a dragon nest. The app uses TypeScript, Vite, local fonts, synthesized Web Audio, and an automatically updating PWA for offline play.
 
+New journeys include fire beams/area pulses, charged ice, rapid poison, 17 playable enemies, mana and three spells, intentional early-wave mana bonuses, and 18 permanent upgrades shared across each player's levels. Levels start with three eggs, expandable to six. Spend banked reward gold from the journey hub between attempts. Test Mode offers unsaved custom waves and unlimited resources without changing player saves. Existing interrupted battles retain their original rules until the next level. See [Main gameplay port](docs/UPSTREAM_PORT.md) for source balance and compatibility details.
+
+Area spells support touch targeting or arrow keys and Enter while the map is focused; Escape cancels. Manual early summoning awards 10 mana per remaining rounded-up countdown second. Backgrounded or restored battles/countdowns require Resume; no time away is simulated.
+
 Use Node.js 24 and npm. From the repository root:
 
 ```sh
