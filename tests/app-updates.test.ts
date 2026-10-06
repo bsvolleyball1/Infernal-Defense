@@ -76,7 +76,7 @@ describe('guarded automatic app updates', () => {
     updates.journeySaved(); expect(actions.reload).toHaveBeenCalledTimes(1);
   });
 
-  it('reports activation failure and permits an explicit retry', async () => {
+  it('reports activation failure and permits a scheduled automatic retry', async () => {
     const { actions, updates } = scenario(); actions.activate.mockRejectedValueOnce(new Error('Worker failed'));
     updates.waiting(); await settle(); await settle();
     expect(actions.onFailure).toHaveBeenCalledWith('activation'); expect(actions.reload).not.toHaveBeenCalled();

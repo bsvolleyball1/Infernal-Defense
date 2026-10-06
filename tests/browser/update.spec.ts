@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
@@ -28,10 +29,10 @@ test('updates automatically at a safe point, blocking failed saves and preservin
     const page = await context.newPage();
     const url = `http://127.0.0.1:${address.port}/Infernal-Defense/`;
     await page.goto(url);
-    expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).active?.state)).toBe('activated');
+    await waitForServiceWorkerActivation(page);
     await expect(page.locator('#pwaPanel')).toHaveCount(0);
     // First reload makes the installed worker control this page.
-    await page.reload(); await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.reload(); await waitForServiceWorkerControl(page);
     await page.locator('[data-open="saves"]').click(); await page.locator('[data-new="0"]').click(); await page.locator('[data-level="level1"]').click();
     await page.locator('#start').click();
     release = 2;
@@ -45,12 +46,14 @@ test('updates automatically at a safe point, blocking failed saves and preservin
       Storage.prototype.setItem = () => { throw new DOMException('Device storage is full.', 'QuotaExceededError'); };
     });
     await page.locator('#pause').click();
-    await expect(page.locator('#toast')).toContainText('could not be saved');
-    await expect(page.getByRole('button', { name: 'Retry update', exact: true })).toBeVisible();
+    await expect(page.locator('#toast')).toContainText(/could not (?:be saved|save journey)/i);
+    await expect(page.getByRole('button', { name: /retry update|update now/i })).toHaveCount(0);
+    await expect(page.locator('#toast button')).toHaveCount(0);
     await expect(page.locator('html')).toHaveAttribute('data-release', '1');
     await page.evaluate(() => (window as unknown as { restoreStorage: () => void }).restoreStorage());
     const before = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
-    await page.getByRole('button', { name: 'Retry update', exact: true }).click();
+    // Reconnection automatically retries, with a fresh successful save guard.
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
     await expect(page.locator('html')).toHaveAttribute('data-release', '2');
     await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
@@ -66,7 +69,7 @@ test('updates automatically at a safe point, blocking failed saves and preservin
     release = 3;
     await page.evaluate(async () => { const registration = await navigator.serviceWorker.getRegistration(); await registration!.update(); });
     await expect(page.locator('html')).toHaveAttribute('data-release', '3');
-    await expect(page.getByRole('button', { name: 'Update now', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /retry update|update now/i })).toHaveCount(0);
     await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
     await page.locator('#saveProgress').click();
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(after);

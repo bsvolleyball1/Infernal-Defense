@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createInitialState, GameEngine } from '../../src/game/engine';
 
 async function startJourney(page: Page): Promise<void> {
@@ -230,7 +231,11 @@ test('manifest, icons, service worker and offline cold launch work at repository
   const requests: string[] = [];
   context.on('request', request => requests.push(request.url()));
   await startJourney(page);
-  expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).active?.state)).toBe('activated');
+  await waitForServiceWorkerActivation(page);
+  await page.reload();
+  await waitForServiceWorkerControl(page);
+  await page.locator('[data-open="saves"]').click();
+  await page.locator('[data-load="0"]').click(); await page.locator('#journeyResume').click();
   await expect(page.locator('#pwaPanel')).toHaveCount(0);
   const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute('href');
   const response = await request.get(new URL(manifestUrl!, page.url()).href);
@@ -240,7 +245,7 @@ test('manifest, icons, service worker and offline cold launch work at repository
   for (const icon of manifest.icons) expect((await request.get(new URL(icon.src, page.url()).href)).ok()).toBe(true);
   await page.locator('#start').click(); await page.locator('#pause').click();
   const before = await savedState(page);
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await waitForServiceWorkerControl(page);
   await context.setOffline(true);
   await page.close();
   const cold = await context.newPage(); await cold.goto('./');

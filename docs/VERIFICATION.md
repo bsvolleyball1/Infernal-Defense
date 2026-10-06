@@ -1,12 +1,12 @@
 # PWA refactor verification
 
-Verified locally on October 5, 2026, on `Dev---Davin`, using Node.js 24 and the locked npm dependencies.
+Verified locally on October 6, 2026, on `Dev---Davin`, using Node.js 24 and the locked npm dependencies. The current browser suite used CI's two-worker setting with retries disabled.
 
 ## Automated results
 
 - Strict TypeScript checking passed, including application code, tests, and configurations.
 - 255 unit tests passed: 37 simulation tests, 150 storage tests, 3 original-geometry trace regressions, 8 architecture/control checks, 4 gorge geometry/save-compatibility tests, 25 selectable-level/branch-route tests, 12 automatic-update policy tests, and 16 player-journey tests.
-- 29 Chromium browser tests passed against the production build at `/Infernal-Defense/`, including eighth-roost placement, upgrading, selling, reload, both new levels on portrait/landscape phones, switching all three maps, offline forked-battle restoration, automatic safe-checkpoint updates, browser-native installation behavior, and six player-journey checks.
+- 31 Chromium browser tests passed against the production build at `/Infernal-Defense/`, including eighth-roost placement, upgrading, selling, reload, both new levels on portrait/landscape phones, switching all three maps, offline forked-battle restoration, automatic safe-checkpoint updates, browser-native installation behavior, six player-journey checks, and two service-worker wait regressions.
 - Production build passed and emitted the manifest, generated service worker, local fonts, artwork, and normal/maskable/Apple PNG icons.
 - Browser requests stayed on the application origin; offline font loading and offline cold launch were verified.
 - Git whitespace checking passed.
@@ -24,6 +24,12 @@ Player-journey checks verify a persisted player exists before level selection, s
 Installation regression checks at 1400×950, 375×812, and 844×390 confirm no in-app Install button or custom install-help element, a cancelable `beforeinstallprompt` event is not canceled by the app, and the standalone manifest, repository start URL, and 512-pixel icon remain present. Native browser menu installation still requires physical Android/iPhone checks; these tests verify application behavior and eligibility assets, not browser chrome.
 
 The two additional levels are Willow Bend (five placements, one simple meadow trail) and Obsidian Fork (ten placements, two routes that split and rejoin). Automated checks cover every placement slot, deterministic alternating spawns, branch-specific movement/targeting/projectiles, egg pickup and carrier reversal, dropping and same-branch recovery, recovery on shared segments, escape, invalid route preservation, five-roost save compatibility, and exact forked-battle continuation at all speeds. Desktop, portrait, and landscape screenshots of both new environments were visually reviewed. The original wave and dragon balance remains unchanged.
+
+## Service-worker synchronization and automatic-only updates
+
+The October 6 CI diagnosis found tests asserting `activated` immediately while the worker was still `activating`. Browser tests now share bounded 15-second polling for the actual registration state; offline and update tests also reload online and wait for an activated controller before continuing. Two regression tests simulate missing/activating registrations and uncontrolled/activating pages to verify both waits retry correctly. No fixed sleeps or weakened activation checks are used for worker readiness.
+
+The update regression also accepts the current journey-save error wording. All update/retry buttons and toast action plumbing have been removed. The three-version browser scenario verifies failed saving defers updates, reconnection retries automatically with a fresh save guard, and paused progress survives subsequent updates without any update-button interaction. Successful saves, visible/online periodic checks and foreground/reconnection events can retry; hidden tabs and running waves remain protected. GitHub verification of this fix requires publishing the local changes and a new workflow run.
 
 ## Remaining release checks
 

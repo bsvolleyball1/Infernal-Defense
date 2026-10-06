@@ -13,7 +13,6 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--gold)
 .legend { flex-wrap:wrap; }
 .stats { flex-wrap:wrap; }
 .toast { position:fixed; z-index:80; top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); text-align:center; display:flex; align-items:center; gap:8px; }
-.toast button { color:var(--ink); background:#273027; border:1px solid #6e805f; border-radius:5px; padding:8px 12px; font:inherit; cursor:pointer; }
 .pause-overlay { position:absolute; inset:0; z-index:15; display:flex; justify-content:center; align-items:center; background:#080d0baa; }
 .battlefield { position:relative; }
 .pause-overlay[hidden] { display:none; }

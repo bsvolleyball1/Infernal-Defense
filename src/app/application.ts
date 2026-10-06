@@ -9,7 +9,7 @@ import type { JourneyProgress } from '../game/journey';
 import { SaveRepository } from '../services/storage';
 import { AudioService } from '../services/audio';
 import { initPwa } from '../services/pwa';
-import type { PwaController, PwaMessageAction } from '../services/pwa';
+import type { PwaController } from '../services/pwa';
 import { element, elements, setText } from '../ui/dom';
 import { SvgRenderer } from '../ui/renderer';
 import { startRuntime } from './runtime';
@@ -36,17 +36,13 @@ export function startApplication(): void {
 
   const renderer = new SvgRenderer();
 
-  function showMessage(text: string, action?: PwaMessageAction): void {
+  function showMessage(text: string): void {
     // Background PWA notices must not hide an unresolved journey-save failure.
     const toast = element('#toast');
-    const actionButton = element<HTMLButtonElement>('#toastAction');
     setText('#toastText', saveFailure ?? text);
-    actionButton.hidden = !action;
-    actionButton.textContent = action?.label ?? '';
-    actionButton.onclick = action ? action.onClick : null;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    if (!action?.persistent) toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3500);
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
   function writeJourney(index: number, state: GameState, progress: JourneyProgress): boolean {

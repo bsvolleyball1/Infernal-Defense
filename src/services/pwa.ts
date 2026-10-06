@@ -1,18 +1,12 @@
 import { registerSW } from 'virtual:pwa-register';
 import { AppUpdates } from './app-updates';
 
-export interface PwaMessageAction {
-  label: string;
-  onClick: () => void;
-  persistent?: boolean;
-}
-
 export interface PwaOptions {
   /** Never automatically interrupt a running wave or reload a hidden tab. */
   canAutoUpdate: () => boolean;
   /** Return true only when the current journey is safely saved. */
   beforeUpdate: () => boolean;
-  onMessage: (text: string, action?: PwaMessageAction) => void;
+  onMessage: (text: string) => void;
 }
 export interface PwaController { onJourneySaved: () => void; checkPendingUpdate: () => void }
 const inactiveController: PwaController = { onJourneySaved: () => {}, checkPendingUpdate: () => {} };
@@ -51,11 +45,7 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
     reload: () => window.location.reload(),
     onStatus: state => {
       if (state === 'blocked') {
-        onMessage('Update paused because your journey could not be saved.', {
-          label: 'Retry update',
-          persistent: true,
-          onClick: () => { updates.retry(); checkForUpdate(); },
-        });
+        onMessage('Update postponed · it will retry automatically after your journey can be saved.');
         return;
       }
       onMessage(state === 'waiting'
@@ -64,11 +54,7 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
     },
     onFailure: reason => {
       if (reason === 'save') return;
-      onMessage('The app update failed. Your current game remains open.', {
-        label: 'Retry update',
-        persistent: true,
-        onClick: () => { updates.retry(); checkForUpdate(); },
-      });
+      onMessage('The app update failed. Your current game remains open; updates retry automatically.');
     },
   });
   document.addEventListener('visibilitychange', () => {
@@ -135,8 +121,9 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
         watchWorker(registration.waiting);
         watchWorker(registration.active);
         checkForUpdate = () => {
-          updates.applyWhenSafe();
           if (navigator.onLine && !document.hidden) {
+            // Retry only on scheduled/connectivity/foreground checks, never each frame.
+            updates.retry();
             void registration.update().catch(() => onMessage('Could not check for an app update.'));
           }
         };

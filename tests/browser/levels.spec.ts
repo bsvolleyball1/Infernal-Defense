@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createInitialState, GameEngine } from '../../src/game/engine';
 
 for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }]) {
@@ -61,7 +62,9 @@ test('switches geometry and controls between all three battlefields without a pa
 
 test('offline cold launch restores forked enemies, an egg and future route assignments', async ({ page, context }) => {
   await page.goto('./');
-  expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).active?.state)).toBe('activated');
+  await waitForServiceWorkerActivation(page);
+  await page.reload();
+  await waitForServiceWorkerControl(page);
   await expect(page.locator('#pwaPanel')).toHaveCount(0);
   const engine = new GameEngine(createInitialState('volcanic'));
   engine.dispatch({ type: 'startWave' });
