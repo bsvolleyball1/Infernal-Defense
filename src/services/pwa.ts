@@ -62,9 +62,14 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
         ? 'Update ready · applies automatically when the battle pauses or the wave ends.'
         : 'Journey saved · updating automatically…');
     },
-    onFailure: reason => onMessage(reason === 'save'
-      ? 'Journey could not be saved. Update paused.'
-      : 'The app update failed. Your current game remains open.'),
+    onFailure: reason => {
+      if (reason === 'save') return;
+      onMessage('The app update failed. Your current game remains open.', {
+        label: 'Retry update',
+        persistent: true,
+        onClick: () => { updates.retry(); checkForUpdate(); },
+      });
+    },
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) updates.applyWhenSafe();
