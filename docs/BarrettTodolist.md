@@ -65,3 +65,5 @@ additional spells - increase dmg or attack rate or instantly upgrade to level 6 
 permanent upgrade a random 3 or 5 options?
 
 after defeating a level, the player can replay and increase difficulty ans get greater and greater rewards. increase %HP, increase speed, armor, etc
+
+creating your tower ans color - black, green, white, etc. blue + blue + blue = traditional blue tower. white + black + red = aoe red dragon. Each color determines which kind of dragon is produced
