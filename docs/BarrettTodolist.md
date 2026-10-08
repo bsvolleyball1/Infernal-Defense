@@ -62,3 +62,5 @@ maps: 2 or 3 summoning points, interesting, etc
 
 additional spells - increase dmg or attack rate or instantly upgrade to level 6 for a few seconds. or heal
 
+permanent upgrade a random 3 or 5 options?
+
