@@ -1,5 +1,6 @@
 import { mountApplication } from '../ui/mount';
 import { bindBattleControls } from '../ui/controls';
+import { bindBattlefieldInput } from '../ui/battlefield-input';
 import {
   renderBestiary,
   renderContinue,
@@ -11,11 +12,7 @@ import {
   showMenu,
 } from '../ui/menus';
 import { GameEngine } from '../game/engine';
-import {
-  bindDefenseControls,
-  renderDefenseControls,
-  renderPermanent,
-} from '../ui/defense-controls';
+import { bindTestWaveInputs, renderDefenseControls, renderPermanent } from '../ui/defense-controls';
 import type { GameCommand, GameEvent, SimulationEngine } from '../game/types';
 import { SaveRepository } from '../services/storage';
 import { AudioService } from '../services/audio';
@@ -160,7 +157,17 @@ export function startApplication(): void {
     },
   });
 
-  bindDefenseControls(() => engine.state, dispatchGameCommand);
+  bindTestWaveInputs(dispatchGameCommand);
+  bindBattlefieldInput({
+    dispatch: dispatchGameCommand,
+    readState: () => engine.state,
+    view: {
+      previewPlacement: (point) => renderer.renderPlacement(point, engine.state),
+      dismissTowerActions: () => renderer.dismissTowerActions(),
+      reopenTowerActions: () => renderer.reopenTowerActions(),
+      afterTowerAction: () => renderer.afterTowerAction(),
+    },
+  });
   bindBattleControls({
     dispatch: dispatchGameCommand,
     readState: () => engine.state,
@@ -173,7 +180,6 @@ export function startApplication(): void {
     save: () => {
       session.save(true);
     },
-    previewPlacement: (point) => renderer.renderPlacement(point, engine.state),
   });
   bindMenuControls({
     navigation,

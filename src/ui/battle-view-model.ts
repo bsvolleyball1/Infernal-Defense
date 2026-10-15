@@ -1,6 +1,7 @@
 import { dragons, getMap } from '../content/catalog';
 import { defenseRange, towerSummary } from '../game/defense-combat';
 import { levelCap } from '../game/defense-state';
+import { defenseRules } from '../content/defense-rules';
 import { currencyOf } from '../game/ruleset';
 import { battleRules, towerRange, towerUpgradeCost } from '../game/rules';
 import { towerBonus, towerRangeMultiplier } from '../game/tower-bonuses';
@@ -11,6 +12,8 @@ export interface PlacementButton {
   selected: boolean;
   label: string;
   disabled: boolean;
+  /** Challenge levels allow only their own dragon. */
+  hidden: boolean;
 }
 
 export interface BattleViewModel {
@@ -22,6 +25,8 @@ export interface BattleViewModel {
   nestCount: string;
   startLabel: string;
   startDisabled: boolean;
+  /** Journeys summon from the map control instead. */
+  startHidden: boolean;
   waveState: string;
   waveTitle: string;
   waveDesc: string;
@@ -72,22 +77,34 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
   else if (state.chosen)
     info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${money.name} · Choose clear ground.`;
 
-  return {
-    gold: String(Math.floor(state.gold)),
-    wave: `${state.wave} / ${battleRules.waveCount}`,
-    lives: String(lives),
-    hpText: `${lives} / ${state.eggs.length}`,
-    hpWidth: `${(lives / state.eggs.length) * 100}%`,
-    nestCount: `${state.eggs.filter((egg) => egg.status === 'nest').length} in nest`,
-    startLabel:
-      state.phase === 'lost'
+  const sandbox = state.defense?.mode === 'sandbox';
+  const countdown = state.defense?.countdown ?? null;
+  const challenge = getMap(state.activeLevel).challenge;
+  const seconds = countdown === null ? 0 : Math.ceil(countdown / 1000);
+  const startLabel = sandbox
+    ? battle
+      ? 'Test wave in progress'
+      : 'Summon'
+    : countdown !== null
+      ? `Summon wave ${state.wave + 1} · +${seconds * defenseRules.earlyWaveManaPerSecond} mana (${seconds}s)`
+      : state.phase === 'lost'
         ? 'Nest fallen'
         : state.phase === 'won'
           ? 'Valley defended'
           : battle
             ? 'Wave in progress'
-            : `Begin wave ${state.wave + 1}`,
+            : `Begin wave ${state.wave + 1}`;
+
+  return {
+    gold: sandbox ? '∞' : String(Math.floor(state.gold)),
+    wave: sandbox ? String(state.wave) : `${state.wave} / ${battleRules.waveCount}`,
+    lives: String(lives),
+    hpText: `${lives} / ${state.eggs.length}`,
+    hpWidth: `${(lives / state.eggs.length) * 100}%`,
+    nestCount: `${state.eggs.filter((egg) => egg.status === 'nest').length} in nest`,
+    startLabel,
     startDisabled: battle || ended,
+    startHidden: state.defense?.mode === 'journey',
     waveState: battle
       ? state.paused
         ? 'PAUSED'
@@ -113,7 +130,9 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
           : state.activeLevel === 'tutorial'
             ? 'Training exercise: place dragons, then begin the wave.'
             : 'Place your dragons, then begin the wave.',
-    levelHeading: `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel).name}`,
+    levelHeading: sandbox
+      ? 'Test Mode'
+      : `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel).name}`,
     speed: `${state.speed}×`,
     pauseGlyph: state.paused ? '▶' : 'Ⅱ',
     pauseAria: state.paused ? 'Resume' : 'Pause',
@@ -132,11 +151,13 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     info,
     placement: (Object.keys(dragons) as DragonType[]).map((type) => {
       const chosen = type === state.chosen;
+      const hidden = Boolean(challenge && challenge.dragon !== type);
       return {
         type,
         selected: chosen,
         label: `${dragons[type].name} dragon · ${dragons[type].cost} ${money.name}${chosen ? ' · selected for placement' : ' · choose for placement'}`,
-        disabled: ended || state.paused,
+        disabled: ended || state.paused || hidden,
+        hidden,
       };
     }),
     showResults: ended && showResults,
@@ -148,4 +169,28 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     resultGold: `${state.rewardGold} gold`,
     bankedGold: `${state.bankedGold} gold`,
   };
+}
+
+/** Accessible name for a placed dragon, including any bonus area it occupies. */
+export function presentTowerLabel(state: GameState, index: number): string {
+  const tower = state.towers[index];
+  if (!tower) return '';
+  const bonus = towerBonus(state, index);
+  const resourceRate =
+    bonus?.kind === 'mana'
+      ? bonus.manaPerSecond
+      : bonus?.kind === 'food'
+        ? bonus.foodPerSecond
+        : bonus?.kind === 'gold'
+          ? bonus.goldPerSecond
+          : 0;
+  const bonusLabel =
+    bonus?.kind === 'damage'
+      ? `, damage bonus +${Math.round((bonus.damageMultiplier - 1) * 100)}%`
+      : bonus?.kind === 'range'
+        ? `, range bonus +${Math.round((bonus.rangeMultiplier - 1) * 100)}%`
+        : bonus
+          ? `, ${bonus.kind} bonus${state.defense?.mode === 'sandbox' ? ' (journey only)' : ` +${resourceRate.toFixed(2)}/s`}`
+          : '';
+  return `${dragons[tower.type].name}, level ${tower.level}, dragon ${index + 1}${bonusLabel}`;
 }

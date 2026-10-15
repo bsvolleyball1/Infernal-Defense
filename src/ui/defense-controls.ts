@@ -2,8 +2,7 @@ import { enemyRoster, futureMonsters, playableMonsters } from '../content/enemie
 import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
-import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
-import { clampToBattlefield } from '../game/geometry';
+import type { DragonType, GameCommand, GameState, SpellKind } from '../game/types';
 import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
@@ -55,7 +54,6 @@ export function renderDefenseControls(state: GameState): void {
   element('#manaStat').hidden = !d;
   element('#spellControls').hidden = !d;
   element('#testControls').hidden = d?.mode !== 'sandbox';
-  element<HTMLButtonElement>('#start').hidden = d?.mode === 'journey';
   element<HTMLButtonElement>('#openPermanent').disabled = state.phase === 'battle';
   const food = element('.stats span:first-child').firstChild;
   const currency = currencyOf(state);
@@ -71,8 +69,6 @@ export function renderDefenseControls(state: GameState): void {
     const type = button.dataset.type as DragonType,
       price = button.querySelector('.price')!,
       description = button.querySelector('.towerdesc')!;
-    button.hidden = Boolean(challenge && challenge.dragon !== type);
-    button.disabled = state.phase === 'won' || state.phase === 'lost' || state.paused || button.hidden;
     const orb = button.querySelector<HTMLElement>('.orb')!;
     let portrait = orb.querySelector<HTMLImageElement>('.dragon-portrait');
     if (!portrait) {
@@ -104,16 +100,6 @@ export function renderDefenseControls(state: GameState): void {
   if (!d) return;
   const sandbox = d.mode === 'sandbox';
   setText('#mana', sandbox ? '∞ / ∞' : `${Math.floor(d.mana)} / ${d.maxMana}`);
-  if (sandbox) {
-    setText('#gold', '∞');
-    setText('#levelHeading', 'Test Mode');
-    setText('#waveNum', state.wave);
-    setText('#start', state.phase === 'battle' ? 'Test wave in progress' : 'Summon');
-  } else if (d.countdown !== null)
-    setText(
-      '#start',
-      `Summon wave ${state.wave + 1} · +${Math.ceil(d.countdown / 1000) * 10} mana (${Math.ceil(d.countdown / 1000)}s)`,
-    );
   const names: Record<SpellKind, string> = { fire: 'Fire Rain', ice: 'Ice Freeze', poison: 'Poison Gas' };
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
@@ -134,97 +120,25 @@ export function renderDefenseControls(state: GameState): void {
   });
 }
 
-function aimPoint(state: GameState): Point {
-  const geometry = getMap(state.activeLevel);
-  return { x: geometry.width / 2, y: geometry.height / 2 };
-}
-function mapPoint(event: MouseEvent, map: SVGSVGElement, state: GameState): Point {
-  const p = new DOMPoint(event.clientX, event.clientY),
-    matrix = map.getScreenCTM();
-  const target = matrix ? p.matrixTransform(matrix.inverse()) : p;
-  return clampToBattlefield({ x: target.x, y: target.y }, getMap(state.activeLevel));
-}
-export function bindDefenseControls(read: () => GameState, dispatch: (c: GameCommand) => void): void {
-  const map = element<SVGSVGElement>('#map');
-  elements<HTMLButtonElement>('[data-spell]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const spell = b.dataset.spell as SpellKind;
-      if (spell === 'ice') dispatch({ type: 'spell', spell });
-      else {
-        dispatch({ type: 'spellTarget', spell: read().defense?.targeting === spell ? null : spell });
-        if (read().defense?.targeting) {
-          dispatch({ type: 'previewSpell', point: aimPoint(read()) });
-          map.focus();
-        }
-      }
-    }),
-  );
-  map.addEventListener(
-    'click',
-    (event) => {
-      const spell = read().defense?.targeting;
-      if (spell) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        dispatch({ type: 'spell', spell, point: mapPoint(event, map, read()) });
-      }
-    },
-    true,
-  );
-  map.addEventListener('pointermove', (event) => {
-    if (read().defense?.targeting) dispatch({ type: 'previewSpell', point: mapPoint(event, map, read()) });
-  });
-  map.addEventListener(
-    'keydown',
-    (event) => {
-      const d = read().defense,
-        spell = d?.targeting;
-      if (!spell) return;
-      if (!['Escape', 'Enter', ' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.key === 'Escape') dispatch({ type: 'spellTarget', spell: null });
-      else if (event.key === 'Enter' || event.key === ' ')
-        dispatch({ type: 'spell', spell, point: d.preview ?? aimPoint(read()) });
-      else {
-        const p = d.preview ?? aimPoint(read());
-        dispatch({
-          type: 'previewSpell',
-          point: clampToBattlefield(
-            {
-              x:
-                p.x +
-                (event.key === 'ArrowLeft'
-                  ? -defenseRules.spellNudge
-                  : event.key === 'ArrowRight'
-                    ? defenseRules.spellNudge
-                    : 0),
-              y:
-                p.y +
-                (event.key === 'ArrowUp'
-                  ? -defenseRules.spellNudge
-                  : event.key === 'ArrowDown'
-                    ? defenseRules.spellNudge
-                    : 0),
-            },
-            getMap(read().activeLevel),
-          ),
-        });
-      }
-    },
-    true,
-  );
+/** Sends the sandbox roster counts whenever one changes. */
+export function bindTestWaveInputs(dispatch: (command: GameCommand) => void): () => void {
+  const controller = new AbortController();
   elements<HTMLInputElement>('[data-test-count]').forEach((input) =>
-    input.addEventListener('change', () => {
-      const counts = Object.fromEntries(
-        elements<HTMLInputElement>('[data-test-count]').map((i) => [
-          i.dataset.testCount,
-          Math.max(0, Math.min(999, Math.floor(Number(i.value) || 0))),
-        ]),
-      );
-      dispatch({ type: 'testWave', counts });
-    }),
+    input.addEventListener(
+      'change',
+      () => {
+        const counts = Object.fromEntries(
+          elements<HTMLInputElement>('[data-test-count]').map((i) => [
+            i.dataset.testCount,
+            Math.max(0, Math.min(999, Math.floor(Number(i.value) || 0))),
+          ]),
+        );
+        dispatch({ type: 'testWave', counts });
+      },
+      { signal: controller.signal },
+    ),
   );
+  return () => controller.abort();
 }
 export const permanentCommand = (button: HTMLElement): GameCommand => ({
   type: 'buyPermanent',

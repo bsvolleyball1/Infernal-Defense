@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { presentBattle } from '../src/ui/battle-view-model';
+import { presentBattle, presentTowerLabel } from '../src/ui/battle-view-model';
 import { createDefenseState } from '../src/game/defense-state';
 import { battleRules } from '../src/game/rules';
 import { createInitialState } from '../src/game/state';
@@ -56,5 +56,39 @@ describe('battle view model', () => {
     expect(view.info).toContain('Ember · Level 1 /');
     expect(view.actionCost.startsWith('🥩')).toBe(true);
     expect(view.placement.find((button) => button.type === 'fire')?.label).toContain('food');
+  });
+});
+
+describe('single-owner HUD overrides', () => {
+  it('shows unlimited food and the Test Mode heading in the sandbox', () => {
+    const state = createDefenseState('level1', undefined, true);
+    const view = presentBattle(state, true);
+    expect(view.gold).toBe('∞');
+    expect(view.levelHeading).toBe('Test Mode');
+    expect(view.wave).toBe('0');
+    expect(view.startLabel).toBe('Summon');
+  });
+
+  it('labels the early-summon bonus during a journey countdown and hides the start button', () => {
+    const state = createDefenseState('level1');
+    state.defense.countdown = 4200;
+    const view = presentBattle(state, true);
+    expect(view.startHidden).toBe(true);
+    expect(view.startLabel).toBe('Summon wave 1 · +50 mana (5s)');
+  });
+
+  it('hides and disables dragons a challenge level does not allow', () => {
+    const view = presentBattle(createDefenseState('fireTrial'), true);
+    expect(view.placement.map(({ type, hidden, disabled }) => [type, hidden, disabled])).toEqual([
+      ['fire', false, false],
+      ['ice', true, true],
+      ['poison', true, true],
+    ]);
+  });
+
+  it('names a placed dragon by type, level and slot', () => {
+    const state = createDefenseState('level1');
+    state.towers[0] = { type: 'ice', level: 2, cooldown: 0, position: { x: 90, y: 202 } };
+    expect(presentTowerLabel(state, 0)).toMatch(/^Frost, level 2, dragon 1/);
   });
 });

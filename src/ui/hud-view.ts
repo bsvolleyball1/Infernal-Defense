@@ -12,6 +12,7 @@ export class HudView {
     setText('#nestCount', view.nestCount);
     const start = element<HTMLButtonElement>('#start');
     start.disabled = view.startDisabled;
+    start.hidden = view.startHidden;
     setText('#start', view.startLabel);
     setText('#waveState', view.waveState);
     setText('#waveTitle', view.waveTitle);
@@ -44,6 +45,7 @@ export class HudView {
       button.setAttribute('aria-pressed', String(placement.selected));
       button.setAttribute('aria-label', placement.label);
       button.title = placement.label;
+      button.hidden = placement.hidden;
       button.disabled = placement.disabled;
     });
   }
