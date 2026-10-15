@@ -7,3 +7,6 @@ public
 docs
 *.md
 .claude
+
+# Whitespace between inline elements is significant; this is the exact mounted DOM.
+src/ui/template.html

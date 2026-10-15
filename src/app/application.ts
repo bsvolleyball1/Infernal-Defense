@@ -13,7 +13,6 @@ import {
 import { GameEngine } from '../game/engine';
 import {
   bindDefenseControls,
-  mountDefenseControls,
   renderDefenseControls,
   renderPermanent,
 } from '../ui/defense-controls';
@@ -38,7 +37,6 @@ import { reportWrite } from './write-report';
 
 export function startApplication(): void {
   mountApplication();
-  mountDefenseControls();
   const engine: SimulationEngine = new GameEngine();
   const repository = new SaveRepository({
     getItem: (key) => window.localStorage.getItem(key),

@@ -19,49 +19,40 @@
       </p>
       <div class="menu-grid">
         <button class="menu-card" data-open="bestiary">
-          <span class="menu-icon">⌕</span
-          ><span><strong>Bestiary</strong><small>Discover the creatures you encounter</small></span></button
-        ><button class="menu-card" data-open="options">
-          <span class="menu-icon">⚙</span
-          ><span><strong>Options</strong><small>Adjust music and sound levels</small></span></button
-        ><button class="menu-card" data-open="saves">
-          <span class="menu-icon">▣</span
-          ><span
-            ><strong>Player saves</strong><small>Create or load one journey across every level</small></span
-          ></button
-        ><button class="menu-card" id="continueJourney" hidden>
-          <span class="menu-icon">➤</span
-          ><span><strong>Continue journey</strong><small id="continueJourneyDetail"></small></span>
+          <span class="menu-icon">⌕</span><span><strong>Bestiary</strong><small>Discover the creatures you encounter</small></span></button><button class="menu-card" data-open="options">
+          <span class="menu-icon">⚙</span><span><strong>Options</strong><small>Adjust music and sound levels</small></span></button><button class="menu-card" data-open="saves">
+          <span class="menu-icon">▣</span><span><strong>Player saves</strong><small>Create or load one journey across every level</small></span></button><button class="menu-card" id="continueJourney" hidden="">
+          <span class="menu-icon">➤</span><span><strong>Continue journey</strong><small id="continueJourneyDetail"></small></span>
         </button>
-      </div>
+      <button id="startTestMode" class="menu-card"><span class="menu-icon">⚒</span><span><strong>Test Mode</strong><small>Choose your own monster waves in an unsaved sandbox</small></span></button></div>
     </section>
     <section class="menu-page" data-page="bestiary">
       <div class="page-bar">
         <h2 class="page-title">Bestiary</h2>
-        <button class="back-btn" data-home>← BACK</button>
+        <button class="back-btn" data-home="">← BACK</button>
       </div>
       <div id="bestiaryContent"></div>
     </section>
     <section class="menu-page" data-page="options">
       <div class="page-bar">
         <h2 class="page-title">Options</h2>
-        <button class="back-btn" data-home>← BACK</button>
+        <button class="back-btn" data-home="">← BACK</button>
       </div>
       <div class="options-list">
         <div class="option-row">
           <div class="option-label"><label for="musicVolume">Music</label><output id="musicValue">24%</output></div>
-          <input id="musicVolume" type="range" min="0" max="100" value="24" aria-label="Music loudness" />
+          <input id="musicVolume" type="range" min="0" max="100" value="24" aria-label="Music loudness">
         </div>
         <div class="option-row">
           <div class="option-label"><label for="soundVolume">SFX</label><output id="soundValue">55%</output></div>
-          <input id="soundVolume" type="range" min="0" max="100" value="55" aria-label="Sound effects loudness" />
+          <input id="soundVolume" type="range" min="0" max="100" value="55" aria-label="Sound effects loudness">
         </div>
       </div>
     </section>
     <section class="menu-page" data-page="saves">
       <div class="page-bar">
         <h2 class="page-title">Player saves</h2>
-        <button class="back-btn" data-home>← BACK</button>
+        <button class="back-btn" data-home="">← BACK</button>
       </div>
       <p class="menu-copy" id="saveIntro">
         Each slot is one player journey across all levels. Create or load a player save.
@@ -78,30 +69,15 @@
       <div class="journey-summary"><strong id="journeyGold"></strong><span id="journeyCleared"></span></div>
       <p class="menu-copy" id="journeyLevelNotice"></p>
       <div class="journey-actions">
-        <button class="btn" id="journeyResume" hidden>Continue battle</button
-        ><button class="btn secondary" id="abandonBattle" hidden>End current attempt</button>
-      </div>
-      <div class="level-list" id="levelList">
-        <button class="level-card" data-level="tutorial">
-          <div class="level-tag">TRAINING GROUNDS</div>
-          <strong>Tutorial</strong><small>Learn to place dragons and hold the pass.</small
-          ><span class="level-number">I</span></button
-        ><button class="level-card" data-level="level1">
-          <div class="level-tag">VALLEY ONE</div>
-          <strong>The Ashen Pass</strong><small>Raiders gather beyond the old forest.</small
-          ><span class="level-number">1</span>
-        </button>
-      </div>
+        <button class="btn" id="journeyResume" hidden="">Continue battle</button><button class="btn secondary" id="abandonBattle" hidden="">End current attempt</button>
+      <button id="openPermanent" class="btn secondary">Permanent upgrades</button></div>
+      <div class="level-list" id="levelList"></div>
       <p class="menu-note">Every region has five waves. Gold, dragon costs, and upgrades work the same in each.</p>
     </section>
     <section class="menu-page" data-page="upgrades">
       <div class="page-bar"><h2 class="page-title">Dragon Upgrades</h2></div>
       <div class="upgrade-bank"><span>Banked gold</span><strong id="bankedGold">0</strong></div>
-      <div class="empty-state upgrade-placeholder">
-        <div class="empty-icon">✦</div>
-        <h3>Permanent upgrades are coming</h3>
-        <p>Your reward is safe. Permanent dragon and nest upgrades will be added here next.</p>
-      </div>
+      <div id="permanentControls"></div>
       <button class="btn upgrade-next" id="upgradeToLevels">Continue to Level Select</button>
     </section>
   </div>
@@ -116,43 +92,22 @@
         <small>Emberfall · Valley one</small>
       </div>
     </div>
-    <div class="stats">
-      <span>✦ GOLD <b id="gold">120</b></span
-      ><span>◉ WAVE <b id="waveNum">0 / 5</b></span
-      ><span class="heart">♥ NEST <b id="lives">5</b></span>
-    </div>
+    
   </header>
   <main>
     <section class="arena">
       <div class="map-top">
         <h2 id="levelHeading">The Ashen Pass</h2>
-        <div class="controls">
-          <button class="mini" id="pause">Pause</button><button class="mini" id="speed">▶ 1×</button
-          ><button class="mini" id="sound">♫ sound on</button><button class="mini" id="saveProgress">Save</button
-          ><button class="mini" id="returnMenu">Menu</button>
-        </div>
+        
       </div>
-      <svg
-        class="map"
-        id="map"
-        viewBox="0 0 700 430"
-        role="group"
-        aria-label="A river gorge with eight dragon roosts and a cliffside nest"
-      ></svg>
-      <div class="legend">
-        <span><i class="dot" style="background: #ed7855"></i> fire</span
-        ><span><i class="dot" style="background: #8cd7e0"></i> frost</span
-        ><span><i class="dot" style="background: #8ec367"></i> poison</span
-        ><span style="margin-left: auto; color: #87907d">Tap a perch to place or select a dragon</span>
-      </div>
-    </section>
-    <aside class="side">
-      <h3>Dragon roosts</h3>
-      <div class="nest">
+      <div class="battlefield"><svg class="map" id="map" viewBox="0 0 700 430" role="group" aria-label="A switchback trail across a river gorge and a cliffside nest. Place dragons on clear ground away from the road."></svg><div id="pauseOverlay" class="pause-overlay" hidden=""><section class="pause-card" role="dialog" aria-labelledby="pauseTitle"><h2 id="pauseTitle">Battle paused</h2><p>Your dragons are waiting.</p><button class="btn" id="resumeBattle">Resume battle</button><button class="btn secondary" id="pauseMenu">Save and return to menu</button></section></div><div class="battle-toolbar"><div class="battle-shortcuts"><div id="battleSpells" role="group" aria-label="Battle spells"><section id="spellControls" hidden="" role="group" aria-label="Battle spells"><div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost"></span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost"></span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost"></span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span></section></div><div id="battleMiddle"><div id="battleStatus"><div class="stats">
+      <span>✦ GOLD <b id="gold">120</b></span><span>◉ WAVE <b id="waveNum">0 / 5</b></span><span class="heart">♥ NEST <b id="lives">5</b></span>
+    <span id="manaStat" hidden="">✦ MANA <b id="mana"></b></span></div><div class="nest">
         <div class="nestrow"><span>🥚 Nest vitality</span><strong id="hpText">5 / 5</strong></div>
         <div class="nestbar"><i id="hpBar"></i></div>
-      </div>
-      <div class="towerlist">
+      </div></div><div id="battleControls"><div class="controls">
+          <button class="mini" id="pause">Pause</button><button class="mini" id="speed">▶ 1×</button><button class="mini" id="sound">♫ sound on</button><button class="mini" id="saveProgress" aria-label="Save progress" title="Save progress">Save</button><button class="mini" id="returnMenu" aria-label="Return to menu" title="Return to menu">Menu</button>
+        </div></div></div><div id="battleDragons" role="group" aria-label="Choose a dragon"><div class="towerlist">
         <button class="tower" data-type="fire">
           <div class="towerrow">
             <span class="orb">🐉</span>
@@ -162,18 +117,16 @@
             </div>
             <span class="price">60g</span>
           </div>
-          <p class="towerdesc">A fierce young dragon. Strong single-target firebolts.</p></button
-        ><button class="tower" data-type="ice">
+          <p class="towerdesc">A fierce young dragon. Strong single-target firebolts.</p></button><button class="tower" data-type="ice">
           <div class="towerrow">
             <span class="orb ice">🐲</span>
             <div>
               <div class="towername">Frost</div>
-              <div class="towerrole">Ice · slow & freeze</div>
+              <div class="towerrole">Ice · slow &amp; freeze</div>
             </div>
             <span class="price">55g</span>
           </div>
-          <p class="towerdesc">Chills raiders in their tracks, buying precious time.</p></button
-        ><button class="tower" data-type="poison">
+          <p class="towerdesc">Chills raiders in their tracks, buying precious time.</p></button><button class="tower" data-type="poison">
           <div class="towerrow">
             <span class="orb venom">🐉</span>
             <div>
@@ -184,13 +137,20 @@
           </div>
           <p class="towerdesc">Venom lingers on raiders long after the hit lands.</p>
         </button>
+      </div></div></div></div></div>
+      <div class="legend">
+        <span><i class="dot" style="background: #ed7855"></i> fire</span><span><i class="dot" style="background: #8cd7e0"></i> frost</span><span><i class="dot" style="background: #8ec367"></i> poison</span><span style="margin-left: auto; color: #87907d">Choose a dragon, then tap clear ground away from the road</span>
       </div>
-      <div class="actions">
-        <div class="selected-info" id="info">Choose a dragon, then tap an empty perch to place it.</div>
-        <button class="btn" id="upgrade" disabled>Upgrade dragon</button
-        ><button class="btn secondary" id="sell" disabled>Sell dragon · 50%</button>
-      </div>
-      <div class="wave">
+    <div class="actions" role="group" aria-label="Selected dragon actions"><span id="actionCost" aria-hidden="true"></span>
+        <div class="selected-info" id="info" hidden="">Choose a dragon, then tap an empty perch to place it.</div>
+        <button class="btn" id="upgrade" disabled=""><span aria-hidden="true">↑</span></button><button class="btn secondary" id="sell" disabled=""><span aria-hidden="true">$</span></button>
+      </div></section>
+    <aside class="side">
+      <h3>Dragon roster</h3>
+      
+      
+      
+      <section id="testControls" hidden=""><h3>Test wave</h3><p>Unsaved sandbox. Unlimited food and mana; no journey rewards or discoveries.</p><div class="test-roster"></div><details><summary>Coming soon</summary><p class="future-monsters"></p></details></section><div class="wave">
         <div class="wavehead"><span id="waveTitle">The raiders are gathering</span><b id="waveState">READY</b></div>
         <p id="waveDesc">Humans are coming for the eggs. Place your dragons, then begin the wave.</p>
         <button class="btn" id="start" style="margin-top: 11px">Begin wave 1</button>

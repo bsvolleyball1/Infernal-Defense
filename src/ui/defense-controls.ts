@@ -8,48 +8,15 @@ import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
 
-export function mountDefenseControls(): void {
-  const stats = document.createElement('span');
-  stats.id = 'manaStat';
-  stats.hidden = true;
-  stats.innerHTML = '✦ MANA <b id="mana">0 / 200</b>';
-  element('.stats').append(stats);
-  const controls = document.createElement('section');
-  controls.id = 'spellControls';
-  controls.hidden = true;
-  controls.setAttribute('role', 'group');
-  controls.setAttribute('aria-label', 'Battle spells');
-  controls.innerHTML = `<div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost">${defenseRules.spellCost}</span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span>`;
-  element('#battleSpells').append(controls);
-  const test = document.createElement('section');
-  test.id = 'testControls';
-  test.hidden = true;
-  test.innerHTML =
-    '<h3>Test wave</h3><p>Unsaved sandbox. Unlimited food and mana; no journey rewards or discoveries.</p><div class="test-roster">' +
-    playableMonsters
-      .map(
-        (kind) =>
-          `<label>${enemyRoster[kind].name}<input type="number" min="0" max="999" value="${kind === 'imp' ? 3 : 0}" data-test-count="${kind}" aria-label="${enemyRoster[kind].name} count"></label>`,
-      )
-      .join('') +
-    '</div><details><summary>Coming soon</summary><p>' +
-    futureMonsters.join(', ') +
-    '</p></details>';
-  element('.wave').before(test);
-  const button = document.createElement('button');
-  button.id = 'startTestMode';
-  button.className = 'menu-card';
-  button.innerHTML =
-    '<span class="menu-icon">⚒</span><span><strong>Test Mode</strong><small>Choose your own monster waves in an unsaved sandbox</small></span>';
-  element('[data-page="home"] .menu-grid').append(button);
-  const upgrades = document.createElement('div');
-  upgrades.id = 'permanentControls';
-  element('.upgrade-placeholder').replaceWith(upgrades);
-  const entry = document.createElement('button');
-  entry.id = 'openPermanent';
-  entry.className = 'btn secondary';
-  entry.textContent = 'Permanent upgrades';
-  element('.journey-actions').append(entry);
+/** Fills the sandbox roster from the playable monster list. */
+export function renderTestRoster(): void {
+  element('#testControls .test-roster').innerHTML = playableMonsters
+    .map(
+      (kind) =>
+        `<label>${enemyRoster[kind].name}<input type="number" min="0" max="999" value="${kind === 'imp' ? 3 : 0}" data-test-count="${kind}" aria-label="${enemyRoster[kind].name} count"></label>`,
+    )
+    .join('');
+  element('#testControls .future-monsters').textContent = futureMonsters.join(', ');
 }
 
 export function renderPermanent(state: GameState): void {

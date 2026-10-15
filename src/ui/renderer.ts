@@ -50,16 +50,6 @@ export class SvgRenderer implements Renderer {
     attr(this.range, 'opacity', '.4');
     element('#effects').append(this.range);
     const actions = element<HTMLElement>('.actions');
-    actions.setAttribute('role', 'group');
-    actions.setAttribute('aria-label', 'Selected dragon actions');
-    element('#info').hidden = true;
-    const cost = document.createElement('span');
-    cost.id = 'actionCost';
-    cost.setAttribute('aria-hidden', 'true');
-    actions.prepend(cost);
-    element('.arena').append(actions);
-    element<HTMLButtonElement>('#upgrade').innerHTML = '<span aria-hidden="true">↑</span>';
-    element<HTMLButtonElement>('#sell').innerHTML = '<span aria-hidden="true">$</span>';
     actions.addEventListener('click', (event) => {
       if (!(event.target instanceof Element) || !event.target.closest('#upgrade, #sell')) return;
       this.dismissedPerch = this.selectedPerch;
@@ -125,15 +115,6 @@ export class SvgRenderer implements Renderer {
     const geometry = getMap(state.activeLevel);
     const map = element<SVGSVGElement>('#map');
     map.innerHTML = battlefieldArtwork(state.activeLevel);
-    if (state.activeLevel === 'tutorial') {
-      const tree = node('g');
-      tree.setAttribute('id', 'tutorialTree');
-      tree.setAttribute('aria-hidden', 'true');
-      tree.setAttribute('transform', 'translate(286 330)');
-      tree.innerHTML =
-        '<path d="M-2 8L1 42H10L8 8Z" fill="#514936"/><path d="M3-22L-17 15H-6L-22 34H25L10 15H20Z" fill="#3f5b43" stroke="#354b39" stroke-width="2"/><path d="M3-18L-8 4H-1L-12 20H15L7 4H13Z" fill="#506c4b" opacity=".8"/>';
-      element('#effects').before(tree);
-    }
     map.setAttribute(
       'aria-label',
       `${geometry.name}. ${geometry.description} Dragons can be placed on clear ground away from the road.`,
