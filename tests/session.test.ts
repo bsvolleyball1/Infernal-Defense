@@ -13,7 +13,7 @@ function harness(stored = new Map<string, string>()) {
       stored.set(key, value);
     },
   });
-  let state = createInitialState();
+  let state: GameState = createInitialState();
   let paused = 0;
   let saved = 0;
   const failures: WriteResult[] = [];

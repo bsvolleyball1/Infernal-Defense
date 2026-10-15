@@ -4,6 +4,7 @@ import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
 import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
 import { clampToBattlefield } from '../game/geometry';
+import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
 
@@ -90,7 +91,8 @@ export function renderDefenseControls(state: GameState): void {
   element<HTMLButtonElement>('#start').hidden = d?.mode === 'journey';
   element<HTMLButtonElement>('#openPermanent').disabled = state.phase === 'battle';
   const food = element('.stats span:first-child').firstChild;
-  const prefix = d ? '🥩 FOOD ' : '✦ GOLD ';
+  const currency = currencyOf(state);
+  const prefix = `${currency.icon} ${currency.name.toUpperCase()} `;
   if (food?.nodeType === Node.TEXT_NODE && food.textContent !== prefix) food.textContent = prefix;
   const roles = d
     ? ['Fire beams and area waves', 'Rechargeable ice · chance to freeze', 'Rapid shots · poison and slow']
@@ -114,7 +116,7 @@ export function renderDefenseControls(state: GameState): void {
       orb.replaceChildren(portrait);
     }
     portrait.src = dragonPortrait(type);
-    const label = `${d ? '🥩 ' : '✦ '}${dragons[type].cost}`;
+    const label = `${currency.icon} ${dragons[type].cost}`;
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
       ? {

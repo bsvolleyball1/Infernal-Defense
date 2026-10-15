@@ -48,8 +48,9 @@ export function dropEgg(state: GameState, enemy: Enemy): void {
 /** Returns true only when a carrier escapes with an egg. */
 export function moveEnemy(state: GameState, enemy: Enemy, elapsedMs: number): boolean {
   if (state.defense) {
-    if ((enemy.frozen ?? 0) > 0) {
-      enemy.frozen = Math.max(0, enemy.frozen! - elapsedMs);
+    const frozen = enemy.frozen ?? 0;
+    if (frozen > 0) {
+      enemy.frozen = Math.max(0, frozen - elapsedMs);
       return false;
     }
     const slowed = enemy.slow > 0;

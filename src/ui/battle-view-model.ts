@@ -1,6 +1,7 @@
 import { dragons, getMap } from '../content/catalog';
 import { defenseRange, towerSummary } from '../game/defense-combat';
 import { levelCap } from '../game/defense-state';
+import { currencyOf } from '../game/ruleset';
 import { battleRules, towerRange, towerUpgradeCost } from '../game/rules';
 import { towerBonus, towerRangeMultiplier } from '../game/tower-bonuses';
 import type { DragonType, GameState } from '../game/types';
@@ -47,10 +48,6 @@ export interface BattleViewModel {
   bankedGold: string;
 }
 
-function currency(state: GameState): { name: string; icon: string } {
-  return state.defense ? { name: 'food', icon: '🥩' } : { name: 'gold', icon: '✦' };
-}
-
 /** Pure HUD and result copy. Views bind this model and do not call game rules. */
 export function presentBattle(state: GameState, showResults: boolean): BattleViewModel {
   const lives = state.eggs.filter((egg) => egg.status !== 'escaped').length;
@@ -58,7 +55,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
   const ended = state.phase === 'won' || state.phase === 'lost';
   const selected = state.selected === null ? null : state.towers[state.selected];
   const selectedPerch = selected ? state.selected : null;
-  const money = currency(state);
+  const money = currencyOf(state);
   const upgradeLabel = selected
     ? selected.level >= levelCap(state, selected)
       ? 'Maximum dragon level'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getMap } from '../src/content/catalog';
 import { createDefenseState } from '../src/game/defense-state';
 import { defenseRange } from '../src/game/defense-combat';
-import { towerBonus, produceTowerBonusResources } from '../src/game/tower-bonuses';
+import { towerBonus, produceJourneyBonusResources, produceLegacyBonusGold } from '../src/game/tower-bonuses';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { updateEnemies, updateProjectiles, updateTowers } from '../src/game/combat';
 import { towerDamage, towerRange } from '../src/game/rules';
@@ -70,7 +70,7 @@ describe('battlefield tower bonus areas', () => {
     }
     state.defense!.mana = 199.8;
     const startingFood = state.gold;
-    produceTowerBonusResources(state, 1000);
+    produceJourneyBonusResources(state, 1000);
     expect(state.defense!.mana).toBe(200);
     expect(state.gold).toBeCloseTo(startingFood + 0.5);
     expect(state.bankedGold).toBeCloseTo(0.25);
@@ -79,10 +79,32 @@ describe('battlefield tower bonus areas', () => {
     state.towers[1]!.level = 2;
     state.towers[2]!.level = 2;
     state.defense!.mana = 198;
-    produceTowerBonusResources(state, 1000);
+    produceJourneyBonusResources(state, 1000);
     expect(state.defense!.mana).toBe(199);
     expect(state.gold).toBeCloseTo(startingFood + 1.5);
     expect(state.bankedGold).toBeCloseTo(0.75);
+  });
+
+  it('pays legacy battles battle gold from both food and gold areas', () => {
+    const state = createInitialState('meadow');
+    const areas = getMap('meadow').bonusAreas;
+    for (const [index, kind] of ['food', 'gold', 'mana'].entries()) {
+      const area = areas.find((item) => item.kind === kind)!;
+      state.towers[index] = { type: 'fire', level: 1, cooldown: 0, position: { x: area.x, y: area.y } };
+    }
+    const startingGold = state.gold;
+    produceLegacyBonusGold(state, 1000);
+    expect(state.gold).toBeCloseTo(startingGold + 0.75);
+    expect(state.bankedGold).toBe(0);
+  });
+
+  it('pays sandbox battles nothing from resource areas', () => {
+    const state = createDefenseState('meadow', undefined, true);
+    const food = getMap('meadow').bonusAreas.find((area) => area.kind === 'food')!;
+    state.towers[0] = { type: 'fire', level: 1, cooldown: 0, position: { x: food.x, y: food.y } };
+    const startingFood = state.gold;
+    produceJourneyBonusResources(state, 1000);
+    expect(state.gold).toBe(startingFood);
   });
 
   it('accrues resource-area income during active simulation and stops while paused', () => {

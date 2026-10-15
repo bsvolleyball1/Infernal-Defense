@@ -3,7 +3,7 @@ import { applyDamage } from './damage';
 import { rankOf } from './defense-state';
 import { defenseRules } from '../content/defense-rules';
 import { enemyTraits } from '../content/enemies';
-import type { GameEvent, GameState, Point, SpellKind } from './types';
+import type { DefenseBattle, GameEvent, GameState, Point, SpellKind } from './types';
 import { getMap } from '../content/catalog';
 
 export function castSpell(state: GameState, spell: SpellKind, point: Point | undefined): GameEvent[] {
@@ -74,8 +74,8 @@ export function castSpell(state: GameState, spell: SpellKind, point: Point | und
     },
   ];
 }
-export function tickSpells(state: GameState, dt: number, events: GameEvent[]): void {
-  const d = state.defense!;
+export function tickSpells(state: DefenseBattle, dt: number, events: GameEvent[]): void {
+  const d = state.defense;
   d.mana = Math.min(
     d.maxMana,
     d.mana +

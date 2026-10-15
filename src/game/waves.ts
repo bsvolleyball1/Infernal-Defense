@@ -34,14 +34,14 @@ export function startWave(state: GameState): GameEvent[] {
     d.preview = null;
     const entries = sandbox
       ? Object.entries(d.testWave)
-          .filter(([kind, count]) => isDefenseMonster(kind) && count! > 0)
-          .map(([kind, count]) => [kind, count] as const)
+          .filter(([kind, count]) => isDefenseMonster(kind) && (count ?? 0) > 0)
+          .map(([kind, count]) => [kind, count ?? 0] as const)
       : (state.activeLevel === 'tutorial' ? tutorialRoster : defenseWaves)[state.wave - 1];
     groups = entries.map(([kind, n]) => {
       const stats = enemyRoster[kind as keyof typeof enemyRoster];
       return {
         kind: kind as keyof typeof enemyRoster,
-        n: n!,
+        n,
         hp: stats.hp,
         spd: movementSpeed(stats.rating),
       };

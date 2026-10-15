@@ -1,15 +1,12 @@
 import { applyCommand } from './commands';
-import { updateEnemies, updateProjectiles, updateTowers } from './combat';
+import { isSimulating, stepBattle } from './ruleset';
 import { copyState, createInitialState } from './state';
-import { finishWaveIfClear, spawnNextEnemy } from './waves';
 import type { GameCommand, GameEvent, GameState, SimulationEngine } from './types';
-import { stepDefense } from './defense-simulation';
-import { produceTowerBonusResources } from './tower-bonuses';
 
 // Preserve the existing public import while keeping construction/copying separate.
 export { createInitialState } from './state';
 
-/** Owns battle state and the order of pure-domain simulation operations. */
+/** Owns battle state; the active ruleset owns the order of simulation operations. */
 export class GameEngine implements SimulationEngine {
   state: GameState;
 
@@ -30,28 +27,13 @@ export class GameEngine implements SimulationEngine {
     return applyCommand(this.state, command);
   }
 
+  isRunning(): boolean {
+    return !this.state.paused && isSimulating(this.state);
+  }
+
   /** elapsedMs is foreground time; the runtime supplies fixed steps. */
   step(elapsedMs: number): GameEvent[] {
-    const state = this.state;
-    if (
-      state.defense &&
-      !state.paused &&
-      (state.phase === 'battle' || state.phase === 'ready') &&
-      Number.isFinite(elapsedMs) &&
-      elapsedMs > 0
-    )
-      return stepDefense(state, elapsedMs);
-    if (state.paused || state.phase !== 'battle' || !Number.isFinite(elapsedMs) || elapsedMs <= 0) return [];
-    const events: GameEvent[] = [];
-    const simulationElapsedMs = elapsedMs * state.speed;
-    state.simulationTime += simulationElapsedMs;
-    produceTowerBonusResources(state, simulationElapsedMs);
-    spawnNextEnemy(state);
-    updateEnemies(state, simulationElapsedMs, events);
-    if (state.phase !== 'battle') return events;
-    updateTowers(state, simulationElapsedMs, events);
-    updateProjectiles(state, simulationElapsedMs, events);
-    finishWaveIfClear(state, events);
-    return events;
+    if (!this.isRunning() || !Number.isFinite(elapsedMs) || elapsedMs <= 0) return [];
+    return stepBattle(this.state, elapsedMs);
   }
 }
