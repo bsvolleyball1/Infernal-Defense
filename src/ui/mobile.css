@@ -8,8 +8,8 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--gold)
 .tower { width:100%; color:var(--ink); text-align:left; font-family:inherit; }
 .tower[aria-pressed=true] { border-color:var(--gold); background:#302e21; }
 .controls { flex-wrap:wrap; justify-content:flex-end; }
-.perch { cursor:pointer; }
-.perch:focus-visible circle { stroke:var(--gold); stroke-width:5px; }
+.tower-marker { cursor:pointer; }
+.tower-marker:focus-visible .tower-aura { stroke:var(--gold); stroke-width:5px; }
 .legend { flex-wrap:wrap; }
 .stats { flex-wrap:wrap; }
 .toast { position:fixed; z-index:80; top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); text-align:center; display:flex; align-items:center; gap:8px; }

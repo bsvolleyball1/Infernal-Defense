@@ -1,16 +1,19 @@
-import { getMap } from '../content/catalog';
-import { entityPosition } from './geometry';
+import { entityPosition, towerPosition } from './geometry';
 import { towerRange, battleRules } from './rules';
 import { rank, rankTotal, randomValue } from './defense-state';
 import { applyDamage, damageMultiplier } from './damage';
 import type { Enemy, GameEvent, GameState, Tower } from './types';
 import { attackIndex, fireLevels, iceLevels, poisonLevels } from '../content/dragon-attacks';
+import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
 
 export function defenseRange(state: GameState, tower: Tower): number {
-  return towerRange(tower) * (tower.type === 'ice' ? 1 + rankTotal(state, 'ice') * 0.01 : 1);
+  const index = state.towers.indexOf(tower);
+  return towerRange(tower) *
+    (tower.type === 'ice' ? 1 + rankTotal(state, 'ice') * 0.01 : 1) *
+    towerRangeMultiplier(state, index);
 }
 export function targetsInRange(state: GameState, tower: Tower, index: number): Enemy[] {
-  const p = getMap(state.activeLevel).perches[index],
+  const p = towerPosition(state, index),
     range = defenseRange(state, tower);
   return state.enemies
     .filter((e) => {
@@ -33,9 +36,15 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
         if (tower.cooldown > 1e-7) return;
         tower.cooldown = 1000;
         for (const e of affected)
-          applyDamage(state, e, base * damageMultiplier(state, 'fire'), 'fire', events);
+          applyDamage(
+            state,
+            e,
+            base * damageMultiplier(state, 'fire') * towerDamageMultiplier(state, index),
+            'fire',
+            events,
+          );
         if (affected.length) {
-          const p = getMap(state.activeLevel).perches[index];
+          const p = towerPosition(state, index);
           state.defense!.visuals.push({
             id: state.nextEntityId++,
             kind: 'fire',
@@ -47,7 +56,13 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
         }
       } else
         for (const e of affected)
-          applyDamage(state, e, (base * damageMultiplier(state, 'fire') * dt) / 1000, 'fire', events);
+          applyDamage(
+            state,
+            e,
+            (base * damageMultiplier(state, 'fire') * towerDamageMultiplier(state, index) * dt) / 1000,
+            'fire',
+            events,
+          );
       return;
     }
     if (tower.type === 'ice') {
@@ -63,8 +78,9 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
           tower.chargeTimer += 1000;
         }
       }
+      if (tower.charges >= capacity) tower.chargeTimer = 1000;
       if (!targets.length || !tower.charges) return;
-      const p = getMap(state.activeLevel).perches[index];
+      const p = towerPosition(state, index);
       targets.sort((a, b) => {
         const [ax, ay] = entityPosition(state, a),
           [bx, by] = entityPosition(state, b);
@@ -82,7 +98,7 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
   });
 }
 function fireProjectile(state: GameState, tower: Tower, index: number, target: Enemy): void {
-  const p = getMap(state.activeLevel).perches[index];
+  const p = towerPosition(state, index);
   const ice = iceLevels[attackIndex(tower.level)],
     poison = poisonLevels[attackIndex(tower.level)];
   const base = tower.type === 'ice' ? ice.damage : poison.damage;
@@ -92,7 +108,10 @@ function fireProjectile(state: GameState, tower: Tower, index: number, target: E
     y: p.y - 18,
     targetId: target.id,
     dragon: tower.type,
-    damage: base * damageMultiplier(state, tower.type),
+    damage: base * damageMultiplier(state, tower.type) * towerDamageMultiplier(state, index),
+    ...(towerDamageMultiplier(state, index) > 1
+      ? { damageMultiplier: towerDamageMultiplier(state, index) }
+      : {}),
     speed: 5,
     level: tower.level,
     towerIndex: index,
@@ -109,7 +128,7 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
     if (!target && shot.dragon === 'ice' && shot.towerIndex !== undefined) {
       const tower = state.towers[shot.towerIndex];
       if (tower) {
-        const perch = getMap(state.activeLevel).perches[shot.towerIndex];
+        const perch = towerPosition(state, shot.towerIndex);
         target = targetsInRange(state, tower, shot.towerIndex).sort((a, b) => {
           const [ax, ay] = entityPosition(state, a),
             [bx, by] = entityPosition(state, b);
@@ -137,7 +156,8 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
         if (shot.poisonDuration) {
           target.poison = shot.poisonDuration;
           target.poisonD = 1000;
-          target.poisonDamage = target.max * 0.01 * damageMultiplier(state, shot.dragon);
+          target.poisonDamage =
+            target.max * 0.01 * damageMultiplier(state, shot.dragon) * (shot.damageMultiplier ?? 1);
           target.poisonSource = shot.dragon;
         }
         if (shot.slowDuration) target.slow = Math.max(target.slow, shot.slowDuration);
@@ -153,7 +173,7 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
   );
 }
 export function towerSummary(state: GameState, tower: Tower): string {
-  const damage = damageMultiplier(state, tower.type),
+  const damage = damageMultiplier(state, tower.type) * towerDamageMultiplier(state, state.towers.indexOf(tower)),
     index = attackIndex(tower.level);
   if (tower.type === 'fire') {
     const profile = fireLevels[index];

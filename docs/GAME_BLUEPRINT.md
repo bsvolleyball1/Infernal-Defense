@@ -378,7 +378,7 @@ Some enemies intentionally exceed the normal health scale.
 | Wight | TBD | TBD | TBD |
 | Werewolf | TBD | TBD | TBD |
 | Phantom | 2 | 80 | Invulnerable for first 3 sec after summoning |
-| Shade | 3 | 100 | Ignores map terrain/pathing and moves straight through |
+| Shade | 2 | 50 | Ignores map terrain/pathing and moves straight through |
 | Specter | TBD | TBD | TBD |
 | Ogre | TBD | TBD | TBD |
 | Minotaur | 5 | 100 | Pushes Demons in front of it |

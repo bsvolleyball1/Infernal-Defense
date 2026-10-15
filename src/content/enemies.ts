@@ -98,8 +98,8 @@ export const enemyRoster = {
   },
   shade: {
     name: 'Shade',
-    hp: 100,
-    rating: 3,
+    hp: 50,
+    rating: 2,
     color: '#3e464e',
     description: 'Travels straight to the nest, ignoring the trail.',
   },

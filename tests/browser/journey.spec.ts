@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createInitialState } from '../../src/game/engine';
+import { clickMapAt } from './map';
 
 async function newPlayer(page: Page) {
   await page.goto('./'); await page.locator('[data-open="saves"]').click(); await page.locator('[data-new="0"]').click();
@@ -32,8 +33,8 @@ test('startup is save-first and creates player progress before level selection',
 
 test('one active attempt locks level selection and resumes the same player without another slot', async ({ page }) => {
   await newPlayer(page); await page.locator('[data-level="meadow"]').click();
-  await page.locator('[data-type="fire"]').click(); await page.getByRole('button', { name: 'Empty perch 5', exact: true }).click();
-  await page.locator('#start').click(); await page.locator('#returnMenu').click();
+  await page.locator('[data-type="fire"]').click(); await clickMapAt(page, 100, 180);
+  await page.locator('.summon-control').click(); await page.locator('#returnMenu').click();
   const before = await saved(page);
   for (const level of ['tutorial', 'level1', 'meadow', 'volcanic']) await expect(page.locator(`[data-level="${level}"]`)).toBeDisabled();
   await expect(page.locator('#journeyLevelNotice')).toContainText('Willow Bend is in progress');
@@ -55,7 +56,7 @@ test('two completed levels and rewards carry into a third level in the same play
   expect((await saved(page)).journey).toEqual({ activeBattle: false, completedLevels: ['level1', 'meadow'] });
   expect((await saved(page)).state.bankedGold).toBe(112);
   await page.locator('#resultContinue').click(); await page.locator('#upgradeToLevels').click();
-  await expect(page.locator('#journeyCleared')).toHaveText('2 / 4 levels cleared');
+  await expect(page.locator('#journeyCleared')).toHaveText('2 / 7 levels cleared');
   await page.locator('[data-level="volcanic"]').click();
   const next = await saved(page);
   expect(next.journey).toEqual({ activeBattle: true, completedLevels: ['level1', 'meadow'] });

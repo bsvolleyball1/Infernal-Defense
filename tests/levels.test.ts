@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, routesFor } from '../src/content/catalog';
 import { GameEngine, createInitialState } from '../src/game/engine';
+import { createDefenseState } from '../src/game/defense-state';
 import { entityPosition } from '../src/game/geometry';
 import { moveEnemy, dropEgg } from '../src/game/eggs';
 import { updateTowers, updateProjectiles } from '../src/game/combat';
@@ -30,13 +31,15 @@ function storage(state: GameState) {
 
 describe('selectable battlefield definitions', () => {
   it.each<[Level, number, number]>([['level1', 8, 1], ['meadow', 5, 1], ['volcanic', 10, 2]])(
-    '%s has %s independent roosts and %s routes', (level, count, routeCount) => {
+    '%s starts with %s tower slots and %s routes', (level, count, routeCount) => {
       const map = getMap(level);
+
       const state = createInitialState(level); state.gold = 2000;
       const engine = new GameEngine(state);
       expect(state.towers).toHaveLength(count);
       expect(routesFor(map)).toHaveLength(routeCount);
-      expect(battlefieldArtwork(level).match(/class="perch"/g)).toHaveLength(count);
+      expect(battlefieldArtwork(level)).not.toContain('class="perch"');
+      expect(battlefieldArtwork(level)).toContain('id="towers"');
       for (let i = 0; i < count; i++) {
         engine.dispatch({ type: 'choose', dragon: 'fire' }); engine.dispatch({ type: 'perch', index: i });
       }
@@ -51,6 +54,63 @@ describe('selectable battlefield definitions', () => {
         expect(battlefieldArtwork(level)).toContain(`d="${d}"`);
       }
     });
+
+  it.each([
+    ['fireTrial', 'fire', 'fire'],
+    ['iceTrial', 'ice', 'ice'],
+    ['poisonTrial', 'poison', 'poison'],
+  ] as const)('%s has two shared-nest paths and only its matching dragon/spell', (level, dragon, spell) => {
+    const geometry = getMap(level),
+      state = createDefenseState(level);
+    expect(routesFor(geometry)).toHaveLength(2);
+    expect(routesFor(geometry).map(path => path.at(-1))).toEqual([
+      [geometry.nest.x, geometry.nest.y + 21],
+      [geometry.nest.x, geometry.nest.y + 21],
+    ]);
+    expect(geometry.challenge).toEqual({ dragon, spell });
+
+    state.phase = 'battle';
+    state.wave = 1;
+    state.enemies = [enemy(0)];
+    state.enemiesSummoned = 1;
+    state.nextEntityId = 7;
+    state.defense!.mana = 200;
+    const engine = new GameEngine(state);
+    const otherDragon = dragon === 'fire' ? 'ice' : 'fire';
+    engine.dispatch({ type: 'choose', dragon: otherDragon });
+    expect(engine.state.chosen).toBeNull();
+    engine.dispatch({ type: 'choose', dragon });
+    expect(engine.state.chosen).toBe(dragon);
+    engine.dispatch({ type: 'place', point: { x: 80, y: 140 } });
+    expect(engine.state.towers[0]?.type).toBe(dragon);
+
+    const otherSpell = spell === 'ice' ? 'fire' : 'ice';
+    engine.dispatch({
+      type: 'spell',
+      spell: otherSpell,
+      ...(otherSpell === 'ice' ? {} : { point: { x: 250, y: 215 } }),
+    });
+    expect(engine.state.defense!.mana).toBe(200);
+    engine.dispatch({
+      type: 'spell',
+      spell,
+      ...(spell === 'ice' ? {} : { point: { x: 250, y: 215 } }),
+    });
+    expect(engine.state.defense!.mana).toBe(50);
+    expect(engine.state.defense!.spellCooldowns[spell]).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['fireTrial', 'ice'],
+    ['iceTrial', 'fire'],
+    ['poisonTrial', 'fire'],
+  ] as const)('rejects saved %s towers that use the %s dragon', (level, dragon) => {
+    const state = createDefenseState(level),
+      { repository } = storage(state);
+    expect(repository.readSlot(0).status).toBe('valid');
+    state.towers[0] = { type: dragon, level: 1, cooldown: 0 };
+    expect(repository.saveSlot(0, state).ok).toBe(false);
+  });
 
   it('assigns alternating routes across wave groups and future spawns', () => {
     const engine = new GameEngine(createInitialState('volcanic'));

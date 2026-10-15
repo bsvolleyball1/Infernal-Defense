@@ -7,6 +7,7 @@ import type { JourneyProgress } from '../game/journey';
 import { validateDefense, validateDefenseEntities } from './defense-validation';
 import { createDefenseState } from '../game/defense-state';
 import { upgradedEggCount, eggReturnDelay } from '../content/defense-rules';
+import { isClearTowerPosition } from '../game/geometry';
 
 export interface SaveDataV2 {
   version: 2;
@@ -72,19 +73,30 @@ function kinds(value: unknown, unique = true): asserts value is string[] {
   for (const kind of value) monster(kind);
   if (unique) check(new Set(value).size === value.length, 'Bestiary contains duplicate kinds.');
 }
-function tower(value: unknown, legacy = false): void {
+function tower(value: unknown, geometry: Battlefield, legacy = false): void {
   if (value === null) return;
   object(value, 'Tower');
   dragon(value.type);
+  if (geometry.challenge)
+    check(value.type === geometry.challenge.dragon, 'Tower does not match this level challenge.');
   integer(value.level, 'Tower level', 1);
+  if (own(value, 'position')) {
+    object(value.position, 'Tower position');
+    number(value.position.x, 'Tower x', 0, geometry.width);
+    number(value.position.y, 'Tower y', 0, geometry.height);
+    check(
+      isClearTowerPosition({ x: value.position.x as number, y: value.position.y as number }, geometry),
+      'Tower cannot touch the road or map edge.',
+    );
+  }
   if (legacy) {
     if (own(value, 'last')) number(value.last, 'Legacy tower timer');
   } else number(value.cooldown, 'Tower cooldown');
 }
-function towers(value: unknown, legacy = false, count = map.perches.length): asserts value is unknown[] {
+function towers(value: unknown, geometry: Battlefield, legacy = false, count = map.perches.length): asserts value is unknown[] {
   array(value, 'Towers');
-  check(value.length === count || legacy && value.length === 5, 'Tower slots must match the battlefield.');
-  for (const item of value) tower(item, legacy);
+  check(value.length >= count || legacy && value.length === 5, 'Tower slots must match the battlefield.');
+  for (const item of value) tower(item, geometry, legacy);
 }
 function egg(value: unknown, legacy = false, geometry = map, count = 5): asserts value is RecordValue {
   object(value, 'Egg');
@@ -138,10 +150,14 @@ function validateState(value: unknown): asserts value is GameState {
   choice(value.activeLevel, Object.keys(battlefields), 'Level');
   const geometry = getMap(value.activeLevel as GameState['activeLevel']);
   kinds(value.knownMonsters);
-  if (value.selected !== null) integer(value.selected, 'Selected perch', 0, geometry.perches.length - 1);
-  if (value.chosen !== null) dragon(value.chosen);
-  towers(value.towers, false, geometry.perches.length);
-  check(value.selected === null || value.towers[value.selected as number] !== null, 'Selected perch must contain a tower.');
+  towers(value.towers, geometry, false, geometry.perches.length);
+  if (value.selected !== null) integer(value.selected, 'Selected dragon', 0, value.towers.length - 1);
+  if (value.chosen !== null) {
+    dragon(value.chosen);
+    if (geometry.challenge)
+      check(value.chosen === geometry.challenge.dragon, 'Chosen dragon does not match this level challenge.');
+  }
+  check(value.selected === null || value.towers[value.selected as number] !== null, 'Selected dragon must exist.');
   eggs(value.eggs, false, geometry, eggCount);
   array(value.enemies, 'Enemies');
   array(value.projectiles, 'Projectiles');
@@ -169,6 +185,7 @@ function validateState(value: unknown): asserts value is GameState {
     number(enemy.slow, 'Slow timer');
     number(enemy.poison, 'Poison timer');
     number(enemy.poisonD, 'Poison damage timer');
+    if (own(enemy, 'poisonDamageMultiplier')) number(enemy.poisonDamageMultiplier, 'Poison damage multiplier', 1, 10);
     if (enemy.carryingEgg !== null) integer(enemy.carryingEgg, 'Carried egg id', 1, eggCount);
     boolean(enemy.returning, 'Returning');
     boolean(enemy.escaped, 'Escaped');
@@ -187,6 +204,7 @@ function validateState(value: unknown): asserts value is GameState {
     number(projectile.damage, 'Projectile damage');
     number(projectile.speed, 'Projectile speed', Number.MIN_VALUE);
     integer(projectile.level, 'Projectile level', 1);
+    if (own(projectile, 'damageMultiplier')) number(projectile.damageMultiplier, 'Projectile damage multiplier', 1);
   }
   let previousSpawnTime = 0;
   for (const item of value.spawnSchedule) {
@@ -299,7 +317,7 @@ function migrate(value: RecordValue): SaveDataV2 {
     state.knownMonsters = [...new Set(value.knownMonsters)];
   }
   if (own(value, 'towers')) {
-    towers(value.towers, true);
+    towers(value.towers, map, true);
     state.towers = value.towers.map(item => {
       if (item === null) return null;
       const t = item as RecordValue;

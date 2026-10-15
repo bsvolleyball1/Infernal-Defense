@@ -1,4 +1,4 @@
-import { dragons, getMap } from '../content/catalog';
+import { dragons } from '../content/catalog';
 import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
 import { startWave } from './waves';
 import type { GameCommand, GameEvent, GameState } from './types';
@@ -7,6 +7,8 @@ import { rank, levelCap } from './defense-state';
 import { upgradeTrees, upgradeCost } from '../content/upgrades';
 import { isDefenseMonster } from '../content/enemies';
 import { defenseRules } from '../content/defense-rules';
+import { canPlaceTower } from './geometry';
+import { getMap } from '../content/catalog';
 
 /** Commands mutate only engine-owned state and return data-only events. */
 export function applyCommand(state: GameState, command: GameCommand): GameEvent[] {
@@ -42,7 +44,11 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
     case 'spell':
       return castSpell(state, command.spell, command.point);
     case 'spellTarget':
-      if (state.defense && [null, 'fire', 'poison'].includes(command.spell)) {
+      if (
+        state.defense &&
+        [null, 'fire', 'poison'].includes(command.spell) &&
+        (!getMap(state.activeLevel).challenge || command.spell === null || getMap(state.activeLevel).challenge?.spell === command.spell)
+      ) {
         state.defense.targeting = command.spell;
         state.defense.preview = null;
       }
@@ -64,12 +70,19 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
         state.defense.testWave = { ...command.counts };
       return [];
     case 'choose':
-      if (!Object.prototype.hasOwnProperty.call(dragons, command.dragon)) return [];
+      if (
+        !Object.prototype.hasOwnProperty.call(dragons, command.dragon) ||
+        (getMap(state.activeLevel).challenge &&
+          getMap(state.activeLevel).challenge?.dragon !== command.dragon)
+      )
+        return [];
       state.chosen = command.dragon;
       state.selected = null;
       return [];
     case 'perch':
       return selectPerch(state, command.index);
+    case 'place':
+      return placeTower(state, command.point);
     case 'upgrade':
       return upgradeTower(state);
     case 'sell':
@@ -80,13 +93,15 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
 }
 
 function selectPerch(state: GameState, index: number): GameEvent[] {
-  if (!Number.isInteger(index) || index < 0 || index >= getMap(state.activeLevel).perches.length) return [];
+  if (!Number.isInteger(index) || index < 0 || index >= state.towers.length) return [];
   if (state.towers[index]) {
     state.selected = index;
     state.chosen = null;
     return [];
   }
   if (!state.chosen) return [{ type: 'message', text: 'Choose a dragon first' }];
+  const challenge = getMap(state.activeLevel).challenge;
+  if (challenge && state.chosen !== challenge.dragon) return [];
   const dragon = dragons[state.chosen];
   if (state.gold < dragon.cost && state.defense?.mode !== 'sandbox')
     return [{ type: 'message', text: state.defense ? 'Not enough food' : 'Not enough gold' }];
@@ -100,6 +115,34 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
     if (state.chosen === 'ice') Object.assign(state.towers[index]!, { charges: 1, chargeTimer: 1000 });
   }
   state.selected = index;
+  state.chosen = null;
+  return [{ type: 'save' }];
+}
+
+function placeTower(state: GameState, point: { x: number; y: number }): GameEvent[] {
+  if (!state.chosen) return [{ type: 'message', text: 'Choose a dragon first' }];
+  const challenge = getMap(state.activeLevel).challenge;
+  if (challenge && state.chosen !== challenge.dragon) return [];
+  if (!canPlaceTower(state, point))
+    return [{ type: 'message', text: 'Choose a clear area away from the road and other dragons' }];
+
+  const dragon = dragons[state.chosen];
+  if (state.gold < dragon.cost && state.defense?.mode !== 'sandbox')
+    return [{ type: 'message', text: state.defense ? 'Not enough food' : 'Not enough gold' }];
+
+  if (state.defense?.mode !== 'sandbox') state.gold -= dragon.cost;
+  const index = state.towers.findIndex((tower) => tower === null);
+  const slot = index < 0 ? state.towers.length : index;
+  const tower = { type: state.chosen, level: 1, cooldown: 0, position: { ...point } };
+  if (state.defense && state.chosen === 'ice') Object.assign(tower, { charges: 1, chargeTimer: 1000 });
+  state.towers[slot] = tower;
+  if (state.defense) {
+    state.defense.mana = Math.min(
+      state.defense.maxMana,
+      state.defense.mana + defenseRules.placementManaPerRank * rank(state, 'fire', 2),
+    );
+  }
+  state.selected = slot;
   state.chosen = null;
   return [{ type: 'save' }];
 }

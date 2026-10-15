@@ -1,5 +1,4 @@
-import { getMap } from '../content/catalog';
-import { entityPosition } from '../game/geometry';
+import { entityPosition, towerPosition } from '../game/geometry';
 import type { GameState } from '../game/types';
 import { element } from './dom';
 
@@ -23,7 +22,7 @@ export class DefenseEffects {
     if (state.defense) {
       state.towers.forEach((t, i) => {
         if (!t?.beamIds || state.phase !== 'battle') return;
-        const p = getMap(state.activeLevel).perches[i];
+        const p = towerPosition(state, i);
         for (const id of t.beamIds) {
           const enemy = state.enemies.find((e) => e.id === id);
           if (!enemy) continue;

@@ -1,9 +1,10 @@
 import { enemyRoster, futureMonsters, playableMonsters } from '../content/enemies';
-import { dragons } from '../content/catalog';
+import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
 import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
 import { element, elements, setText } from './dom';
+import { dragonPortrait } from './dragon-art';
 
 export function mountDefenseControls(): void {
   const stats = document.createElement('span');
@@ -14,9 +15,11 @@ export function mountDefenseControls(): void {
   const controls = document.createElement('section');
   controls.id = 'spellControls';
   controls.hidden = true;
+  controls.setAttribute('role', 'group');
+  controls.setAttribute('aria-label', 'Battle spells');
   controls.innerHTML =
-    '<h3>Battle spells</h3><div class="spell-buttons"><button data-spell="poison">Poison Gas</button><button data-spell="ice">Ice Freeze</button><button data-spell="fire">Fire Rain</button></div><p id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</p>';
-  element('.wave').before(controls);
+    '<div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost">150</span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost">150</span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost">150</span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span>';
+  element('#battleSpells').append(controls);
   const test = document.createElement('section');
   test.id = 'testControls';
   test.hidden = true;
@@ -74,9 +77,17 @@ export function renderPermanent(state: GameState): void {
 
 export function renderDefenseControls(state: GameState): void {
   const d = state.defense;
+  const challenge = getMap(state.activeLevel).challenge;
+  const stats = element<HTMLElement>('.stats');
+  stats.dataset.mode = d ? 'defense' : 'classic';
+  stats.children.item(0)?.setAttribute('aria-label', d ? 'Food' : 'Gold');
+  stats.children.item(1)?.setAttribute('aria-label', 'Wave');
+  stats.children.item(2)?.setAttribute('aria-label', 'Nest life points');
+  element<HTMLElement>('#manaStat').setAttribute('aria-label', 'Mana');
   element('#manaStat').hidden = !d;
   element('#spellControls').hidden = !d;
   element('#testControls').hidden = d?.mode !== 'sandbox';
+  element<HTMLButtonElement>('#start').hidden = d?.mode === 'journey';
   element<HTMLButtonElement>('#openPermanent').disabled = state.phase === 'battle';
   const food = element('.stats span:first-child').firstChild;
   const prefix = d ? '🥩 FOOD ' : '✦ GOLD ';
@@ -91,7 +102,19 @@ export function renderDefenseControls(state: GameState): void {
     const type = button.dataset.type as DragonType,
       price = button.querySelector('.price')!,
       description = button.querySelector('.towerdesc')!;
-    const label = `${dragons[type].cost}${d ? ' food' : 'g'}`;
+    button.hidden = Boolean(challenge && challenge.dragon !== type);
+    button.disabled = state.phase === 'won' || state.phase === 'lost' || state.paused || button.hidden;
+    const orb = button.querySelector<HTMLElement>('.orb')!;
+    let portrait = orb.querySelector<HTMLImageElement>('.dragon-portrait');
+    if (!portrait) {
+      portrait = document.createElement('img');
+      portrait.className = 'dragon-portrait';
+      portrait.alt = '';
+      portrait.setAttribute('aria-hidden', 'true');
+      orb.replaceChildren(portrait);
+    }
+    portrait.src = dragonPortrait(type);
+    const label = `${d ? '🥩 ' : '✦ '}${dragons[type].cost}`;
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
       ? {
@@ -126,9 +149,13 @@ export function renderDefenseControls(state: GameState): void {
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
-    b.disabled = state.paused || state.phase !== 'battle' || (!sandbox && d.mana < 150) || seconds > 0;
-    const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds}s` : '150 mana'}`;
-    if (b.textContent !== label) b.textContent = label;
+    b.hidden = Boolean(challenge && challenge.spell !== key);
+    b.disabled = b.hidden || state.paused || state.phase !== 'battle' || (!sandbox && d.mana < 150) || seconds > 0;
+    const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds} seconds cooldown` : '150 mana'}`;
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    const status = b.querySelector<HTMLElement>('.spell-cost');
+    if (status) status.textContent = seconds ? `${seconds}s` : '150';
     b.setAttribute('aria-pressed', String(d.targeting === key));
   });
 }

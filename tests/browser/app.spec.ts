@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createInitialState, GameEngine } from '../../src/game/engine';
+import { clickMapAt, movePointerToMap } from './map';
 
 async function startJourney(page: Page): Promise<void> {
   await page.goto('./');
@@ -8,24 +9,87 @@ async function startJourney(page: Page): Promise<void> {
   await page.locator('[data-new="0"]').click();
   await page.locator('[data-level="level1"]').click();
   await expect(page.locator('#gameScreen')).toBeVisible();
-  await expect(page.locator('.perch')).toHaveCount(8);
+  await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
 }
 
-test('the eighth gorge roost supports placement, upgrading, selling and reload', async ({ page }) => {
+test('freeform placement supports upgrading, selling and reload', async ({ page }) => {
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
-  await page.getByRole('button', { name: 'Empty perch 8', exact: true }).click();
+  await clickMapAt(page, 90, 202);
+  await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-1/);
   await page.locator('#upgrade').click();
-  expect((await savedState(page)).towers[7]).toMatchObject({ type: 'fire', level: 2 });
+  await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-2/);
+  const placed = (await savedState(page)).towers[0];
+  expect(placed).toMatchObject({ type: 'fire', level: 2 });
+  expect(Math.abs(placed.position.x - 90)).toBeLessThan(1);
+  expect(Math.abs(placed.position.y - 202)).toBeLessThan(1);
   await page.reload();
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   // Expanded pre-wave countdowns also require an explicit Resume after loading.
   await page.locator('#resumeBattle').click();
-  await page.getByRole('button', { name: 'Ember, level 2, perch 8', exact: true }).click();
+  await page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true }).click();
   await page.locator('#sell').click();
   expect((await savedState(page)).towers).toHaveLength(8);
-  expect((await savedState(page)).towers[7]).toBeNull();
+  expect((await savedState(page)).towers[0]).toBeNull();
+});
+
+test('dragon and spell icon controls sit over the bottom of the map', async ({ page }) => {
+  await startJourney(page);
+  await expect(page.locator('#battleDragons .tower')).toHaveCount(3);
+  await expect(page.locator('#battleSpells [data-spell]')).toHaveCount(3);
+  for (const selector of [
+    '#battleStatus #gold',
+    '#battleStatus #waveNum',
+    '#battleStatus #lives',
+    '#battleStatus #manaStat',
+    '#battleStatus .nest',
+    '#battleControls #pause',
+    '#battleControls #speed',
+    '#battleControls #sound',
+    '#battleControls #saveProgress',
+    '#battleControls #returnMenu',
+  ]) {
+    await expect(page.locator(selector)).toBeVisible();
+  }
+  await expect(page.locator('#battleControls #pause')).toHaveAttribute('aria-label', 'Pause');
+  await expect(page.locator('#battleControls #sound')).toHaveAttribute('aria-label', 'Turn sound off');
+  await expect(page.locator('#battleControls #saveProgress')).toHaveAttribute('aria-label', 'Save progress');
+  await expect(page.locator('#battleControls #returnMenu')).toHaveAttribute('aria-label', 'Return to menu');
+  await expect(page.locator('#battleDragons [data-type="fire"]')).toHaveAttribute(
+    'aria-label',
+    /Ember dragon.*60 food/,
+  );
+  await expect(page.locator('#battleDragons [data-type="fire"] .dragon-portrait')).toHaveAttribute('src', /fire-1/);
+  const mapBox = await page.locator('#map').boundingBox();
+  const toolbarBox = await page.locator('.battle-toolbar').boundingBox();
+  const spellsBox = await page.locator('#battleSpells').boundingBox();
+  const middleBox = await page.locator('#battleMiddle').boundingBox();
+  const dragonsBox = await page.locator('#battleDragons').boundingBox();
+  expect(mapBox).not.toBeNull();
+  expect(toolbarBox).not.toBeNull();
+  expect(toolbarBox!.y + toolbarBox!.height).toBeGreaterThan(mapBox!.y + mapBox!.height - 2);
+  expect(toolbarBox!.y).toBeGreaterThan(mapBox!.y + mapBox!.height / 2);
+  expect(spellsBox).not.toBeNull();
+  expect(middleBox).not.toBeNull();
+  expect(dragonsBox).not.toBeNull();
+  expect(middleBox!.x).toBeGreaterThanOrEqual(spellsBox!.x + spellsBox!.width);
+  expect(middleBox!.x + middleBox!.width).toBeLessThanOrEqual(dragonsBox!.x);
+});
+
+test('selected dragon shows a translucent placement preview that follows the pointer', async ({ page }) => {
+  await startJourney(page);
+  await page.locator('[data-type="fire"]').click();
+  const preview = page.locator('.placement-preview');
+  await movePointerToMap(page, 90, 202);
+  await expect(preview).toHaveAttribute('visibility', 'visible');
+  await expect(preview).toHaveAttribute('opacity', '.58');
+  await expect(preview.locator('.placement-icon')).toHaveAttribute('href', /fire-1/);
+  await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#c5f39a');
+  await movePointerToMap(page, 350, 315);
+  await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#ff8671');
+  await clickMapAt(page, 90, 202);
+  await expect(preview).toHaveAttribute('visibility', 'hidden');
 });
 
 async function savedState(page: Page) {
@@ -37,14 +101,14 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   page.on('pageerror', error => errors.push(error.message));
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
-  await page.getByRole('button', { name: 'Empty perch 1', exact: true }).click();
+  await clickMapAt(page, 90, 202);
   await expect(page.locator('#gold')).toHaveText('60');
   await page.locator('#upgrade').click();
   await expect(page.locator('#gold')).toHaveText('15');
   await expect(page.locator('#info')).toContainText('Level 2');
   await page.locator('#sell').click();
   await expect(page.locator('#gold')).toHaveText('63');
-  await page.locator('#start').click();
+  await page.locator('.summon-control').click();
   await expect(page.locator('#waveState')).toHaveText('UNDER ATTACK');
   await page.locator('#speed').click();
   await expect(page.locator('#speed')).toContainText('1.5×');
@@ -89,6 +153,9 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await expect(page.locator('#enemies > g')).toHaveCount(2);
+  await expect(page.locator('#enemies > g .enemy-icon')).toHaveCount(2);
+  await expect(page.locator('#enemies > g .enemy-icon').nth(0)).toHaveAttribute('href', /gargoyle/);
+  await expect(page.locator('#enemies > g .enemy-icon').nth(1)).toHaveAttribute('href', /imp/);
   await expect(page.locator('#eggObjects > g')).toHaveCount(5);
   await page.locator('#saveProgress').click();
   expect(await savedState(page)).toEqual({ ...state, paused: true });
@@ -104,7 +171,7 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
 
 test('backgrounding pauses and captures the battle before returning', async ({ page, context }) => {
   await startJourney(page);
-  await page.locator('#start').click();
+  await page.locator('.summon-control').click();
   await page.waitForTimeout(150);
   // Trigger the same lifecycle event with the hidden flag browsers expose.
   await page.evaluate(() => {
@@ -156,7 +223,7 @@ test('corrupt saves are preserved and storage failures never claim success', asy
 test('stale background tabs cannot overwrite a newer journey', async ({ page, context }) => {
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
-  await page.getByRole('button', { name: 'Empty perch 1', exact: true }).click();
+  await clickMapAt(page, 90, 202);
   const newer = await context.newPage(); await newer.goto('./');
   await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click(); await newer.locator("#journeyResume").click();
   await expect(newer.locator('#pauseOverlay')).toBeVisible();
@@ -195,12 +262,13 @@ test('failed result saves keep the result open until saving succeeds', async ({ 
   await expect(page.locator('#bankedGold')).toHaveText('51 gold');
 });
 
-test('keyboard placement works and renderer preserves live entity nodes', async ({ page }) => {
+test('keyboard dragon selection and renderer preserve live entity nodes', async ({ page }) => {
   await startJourney(page);
   await page.locator('[data-type="fire"]').focus(); await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: 'Empty perch 1', exact: true }).focus(); await page.keyboard.press('Enter');
+  await page.locator('[data-type="fire"]').focus(); await page.keyboard.press('Enter');
+  await clickMapAt(page, 90, 202);
   await expect(page.locator('#gold')).toHaveText('60');
-  await page.locator('#start').click();
+  await page.locator('.summon-control').click();
   await expect(page.locator('#enemies > g')).not.toHaveCount(0);
   const enemy = await page.locator('#enemies > g').first().elementHandle();
   await page.waitForTimeout(60);
@@ -216,15 +284,12 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 320, height: 640 }
     await startJourney(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator('[data-type="fire"] .price')).toBeVisible();
-    const box = await page.locator('#start').boundingBox(); expect(box!.height).toBeGreaterThanOrEqual(44);
-    const touchWidth = await page.locator('.perch').first().evaluate(perch => {
-      const svg = perch.closest('svg')!;
-      const matrix = svg.getScreenCTM()!;
-      return Number(perch.lastElementChild!.getAttribute('r')) * 2 * Math.min(Math.abs(matrix.a), Math.abs(matrix.d));
-    });
-    expect(touchWidth).toBeGreaterThanOrEqual(43.9);
+    const summonTarget = await page.locator('.summon-hit').boundingBox();
+    expect(summonTarget!.height).toBeGreaterThanOrEqual(44);
+    const mapBox = await page.locator('#map').boundingBox();
+    expect(mapBox!.width).toBeGreaterThanOrEqual(43.9);
     await page.locator('[data-type="fire"]').tap();
-    await page.getByRole('button', { name: 'Empty perch 1', exact: true }).tap();
+    await clickMapAt(page, 90, 202);
     await expect(page.locator('#gold')).toHaveText('60');
     await page.screenshot({ path: test.info().outputPath(`phone-${viewport.width}.png`), fullPage: true });
   });
@@ -249,7 +314,7 @@ test('manifest, icons, service worker and offline cold launch work at repository
   expect(manifest.scope).toBe('/Infernal-Defense/'); expect(manifest.start_url).toBe('/Infernal-Defense/');
   expect(manifest.display).toBe('standalone'); expect(manifest.orientation).toBe('any');
   for (const icon of manifest.icons) expect((await request.get(new URL(icon.src, page.url()).href)).ok()).toBe(true);
-  await page.locator('#start').click(); await page.locator('#pause').click();
+  await page.locator('.summon-control').click(); await page.locator('#pause').click();
   const before = await savedState(page);
   await waitForServiceWorkerControl(page);
   await context.setOffline(true);

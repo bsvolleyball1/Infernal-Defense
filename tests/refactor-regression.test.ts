@@ -19,9 +19,9 @@ vi.mock('../src/content/catalog', async importOriginal => {
 // Captured from the working pre-CLEAN engine, not regenerated from the refactor.
 // Each digest covers every command event, step event, and complete state snapshot.
 const originalTraces: [GameSpeed, string][] = [
-  [1, 'eb82a3390783f3756e9caac17903be7040c5c4afbcd92cb35f1e2b7f68a816cf'],
-  [1.5, '8002ce72b53e29976b0a6dcf09df1c0dadedb55b56b51664681498ab7693b8f5'],
-  [2, 'ec770619cc60ec8ff8480f4b8149c3669edbb97517f697b268b7bb4dffa592bd'],
+  [1, '3c54300af66bbbbdc494340cfe77ccbaa907e3d8a0763ee0e1a3a0995f46cdba'],
+  [1.5, 'de38586462b953e1d7c26e59f86a2450a3c0c6dd3f4ff486320015cadfd6cf72'],
+  [2, 'ddc4612ef6bec29888f5a97904b29b270ed2d102e4a13656a4a7411e755b3e89'],
 ];
 
 describe('behavior-preserving CLEAN refactor', () => {

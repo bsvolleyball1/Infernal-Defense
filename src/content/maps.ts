@@ -1,6 +1,13 @@
-import type { Level } from '../game/types';
+import type { DragonType, Level, SpellKind } from '../game/types';
 
 export type Point = [number, number];
+export type BonusAreaKind = 'damage' | 'range' | 'mana' | 'food' | 'gold';
+export interface BonusArea {
+  kind: BonusAreaKind;
+  x: number;
+  y: number;
+  radius: number;
+}
 export interface Battlefield {
   width: number;
   height: number;
@@ -12,12 +19,14 @@ export interface Battlefield {
   /** Additional complete routes share a prefix and suffix with the main route. */
   forks: Point[][];
   perches: { x: number; y: number }[];
+  bonusAreas: BonusArea[];
   nest: { x: number; y: number };
+  challenge?: { dragon: DragonType; spell: SpellKind };
 }
 
 export const gorge: Battlefield = {
   width: 700, height: 430, name: 'Emberfall Gorge',
-  description: 'Eight roosts overlook a river gorge and a winding bridge crossing.',
+  description: 'A river gorge and winding bridge crossing.',
   theme: 'gorge', background: '#2c4646',
   path: [
     [-30, 300], [80, 300], [145, 280], [175, 220], [150, 160],
@@ -31,12 +40,19 @@ export const gorge: Battlefield = {
     { x: 430, y: 78 }, { x: 594, y: 205 }, { x: 220, y: 345 },
     { x: 410, y: 385 }, { x: 590, y: 345 },
   ],
+  bonusAreas: [
+    { kind: 'damage', x: 240, y: 245, radius: 24 },
+    { kind: 'range', x: 390, y: 145, radius: 24 },
+    { kind: 'mana', x: 35, y: 35, radius: 24 },
+    { kind: 'food', x: 665, y: 395, radius: 24 },
+    { kind: 'gold', x: 35, y: 395, radius: 24 },
+  ],
   nest: { x: 640, y: 64 },
 };
 
 const meadow: Battlefield = {
   width: 700, height: 430, name: 'Willow Bend',
-  description: 'Five roosts guard one broad meadow trail. A simple place to learn coverage.',
+  description: 'One broad trail crosses a quiet meadow.',
   theme: 'meadow', background: '#648262',
   path: [
     [-30, 110], [45, 110], [115, 110], [185, 110], [255, 110],
@@ -49,12 +65,19 @@ const meadow: Battlefield = {
     { x: 115, y: 183 }, { x: 280, y: 185 }, { x: 445, y: 230 },
     { x: 535, y: 385 }, { x: 577, y: 157 },
   ],
+  bonusAreas: [
+    { kind: 'damage', x: 235, y: 200, radius: 24 },
+    { kind: 'range', x: 510, y: 245, radius: 24 },
+    { kind: 'mana', x: 35, y: 35, radius: 24 },
+    { kind: 'food', x: 665, y: 35, radius: 24 },
+    { kind: 'gold', x: 35, y: 395, radius: 24 },
+  ],
   nest: { x: 650, y: 169 },
 };
 
 const volcanic: Battlefield = {
   width: 700, height: 430, name: 'Obsidian Fork',
-  description: 'Ten roosts defend two routes through a ruined volcanic fortress. Guard both branches.',
+  description: 'Two routes split through a ruined volcanic fortress. Guard both branches.',
   theme: 'volcanic', background: '#403848',
   path: [
     [-30, 215], [45, 215], [120, 215], [195, 215],
@@ -74,9 +97,64 @@ const volcanic: Battlefield = {
     { x: 275, y: 275 }, { x: 365, y: 285 }, { x: 455, y: 270 },
     { x: 590, y: 130 },
   ],
+  bonusAreas: [
+    { kind: 'damage', x: 185, y: 135, radius: 24 },
+    { kind: 'range', x: 625, y: 150, radius: 24 },
+    { kind: 'mana', x: 35, y: 35, radius: 24 },
+    { kind: 'food', x: 35, y: 395, radius: 24 },
+    { kind: 'gold', x: 665, y: 395, radius: 24 },
+  ],
   nest: { x: 660, y: 194 },
 };
 
+export function bonusAreaAt(
+  geometry: Battlefield,
+  point: { x: number; y: number },
+): { area: BonusArea; index: number } | null {
+  const index = geometry.bonusAreas.findIndex(
+    area => Math.hypot(point.x - area.x, point.y - area.y) <= area.radius,
+  );
+  return index < 0 ? null : { area: geometry.bonusAreas[index], index };
+}
+
+const challengeLevel = (
+  name: string,
+  description: string,
+  background: string,
+  dragon: DragonType,
+  spell: SpellKind,
+): Battlefield => ({
+  ...volcanic,
+  name,
+  description,
+  background,
+  challenge: { dragon, spell },
+});
+
 export const battlefields: Record<Level, Battlefield> = {
-  tutorial: gorge, level1: gorge, meadow, volcanic,
+  tutorial: gorge,
+  level1: gorge,
+  meadow,
+  volcanic,
+  fireTrial: challengeLevel(
+    'Ember Fork',
+    'Two paths converge at one nest. Use the Ember dragon and Fire Rain spell.',
+    '#49332f',
+    'fire',
+    'fire',
+  ),
+  iceTrial: challengeLevel(
+    'Frost Fork',
+    'Two paths converge at one nest. Use the Frost dragon and Ice Freeze spell.',
+    '#34454a',
+    'ice',
+    'ice',
+  ),
+  poisonTrial: challengeLevel(
+    'Venom Fork',
+    'Two paths converge at one nest. Use the Thorn dragon and Poison Gas spell.',
+    '#354333',
+    'poison',
+    'poison',
+  ),
 };

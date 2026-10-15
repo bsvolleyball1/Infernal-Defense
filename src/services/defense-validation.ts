@@ -88,6 +88,7 @@ export function validateDefenseEntities(state: GameState): void {
     for (const key of [
       'frozen',
       'poisonDamage',
+      'poisonDamageMultiplier',
       'untargetable',
       'invulnerable',
       'deathDelay',
@@ -102,6 +103,8 @@ export function validateDefenseEntities(state: GameState): void {
       check(['fire', 'ice', 'poison', 'spell'].includes(enemy.poisonSource), 'Invalid poison source.');
   }
   for (const shot of state.projectiles) {
+    if (shot.damageMultiplier !== undefined)
+      check(finite(shot.damageMultiplier, 1, 10), 'Invalid projectile damage multiplier.');
     if (shot.freezeChance !== undefined) check(finite(shot.freezeChance, 0, 1), 'Invalid freeze chance.');
     for (const key of ['poisonDuration', 'slowDuration'] as const)
       if (shot[key] !== undefined) check(finite(shot[key]), 'Invalid projectile payload.');

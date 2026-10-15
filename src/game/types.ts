@@ -17,13 +17,22 @@ export interface DefenseState {
   visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number }[];
   testWave: Partial<Record<MonsterKind, number>>;
 }
-export type Level = 'level1' | 'tutorial' | 'meadow' | 'volcanic';
+export type Level =
+  | 'level1'
+  | 'tutorial'
+  | 'meadow'
+  | 'volcanic'
+  | 'fireTrial'
+  | 'iceTrial'
+  | 'poisonTrial';
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 
 export interface Tower {
   type: DragonType;
   level: number;
+  /** Coordinates are absent only on pre-free-placement saves. */
+  position?: Point;
   /** Remaining simulation milliseconds before the next shot. */
   cooldown: number;
   charges?: number;
@@ -49,6 +58,7 @@ export interface Enemy {
   rewarded: boolean;
   frozen?: number;
   poisonDamage?: number;
+  poisonDamageMultiplier?: number;
   poisonSource?: DragonType | 'spell';
   untargetable?: number;
   ghostTriggered?: boolean;
@@ -67,6 +77,8 @@ export interface Projectile {
   targetId: number;
   dragon: DragonType;
   damage: number;
+  /** Extra tower bonus applied to damage-over-time effects when the shot lands. */
+  damageMultiplier?: number;
   speed: number;
   level: number;
   towerIndex?: number;
@@ -125,6 +137,7 @@ export interface GameState {
 export type GameCommand =
   | { type: 'choose'; dragon: DragonType }
   | { type: 'perch'; index: number }
+  | { type: 'place'; point: Point }
   | { type: 'upgrade' }
   | { type: 'sell' }
   | { type: 'startWave' }
