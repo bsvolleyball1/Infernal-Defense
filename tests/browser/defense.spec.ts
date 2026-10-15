@@ -66,7 +66,8 @@ test('failed permanent purchase leaves the complete player save and bank unchang
 test('a restored countdown waits for Resume and early summoning retains its bonus', async ({ page }) => {
   const state = createDefenseState();
   state.wave = 1;
-  state.defense!.countdown = 2500;
+  // The bonus is ceil(seconds left) × 10 mana. 4.5 s leaves 2.5 s between Resume and Summon before it drops below 30.
+  state.defense!.countdown = 4500;
   await putSave(page, state);
   await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
@@ -78,7 +79,7 @@ test('a restored countdown waits for Resume and early summoning retains its bonu
   await expect(summon.locator('.summon-progress')).toHaveAttribute('stroke-dashoffset', /[1-9]/);
   await page.locator('#saveProgress').click();
   const paused = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
-  expect(paused.defense.countdown).toBe(2500);
+  expect(paused.defense.countdown).toBe(4500);
   expect(paused.paused).toBe(true);
   await page.locator('#resumeBattle').click();
   await page.locator('.summon-control').click();
@@ -110,7 +111,11 @@ for (const viewport of [
       await page.locator('[data-test-count="witch"]').blur();
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
-      for (let i = 0; i < 5; i++) await page.locator('#upgrade').tap();
+      // Each upgrade closes the action popover, so the dragon is selected again before the next one.
+      for (let level = 1; level <= 5; level++) {
+        await page.getByRole('button', { name: `Frost, level ${level}, dragon 1`, exact: true }).tap();
+        await page.locator('#upgrade').tap();
+      }
       await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');

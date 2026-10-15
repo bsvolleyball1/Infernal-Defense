@@ -17,7 +17,9 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:4173/Infernal-Defense/',
-    trace: 'retain-on-failure',
+    // Recording a trace for every test is costly here: battle pages render every frame, so each trace
+    // carries a screencast and large DOM snapshots. Under parallel workers that made heavy tests time out.
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     serviceWorkers: 'allow',
   },

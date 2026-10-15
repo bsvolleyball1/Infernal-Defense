@@ -64,10 +64,12 @@ button:focus-visible,
   align-items: center;
   gap: 8px;
 }
+/* The overlay has no z-index so it shares the battlefield stacking context: its backdrop blocks the map,
+   the battle dock (z-index 4) stays above it so Save, Menu and the other controls work while paused,
+   and the card stays above both. */
 .pause-overlay {
   position: absolute;
   inset: 0;
-  z-index: 15;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -80,6 +82,8 @@ button:focus-visible,
   display: none;
 }
 .pause-card {
+  position: relative;
+  z-index: 5;
   background: var(--panel);
   border: 1px solid #6d7655;
   border-radius: 12px;

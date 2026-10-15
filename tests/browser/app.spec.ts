@@ -107,6 +107,8 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await page.locator('#upgrade').click();
   await expect(page.locator('#gold')).toHaveText('15');
   await expect(page.locator('#info')).toContainText('Level 2');
+  // Upgrading closes the action popover, so the dragon is selected again before selling.
+  await page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true }).click();
   await page.locator('#sell').click();
   await expect(page.locator('#gold')).toHaveText('63');
   await page.locator('.summon-control').click();
@@ -278,6 +280,10 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
+  // A running countdown autosaves every two seconds. Pause the older tab so that autosave cannot win the
+  // race and make the newer tab the stale one when loading and upgrading there takes longer than that.
+  await page.locator('#pause').click();
+  await expect(page.locator('#pauseOverlay')).toBeVisible();
   const newer = await context.newPage();
   await newer.goto('./');
   await newer.locator('[data-open="saves"]').click();
