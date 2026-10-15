@@ -8,7 +8,10 @@ export interface PwaOptions {
   beforeUpdate: () => boolean;
   onMessage: (text: string) => void;
 }
-export interface PwaController { onJourneySaved: () => void; checkPendingUpdate: () => void }
+export interface PwaController {
+  onJourneySaved: () => void;
+  checkPendingUpdate: () => void;
+}
 const inactiveController: PwaController = { onJourneySaved: () => {}, checkPendingUpdate: () => {} };
 
 let initialized = false;
@@ -24,9 +27,15 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
     onMessage('Ready to play offline.');
   };
   const announceConnectivity = () => {
-    onMessage(navigator.onLine
-      ? offlineReady ? 'Online · ready to play offline.' : 'Online'
-      : offlineReady ? 'Offline · ready to play.' : 'Offline · connect to prepare.');
+    onMessage(
+      navigator.onLine
+        ? offlineReady
+          ? 'Online · ready to play offline.'
+          : 'Online'
+        : offlineReady
+          ? 'Offline · ready to play.'
+          : 'Offline · connect to prepare.',
+    );
   };
   window.addEventListener('online', announceConnectivity);
   window.addEventListener('offline', announceConnectivity);
@@ -43,16 +52,18 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
     saveBeforeUpdate: beforeUpdate,
     activate: () => updateSW(true),
     reload: () => window.location.reload(),
-    onStatus: state => {
+    onStatus: (state) => {
       if (state === 'blocked') {
         onMessage('Update postponed · it will retry automatically after your journey can be saved.');
         return;
       }
-      onMessage(state === 'waiting'
-        ? 'Update ready · applies automatically when the battle pauses or the wave ends.'
-        : 'Journey saved · updating automatically…');
+      onMessage(
+        state === 'waiting'
+          ? 'Update ready · applies automatically when the battle pauses or the wave ends.'
+          : 'Journey saved · updating automatically…',
+      );
     },
-    onFailure: reason => {
+    onFailure: (reason) => {
       if (reason === 'save') return;
       onMessage('The app update failed. Your current game remains open; updates retry automatically.');
     },
@@ -75,24 +86,34 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
       },
       onNeedRefresh() {
         // Ignore Workbox's rapid-install heuristic unless a real replacement is waiting.
-        void navigator.serviceWorker.getRegistration().then(registration => {
-          if (registration?.active && registration.waiting) updates.waiting();
-        }).catch(() => onMessage('Could not inspect the pending app update.'));
+        void navigator.serviceWorker
+          .getRegistration()
+          .then((registration) => {
+            if (registration?.active && registration.waiting) updates.waiting();
+          })
+          .catch(() => onMessage('Could not inspect the pending app update.'));
       },
       onOfflineReady: markOfflineReady,
-      onRegisterError() { onMessage('Offline setup failed. Check your connection and reload to retry.'); },
+      onRegisterError() {
+        onMessage('Offline setup failed. Check your connection and reload to retry.');
+      },
       onRegisteredSW(url, registration) {
         if (!registration) return;
         const scriptURL = new URL(url, window.location.href).href;
         const markActiveReady = (candidate: ServiceWorkerRegistration) => {
           // generateSW activation follows successful, atomic installation of its precache.
-          if (candidate.scope === new URL(import.meta.env.BASE_URL, window.location.origin).href &&
-              candidate.active?.scriptURL === scriptURL && candidate.active.state === 'activated') {
+          if (
+            candidate.scope === new URL(import.meta.env.BASE_URL, window.location.origin).href &&
+            candidate.active?.scriptURL === scriptURL &&
+            candidate.active.state === 'activated'
+          ) {
             markOfflineReady();
           }
         };
         markActiveReady(registration);
-        void navigator.serviceWorker.ready.then(markActiveReady).catch(() => onMessage('Offline setup could not complete.'));
+        void navigator.serviceWorker.ready
+          .then(markActiveReady)
+          .catch(() => onMessage('Offline setup could not complete.'));
         const checkWaiting = () => {
           // Use native lifecycle state as well as Workbox's time-based callbacks.
           // Rapid consecutive builds can otherwise be classified as external installs.
@@ -104,13 +125,18 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
           if (!worker || watched.has(worker)) return;
           watched.add(worker);
           let activated = worker.state === 'activated';
-          worker.addEventListener('error', () => onMessage('The offline worker failed. Reconnect and reload to retry.'));
+          worker.addEventListener('error', () =>
+            onMessage('The offline worker failed. Reconnect and reload to retry.'),
+          );
           worker.addEventListener('statechange', () => {
             if (worker.state === 'installed') {
               checkWaiting();
               setTimeout(checkWaiting, 0);
             }
-            if (worker.state === 'activated') { activated = true; markActiveReady(registration); }
+            if (worker.state === 'activated') {
+              activated = true;
+              markActiveReady(registration);
+            }
             if (worker.state === 'redundant' && !activated) {
               onMessage('The app update could not be installed. Try again when online.');
               updates.installationFailed();
@@ -137,6 +163,8 @@ export function initPwa({ canAutoUpdate, beforeUpdate, onMessage }: PwaOptions):
         });
       },
     });
-  } catch { onMessage('Offline setup failed. Reload to retry.'); }
+  } catch {
+    onMessage('Offline setup failed. Reload to retry.');
+  }
   return { onJourneySaved: () => updates.journeySaved(), checkPendingUpdate: () => updates.applyWhenSafe() };
 }

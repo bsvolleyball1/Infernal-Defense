@@ -53,19 +53,30 @@ export class AppUpdates {
 
   applyWhenSafe(): void {
     if (!this.pending || this.applying || this.reloading || this.blocked) return;
-    if (!this.actions.canApplyAutomatically()) { this.report('waiting'); return; }
+    if (!this.actions.canApplyAutomatically()) {
+      this.report('waiting');
+      return;
+    }
     // Mark busy before saving: a successful save can call journeySaved reentrantly.
     this.applying = true;
     try {
-      if (this.actions.saveBeforeUpdate() !== true) { this.fail('save'); return; }
-    } catch { this.fail('save'); return; }
+      if (this.actions.saveBeforeUpdate() !== true) {
+        this.fail('save');
+        return;
+      }
+    } catch {
+      this.fail('save');
+      return;
+    }
     this.report('applying');
     if (this.reloadPending) {
       this.reloading = true;
       this.actions.reload();
       return;
     }
-    void Promise.resolve().then(() => this.actions.activate()).catch(() => this.fail('activation'));
+    void Promise.resolve()
+      .then(() => this.actions.activate())
+      .catch(() => this.fail('activation'));
   }
 
   private fail(reason: 'save' | 'activation'): void {

@@ -1,4 +1,5 @@
-import { enemyRoster, isDefenseMonster, movementSpeed } from '../content/enemies';
+import { enemyRoster, enemyTraits, isDefenseMonster, movementSpeed } from '../content/enemies';
+import { defenseRules } from '../content/defense-rules';
 import type { Enemy, GameState, MonsterKind } from './types';
 
 export function createEnemy(
@@ -30,10 +31,10 @@ export function createEnemy(
           poisonDamage: 0,
           untargetable: 0,
           ghostTriggered: false,
-          invulnerable: kind === 'phantom' ? 3000 : 0,
+          invulnerable: enemyTraits(kind).spawnInvulnerableMs ?? 0,
           deathDelay: 0,
           lastHitAgo: 0,
-          summonClock: 5000,
+          summonClock: enemyTraits(kind).summoner?.travelMs ?? defenseRules.defaultSummonClockMs,
           summonPause: 0,
           empowered: false,
         }
@@ -41,10 +42,8 @@ export function createEnemy(
   };
 }
 export function summonEnemy(state: GameState, kind: MonsterKind, parent: Enemy): void {
-  if (!isDefenseMonster(kind) || state.enemies.length + state.spawnSchedule.length >= 500) return;
+  if (!isDefenseMonster(kind) || state.enemies.length + state.spawnSchedule.length >= defenseRules.summonCap) return;
   const stats = enemyRoster[kind];
-  state.enemies.push(
-    createEnemy(state, kind, stats.hp, movementSpeed(stats.rating), parent.progress, parent.routeId),
-  );
+  state.enemies.push(createEnemy(state, kind, stats.hp, movementSpeed(stats.rating), parent.progress, parent.routeId));
   state.enemiesSummoned++;
 }

@@ -3,7 +3,7 @@ import { defenseRules } from '../content/defense-rules';
 import { getMap } from '../content/catalog';
 import { towerPosition } from './geometry';
 import type { BonusAreaKind } from '../content/maps';
-import type { GameState } from './types';
+import type { DefenseBattle, GameState } from './types';
 
 export interface TowerBonus {
   kind: BonusAreaKind;
@@ -20,7 +20,10 @@ export function towerBonus(state: GameState, index: number): TowerBonus | null {
   const match = bonusAreaAt(getMap(state.activeLevel), towerPosition(state, index));
   if (!match) return null;
   for (let other = 0; other < index; other++) {
-    if (state.towers[other] && bonusAreaAt(getMap(state.activeLevel), towerPosition(state, other))?.index === match.index)
+    if (
+      state.towers[other] &&
+      bonusAreaAt(getMap(state.activeLevel), towerPosition(state, other))?.index === match.index
+    )
       return null;
   }
   const level = tower.level;
@@ -42,20 +45,16 @@ export function towerRangeMultiplier(state: GameState, index: number): number {
   return towerBonus(state, index)?.rangeMultiplier ?? 1;
 }
 
-export function produceTowerBonusResources(state: GameState, elapsedMs: number): void {
+/** Journey battles bank food, campaign gold and mana; sandbox battles earn nothing. */
+export function produceJourneyBonusResources(state: DefenseBattle, elapsedMs: number): void {
+  const defense = state.defense;
+  if (defense.mode !== 'journey') return;
   for (let index = 0; index < state.towers.length; index++) {
     const bonus = towerBonus(state, index);
     if (!bonus) continue;
-    if (state.defense?.mode === 'journey') {
-      state.gold += bonus.foodPerSecond * elapsedMs / 1000;
-      state.bankedGold += bonus.goldPerSecond * elapsedMs / 1000;
-      if (state.defense.mana < state.defense.maxMana)
-        state.defense.mana = Math.min(
-          state.defense.maxMana,
-          state.defense.mana + bonus.manaPerSecond * elapsedMs / 1000,
-        );
-    } else if (!state.defense) {
-      state.gold += (bonus.foodPerSecond + bonus.goldPerSecond) * elapsedMs / 1000;
-    }
+    state.gold += (bonus.foodPerSecond * elapsedMs) / 1000;
+    state.bankedGold += (bonus.goldPerSecond * elapsedMs) / 1000;
+    if (defense.mana < defense.maxMana)
+      defense.mana = Math.min(defense.maxMana, defense.mana + (bonus.manaPerSecond * elapsedMs) / 1000);
   }
 }

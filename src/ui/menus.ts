@@ -8,16 +8,16 @@ import { importJourney, isLevelUnlocked, levelPrerequisite } from '../game/journ
 import { element, elements, setText } from './dom';
 
 const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
-export type MenuPage = typeof menuPages[number];
+export type MenuPage = (typeof menuPages)[number];
 
 export function isMenuPage(value: unknown): value is MenuPage {
-  return typeof value === 'string' && menuPages.some(page => page === value);
+  return typeof value === 'string' && menuPages.some((page) => page === value);
 }
 
 export function showMenu(page: MenuPage): void {
   element('#menuScreen').style.display = 'block';
   element('#gameScreen').style.display = 'none';
-  elements('.menu-page').forEach(section => section.classList.toggle('active', section.dataset.page === page));
+  elements('.menu-page').forEach((section) => section.classList.toggle('active', section.dataset.page === page));
   element('#gameOver').classList.remove('show');
 }
 
@@ -27,38 +27,52 @@ export function showBattle(): void {
 }
 
 export function renderLevelSelect(): void {
-  element('#levelList').innerHTML = Object.entries(battlefields).map(([id, map]) => `
+  element('#levelList').innerHTML = Object.entries(battlefields)
+    .map(
+      ([id, map]) => `
     <button class="level-card" data-level="${id}">
       <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : map.challenge ? `${map.challenge.dragon} dragon · ${map.challenge.spell} spell` : map.forks.length ? 'Branching routes' : 'Free dragon placement'}</div>
       <strong>${id === 'tutorial' ? 'Tutorial' : map.name}</strong>
       <small>${map.description}</small>
       <span class="level-number">${map.forks.length ? '⑂' : '✦'}</span>
-    </button>`).join('');
+    </button>`,
+    )
+    .join('');
 }
 
 export function renderJourney(slot: number, state: GameState, journey: JourneyProgress): void {
   setText('#journeyHeading', `Save slot ${slot + 1} · Your journey`);
   setText('#journeyGold', `${state.bankedGold} gold banked`);
   setText('#journeyCleared', `${journey.completedLevels.length} / ${Object.keys(battlefields).length} levels cleared`);
-  setText('#journeyLevelNotice', journey.activeBattle
-    ? `${getMap(state.activeLevel).name} is in progress. Continue it, or end this attempt before choosing another level.`
-    : 'Choose your next level. Your banked gold and cleared levels stay with this player save.');
+  setText(
+    '#journeyLevelNotice',
+    journey.activeBattle
+      ? `${getMap(state.activeLevel).name} is in progress. Continue it, or end this attempt before choosing another level.`
+      : 'Choose your next level. Your banked gold and cleared levels stay with this player save.',
+  );
   const resume = element<HTMLButtonElement>('#journeyResume');
   const terminal = state.phase === 'won' || state.phase === 'lost';
   resume.hidden = !journey.activeBattle && !terminal;
   resume.textContent = journey.activeBattle ? `Continue ${getMap(state.activeLevel).name}` : 'View last result';
   element('#abandonBattle').hidden = !journey.activeBattle;
-  const upgrades=document.querySelector<HTMLButtonElement>('#openPermanent');
-  if(upgrades) upgrades.disabled=journey.activeBattle;
-  elements<HTMLButtonElement>('[data-level]').forEach(button => {
+  const upgrades = document.querySelector<HTMLButtonElement>('#openPermanent');
+  if (upgrades) upgrades.disabled = journey.activeBattle;
+  elements<HTMLButtonElement>('[data-level]').forEach((button) => {
     const level = button.dataset.level as GameState['activeLevel'],
       prerequisite = levelPrerequisite(level),
       locked = !isLevelUnlocked(level, journey);
     button.disabled = journey.activeBattle || locked;
     const cleared = journey.completedLevels.includes(button.dataset.level as GameState['activeLevel']);
     button.classList.toggle('level-cleared', cleared);
-    button.querySelector('.level-number')!.textContent = cleared ? '✓' : button.dataset.level === 'volcanic' ? '⑂' : '✦';
-    button.setAttribute('aria-label', `${button.querySelector('strong')!.textContent}${cleared ? ', cleared' : ''}${locked ? `, locked until ${getMap(prerequisite!).name} is cleared` : ''}${journey.activeBattle ? ', finish your current attempt first' : ''}`);
+    button.querySelector('.level-number')!.textContent = cleared
+      ? '✓'
+      : button.dataset.level === 'volcanic'
+        ? '⑂'
+        : '✦';
+    button.setAttribute(
+      'aria-label',
+      `${button.querySelector('strong')!.textContent}${cleared ? ', cleared' : ''}${locked ? `, locked until ${getMap(prerequisite!).name} is cleared` : ''}${journey.activeBattle ? ', finish your current attempt first' : ''}`,
+    );
   });
 }
 
@@ -66,7 +80,8 @@ export function renderContinue(readSlot: (index: number) => SlotResult): number 
   let latest: { slot: number; time: number } | null = null;
   for (let index = 0; index < 3; index++) {
     const read = readSlot(index);
-    if (read.status === 'valid' && (!latest || read.data.savedAt > latest.time)) latest = { slot: index, time: read.data.savedAt };
+    if (read.status === 'valid' && (!latest || read.data.savedAt > latest.time))
+      latest = { slot: index, time: read.data.savedAt };
   }
   const button = element<HTMLButtonElement>('#continueJourney');
   button.hidden = latest === null;
@@ -87,17 +102,21 @@ function createSaveCard(index: number, read: SlotResult): HTMLElement {
   label.className = 'slot';
   label.textContent = `Save slot ${index + 1}`;
   const title = document.createElement('strong');
-  title.textContent = read.status === 'valid' ? 'Journey in progress'
-    : read.status === 'error' ? 'Save needs attention' : 'Empty slot';
+  title.textContent =
+    read.status === 'valid' ? 'Journey in progress' : read.status === 'error' ? 'Save needs attention' : 'Empty slot';
   const meta = document.createElement('small');
   if (read.status === 'valid') {
     const state = read.data.state;
     const journey = read.data.journey ?? importJourney(state);
-    const current = journey.activeBattle ? `${getMap(state.activeLevel).name} · Wave ${state.wave}/5` : 'Choose a level';
+    const current = journey.activeBattle
+      ? `${getMap(state.activeLevel).name} · Wave ${state.wave}/5`
+      : 'Choose a level';
     meta.textContent = `${journey.completedLevels.length} levels cleared · ${state.bankedGold} gold banked · ${current} · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
   } else {
-    meta.textContent = read.status === 'error'
-      ? read.message + ' Your stored save has been preserved.' : 'No journey saved in this slot yet.';
+    meta.textContent =
+      read.status === 'error'
+        ? read.message + ' Your stored save has been preserved.'
+        : 'No journey saved in this slot yet.';
   }
   card.append(label, title, meta);
   if (read.status === 'error') {
@@ -125,7 +144,8 @@ export function renderBestiary(bestiary: string[]): void {
   const host = element('#bestiaryContent');
   host.replaceChildren();
   if (!bestiary.length) {
-    host.innerHTML = '<div class="empty-state"><div class="empty-icon">⌕</div><h3>No creatures recorded yet</h3><p>Your field notes are blank. Encounter and defeat new creatures during a level to uncover them here.</p></div>';
+    host.innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⌕</div><h3>No creatures recorded yet</h3><p>Your field notes are blank. Encounter and defeat new creatures during a level to uncover them here.</p></div>';
     return;
   }
   const list = document.createElement('div');
@@ -152,4 +172,12 @@ export function renderOptions(settings: Settings): void {
   element<HTMLInputElement>('#soundVolume').value = String(settings.sound);
   setText('#musicValue', `${settings.music}%`);
   setText('#soundValue', `${settings.sound}%`);
+}
+
+export function renderSoundToggle(settings: Settings): void {
+  const label = settings.quiet ? 'Turn sound on' : 'Turn sound off';
+  const button = element<HTMLButtonElement>('#sound');
+  setText('#sound', '♫');
+  button.setAttribute('aria-label', label);
+  button.title = label;
 }
