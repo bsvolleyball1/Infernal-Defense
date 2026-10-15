@@ -95,7 +95,8 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
     } else {
       if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
       fireProjectile(state, tower, index, targets[0]);
-      tower.cooldown = defenseRules.poisonShotIntervalMs / (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus);
+      tower.cooldown =
+        defenseRules.poisonShotIntervalMs / (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus);
     }
     events.push({ type: 'sound', dragon: tower.type });
   });
@@ -153,7 +154,11 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
         if (shot.poisonDuration) {
           target.poison = shot.poisonDuration;
           target.poisonD = defenseRules.poisonTickMs;
-          target.poisonDamage = target.max * defenseRules.poisonShotHealthFraction * damageMultiplier(state, shot.dragon) * (shot.damageMultiplier ?? 1);
+          target.poisonDamage =
+            target.max *
+            defenseRules.poisonShotHealthFraction *
+            damageMultiplier(state, shot.dragon) *
+            (shot.damageMultiplier ?? 1);
           target.poisonSource = shot.dragon;
         }
         if (shot.slowDuration) target.slow = Math.max(target.slow, shot.slowDuration);

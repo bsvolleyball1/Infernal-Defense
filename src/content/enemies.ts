@@ -66,7 +66,14 @@ export const enemyRoster = {
     description: 'Remains targetable but invulnerable for 2 seconds after lethal damage.',
     traits: { lethalDelay: { residualHp: 0.01, delayMs: 2000 } },
   },
-  witch: { name: 'Witch', hp: 80, rating: 3, color: '#6f536c', description: 'Immune to spells.', traits: { spellImmune: true } },
+  witch: {
+    name: 'Witch',
+    hp: 80,
+    rating: 3,
+    color: '#6f536c',
+    description: 'Immune to spells.',
+    traits: { spellImmune: true },
+  },
   hag: {
     name: 'Hag',
     hp: 90,

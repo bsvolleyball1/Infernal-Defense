@@ -56,8 +56,7 @@ function tickSummoner(
     enemy.summonPause = Math.max(0, enemy.summonPause! - dt);
     if (enemy.summonPause < defenseRules.balanceEpsilon) {
       const candidates = state.knownMonsters.filter(isDefenseMonster);
-      if (candidates.length)
-        summonEnemy(state, candidates[Math.floor(randomValue(state) * candidates.length)], enemy);
+      if (candidates.length) summonEnemy(state, candidates[Math.floor(randomValue(state) * candidates.length)], enemy);
       enemy.summonClock = summoner.travelMs;
     }
     return false;
