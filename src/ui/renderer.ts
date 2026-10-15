@@ -7,6 +7,7 @@ import { element, elements, setText } from './dom';
 import { enemyRoster, isDefenseMonster } from '../content/enemies';
 import { defenseRange, towerSummary } from '../game/defense-combat';
 import { levelCap } from '../game/defense-state';
+import { currencyOf } from '../game/ruleset';
 import { defenseRules } from '../content/defense-rules';
 import { DefenseEffects } from './defense-effects';
 import { towerPosition } from '../game/geometry';
@@ -221,19 +222,18 @@ export class SvgRenderer implements Renderer {
       ended ||
       state.paused;
     element<HTMLButtonElement>('#sell').disabled = !selected || ended || state.paused;
+    const currency = currencyOf(state);
     const upgradeLabel = selected
       ? selected.level >= levelCap(state, selected)
         ? 'Maximum dragon level'
-        : `Upgrade · ${towerUpgradeCost(selected)} ${state.defense ? 'food' : 'gold'}`
+        : `Upgrade · ${towerUpgradeCost(selected)} ${currency.name}`
       : 'Upgrade dragon';
     const upgrade = element<HTMLButtonElement>('#upgrade');
     upgrade.setAttribute('aria-label', upgradeLabel);
     upgrade.title = upgradeLabel;
     setText(
       '#actionCost',
-      selected
-        ? `${state.defense ? '🥩' : '✦'} ${state.defense?.mode === 'sandbox' ? '∞' : towerUpgradeCost(selected)}`
-        : '',
+      selected ? `${currency.icon} ${state.defense?.mode === 'sandbox' ? '∞' : towerUpgradeCost(selected)}` : '',
     );
     const sell = element<HTMLButtonElement>('#sell');
     sell.setAttribute('aria-label', 'Sell dragon · 50% refund');
@@ -247,12 +247,12 @@ export class SvgRenderer implements Renderer {
     if (selected && state.defense)
       info = `${dragons[selected.type].name} · Level ${selected.level} / ${levelCap(state, selected)} · ${towerSummary(state, selected)} · Range ${Math.round(defenseRange(state, selected))}`;
     else if (state.chosen)
-      info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${state.defense ? 'food' : 'gold'} · Choose clear ground.`;
+      info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${currency.name} · Choose clear ground.`;
     setText('#info', info);
     elements<HTMLButtonElement>('.tower').forEach((button) => {
       const type = button.dataset.type as keyof typeof dragons,
         chosen = type === state.chosen,
-        label = `${dragons[type].name} dragon · ${dragons[type].cost} ${state.defense ? 'food' : 'gold'}${chosen ? ' · selected for placement' : ' · choose for placement'}`;
+        label = `${dragons[type].name} dragon · ${dragons[type].cost} ${currency.name}${chosen ? ' · selected for placement' : ' · choose for placement'}`;
       button.classList.toggle('selected', chosen);
       attr(button, 'aria-pressed', String(chosen));
       button.setAttribute('aria-label', label);

@@ -4,6 +4,7 @@ import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
 import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
 import { clampToBattlefield } from '../game/geometry';
+import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
 
@@ -18,8 +19,7 @@ export function mountDefenseControls(): void {
   controls.hidden = true;
   controls.setAttribute('role', 'group');
   controls.setAttribute('aria-label', 'Battle spells');
-  controls.innerHTML =
-    `<div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost">${defenseRules.spellCost}</span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span>`;
+  controls.innerHTML = `<div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost">${defenseRules.spellCost}</span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost">${defenseRules.spellCost}</span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span>`;
   element('#battleSpells').append(controls);
   const test = document.createElement('section');
   test.id = 'testControls';
@@ -91,7 +91,8 @@ export function renderDefenseControls(state: GameState): void {
   element<HTMLButtonElement>('#start').hidden = d?.mode === 'journey';
   element<HTMLButtonElement>('#openPermanent').disabled = state.phase === 'battle';
   const food = element('.stats span:first-child').firstChild;
-  const prefix = d ? '🥩 FOOD ' : '✦ GOLD ';
+  const currency = currencyOf(state);
+  const prefix = `${currency.icon} ${currency.name.toUpperCase()} `;
   if (food?.nodeType === Node.TEXT_NODE && food.textContent !== prefix) food.textContent = prefix;
   const roles = d
     ? ['Fire beams and area waves', 'Rechargeable ice · chance to freeze', 'Rapid shots · poison and slow']
@@ -115,7 +116,7 @@ export function renderDefenseControls(state: GameState): void {
       orb.replaceChildren(portrait);
     }
     portrait.src = dragonPortrait(type);
-    const label = `${d ? '🥩 ' : '✦ '}${dragons[type].cost}`;
+    const label = `${currency.icon} ${dragons[type].cost}`;
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
       ? {
@@ -151,7 +152,12 @@ export function renderDefenseControls(state: GameState): void {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
     b.hidden = Boolean(challenge && challenge.spell !== key);
-    b.disabled = b.hidden || state.paused || state.phase !== 'battle' || (!sandbox && d.mana < defenseRules.spellCost) || seconds > 0;
+    b.disabled =
+      b.hidden ||
+      state.paused ||
+      state.phase !== 'battle' ||
+      (!sandbox && d.mana < defenseRules.spellCost) ||
+      seconds > 0;
     const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds} seconds cooldown` : `${defenseRules.spellCost} mana`}`;
     b.setAttribute('aria-label', label);
     b.title = label;
@@ -219,8 +225,20 @@ export function bindDefenseControls(read: () => GameState, dispatch: (c: GameCom
           type: 'previewSpell',
           point: clampToBattlefield(
             {
-              x: p.x + (event.key === 'ArrowLeft' ? -defenseRules.spellNudge : event.key === 'ArrowRight' ? defenseRules.spellNudge : 0),
-              y: p.y + (event.key === 'ArrowUp' ? -defenseRules.spellNudge : event.key === 'ArrowDown' ? defenseRules.spellNudge : 0),
+              x:
+                p.x +
+                (event.key === 'ArrowLeft'
+                  ? -defenseRules.spellNudge
+                  : event.key === 'ArrowRight'
+                    ? defenseRules.spellNudge
+                    : 0),
+              y:
+                p.y +
+                (event.key === 'ArrowUp'
+                  ? -defenseRules.spellNudge
+                  : event.key === 'ArrowDown'
+                    ? defenseRules.spellNudge
+                    : 0),
             },
             getMap(read().activeLevel),
           ),
