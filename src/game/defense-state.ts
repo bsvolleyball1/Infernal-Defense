@@ -1,5 +1,5 @@
 import { createInitialState } from './state';
-import { defenseRules, upgradedEggCount } from '../content/defense-rules';
+import { defenseRules, maximumMana, upgradedEggCount } from '../content/defense-rules';
 import { nodeIndex } from '../content/upgrades';
 import type { UpgradeNodeId } from '../content/upgrades';
 import type { DefenseState, DragonType, GameState, Level, Tower } from './types';
@@ -23,7 +23,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
       defenseRules.baseMana + defenseRules.manaPerTotalManaRank * totalMana,
       defenseRules.startingManaPerRank * startingMana,
     ),
-    maxMana: defenseRules.baseMana + defenseRules.manaPerTotalManaRank * totalMana,
+    maxMana: maximumMana(totalMana),
     rng: 0x12345678,
     countdown: null,
     spellCooldowns: { fire: 0, ice: 0, poison: 0 },
