@@ -2,17 +2,19 @@ import { dragons, getMap } from '../content/catalog';
 import type { GameState, Level, Point } from '../game/types';
 import { canPlaceTower, entityPosition } from '../game/geometry';
 import { battlefieldArtwork } from './battlefield';
-import { towerRange, towerUpgradeCost } from '../game/rules';
-import { element, elements, setText } from './dom';
+import { towerRange } from '../game/rules';
+import { element } from './dom';
 import { enemyRoster, isDefenseMonster } from '../content/enemies';
-import { defenseRange, towerSummary } from '../game/defense-combat';
-import { levelCap } from '../game/defense-state';
+import { defenseRange } from '../game/defense-combat';
 import { defenseRules } from '../content/defense-rules';
 import { DefenseEffects } from './defense-effects';
+import { HudView } from './hud-view';
+import { ResultsView } from './results-view';
+import { presentBattle } from './battle-view-model';
 import { towerPosition } from '../game/geometry';
 import { dragonPortrait } from './dragon-art';
 import { monsterPortrait } from './monster-art';
-import { towerBonus, towerRangeMultiplier } from '../game/tower-bonuses';
+import { towerBonus } from '../game/tower-bonuses';
 
 export interface Renderer {
   render(state: GameState, showResults: boolean): void;
@@ -39,6 +41,8 @@ export class SvgRenderer implements Renderer {
   private selectedPerch: number | null = null;
   private dismissedPerch: number | null = null;
   private defenseEffects = new DefenseEffects();
+  private hud = new HudView();
+  private results = new ResultsView();
 
   constructor() {
     attr(this.range, 'fill', 'none');
@@ -94,8 +98,10 @@ export class SvgRenderer implements Renderer {
   }
 
   render(state: GameState, showResults: boolean): void {
+    const view = presentBattle(state, showResults);
     this.ensureBattlefield(state);
-    this.renderHud(state);
+    this.syncSelection(state);
+    this.hud.render(view);
     this.renderTowers(state);
     this.renderPlacementPreview(state);
     this.renderSummonControl(state);
@@ -103,7 +109,7 @@ export class SvgRenderer implements Renderer {
     this.renderProjectiles(state);
     this.renderEggs(state);
     this.renderSelectionRange(state);
-    this.renderResults(state, showResults);
+    this.results.render(view);
     this.defenseEffects.render(state);
     this.positionTowerActions();
   }
@@ -140,125 +146,11 @@ export class SvgRenderer implements Renderer {
     this.towerNodes.clear();
   }
 
-  private renderHud(state: GameState): void {
-    const lives = state.eggs.filter((egg) => egg.status !== 'escaped').length;
-    const battle = state.phase === 'battle';
-    const ended = state.phase === 'won' || state.phase === 'lost';
-    setText('#gold', Math.floor(state.gold));
-    setText('#waveNum', `${state.wave} / 5`);
-    setText('#lives', lives);
-    setText('#hpText', `${lives} / ${state.eggs.length}`);
-    element<HTMLElement>('#hpBar').style.width = `${(lives / state.eggs.length) * 100}%`;
-    setText('#nestCount', `${state.eggs.filter((egg) => egg.status === 'nest').length} in nest`);
-    const start = element<HTMLButtonElement>('#start');
-    start.disabled = battle || ended;
-    setText(
-      '#start',
-      state.phase === 'lost'
-        ? 'Nest fallen'
-        : state.phase === 'won'
-          ? 'Valley defended'
-          : battle
-            ? 'Wave in progress'
-            : `Begin wave ${state.wave + 1}`,
-    );
-    setText(
-      '#waveState',
-      battle
-        ? state.paused
-          ? 'PAUSED'
-          : 'UNDER ATTACK'
-        : state.phase === 'won'
-          ? 'CLEARED'
-          : state.phase === 'lost'
-            ? 'FALLEN'
-            : 'READY',
-    );
-    setText(
-      '#waveTitle',
-      battle
-        ? 'Raiders on the pass'
-        : state.phase === 'won'
-          ? 'The eggs are safe'
-          : state.phase === 'lost'
-            ? 'The nest has fallen'
-            : 'The raiders are gathering',
-    );
-    setText(
-      '#waveDesc',
-      battle
-        ? 'Dragons attack automatically when raiders enter range.'
-        : state.phase === 'won'
-          ? 'All five waves repelled. The valley is yours.'
-          : state.phase === 'lost'
-            ? 'Return to the menu to begin another journey.'
-            : state.activeLevel === 'tutorial'
-              ? 'Training exercise: place dragons, then begin the wave.'
-              : 'Place your dragons, then begin the wave.',
-    );
-    setText(
-      '#levelHeading',
-      `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel).name}`,
-    );
-    setText('#speed', `${state.speed}×`);
-    const speed = element<HTMLButtonElement>('#speed');
-    speed.setAttribute('aria-label', 'Change game speed');
-    speed.title = 'Change game speed';
-    const pause = element<HTMLButtonElement>('#pause');
-    setText('#pause', state.paused ? '▶' : 'Ⅱ');
-    pause.setAttribute('aria-label', state.paused ? 'Resume' : 'Pause');
-    pause.title = state.paused ? 'Resume' : 'Pause';
-    pause.disabled = !battle && state.defense?.countdown == null;
-    element<HTMLElement>('#pauseOverlay').hidden = !((battle || state.defense) && state.paused);
+  private syncSelection(state: GameState): void {
     const selected = state.selected === null ? null : state.towers[state.selected];
     const selectedPerch = selected ? state.selected : null;
     if (selectedPerch !== this.selectedPerch) this.dismissedPerch = null;
     this.selectedPerch = selectedPerch;
-    element<HTMLButtonElement>('#upgrade').disabled =
-      !selected ||
-      selected.level >= levelCap(state, selected) ||
-      (state.gold < towerUpgradeCost(selected) && state.defense?.mode !== 'sandbox') ||
-      ended ||
-      state.paused;
-    element<HTMLButtonElement>('#sell').disabled = !selected || ended || state.paused;
-    const upgradeLabel = selected
-      ? selected.level >= levelCap(state, selected)
-        ? 'Maximum dragon level'
-        : `Upgrade · ${towerUpgradeCost(selected)} ${state.defense ? 'food' : 'gold'}`
-      : 'Upgrade dragon';
-    const upgrade = element<HTMLButtonElement>('#upgrade');
-    upgrade.setAttribute('aria-label', upgradeLabel);
-    upgrade.title = upgradeLabel;
-    setText(
-      '#actionCost',
-      selected
-        ? `${state.defense ? '🥩' : '✦'} ${state.defense?.mode === 'sandbox' ? '∞' : towerUpgradeCost(selected)}`
-        : '',
-    );
-    const sell = element<HTMLButtonElement>('#sell');
-    sell.setAttribute('aria-label', 'Sell dragon · 50% refund');
-    sell.title = 'Sell dragon · 50% refund';
-    let info = 'Choose a dragon, then tap clear ground away from the road.';
-    if (selected) {
-      const bonus = state.selected === null ? null : towerBonus(state, state.selected);
-      const range = Math.round(towerRange(selected) * towerRangeMultiplier(state, selectedPerch ?? 0));
-      info = `${dragons[selected.type].name} · Level ${selected.level} · Range ${range}${bonus ? ` · ${bonus.kind} bonus` : ''}`;
-    }
-    if (selected && state.defense)
-      info = `${dragons[selected.type].name} · Level ${selected.level} / ${levelCap(state, selected)} · ${towerSummary(state, selected)} · Range ${Math.round(defenseRange(state, selected))}`;
-    else if (state.chosen)
-      info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${state.defense ? 'food' : 'gold'} · Choose clear ground.`;
-    setText('#info', info);
-    elements<HTMLButtonElement>('.tower').forEach((button) => {
-      const type = button.dataset.type as keyof typeof dragons,
-        chosen = type === state.chosen,
-        label = `${dragons[type].name} dragon · ${dragons[type].cost} ${state.defense ? 'food' : 'gold'}${chosen ? ' · selected for placement' : ' · choose for placement'}`;
-      button.classList.toggle('selected', chosen);
-      attr(button, 'aria-pressed', String(chosen));
-      button.setAttribute('aria-label', label);
-      button.title = label;
-      button.disabled = ended || state.paused;
-    });
   }
 
   private positionTowerActions(): void {
@@ -526,20 +418,6 @@ export class SvgRenderer implements Renderer {
       attr(this.range, 'r', state.defense ? defenseRange(state, selected) : towerRange(selected));
       attr(this.range, 'stroke', dragons[selected.type].color);
     }
-  }
-
-  private renderResults(state: GameState, showResults: boolean): void {
-    const ended = state.phase === 'won' || state.phase === 'lost';
-    const lives = state.eggs.filter((egg) => egg.status !== 'escaped').length;
-    element('#gameOver').classList.toggle('show', ended && showResults);
-    if (ended) {
-      setText('#resultKicker', state.phase === 'won' ? 'All waves cleared' : 'The nest was breached');
-      setText('#resultTitle', state.phase === 'won' ? 'Valley defended' : 'The nest has fallen');
-      setText('#resultEnemies', `${state.enemiesKilled} / ${state.enemiesSummoned}`);
-      setText('#resultEggs', `${lives} / ${state.eggs.length}`);
-      setText('#resultGold', `${state.rewardGold} gold`);
-    }
-    setText('#bankedGold', `${state.bankedGold} gold`);
   }
 
   private prune(nodes: Map<number, SVGElement>, ids: number[]): void {

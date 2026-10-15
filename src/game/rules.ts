@@ -22,6 +22,7 @@ export const battleRules = {
   enemyGold: 12,
   chiefBonusGold: 120,
   survivingEggGold: 10,
+  waveCount: 5,
   waveBaseGold: 25,
   waveGoldPerLevel: 10,
   minimumSpawnIntervalMs: 390,
