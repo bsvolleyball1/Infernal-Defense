@@ -1,8 +1,8 @@
 import { getMap } from '../content/catalog';
 import { battleRules } from './rules';
-import type { GameState, Level } from './types';
+import type { GameState, LegacyBattle, Level } from './types';
 
-export function createInitialState(level: Level = 'level1', bankedGold = 0): GameState {
+export function createInitialState(level: Level = 'level1', bankedGold = 0): LegacyBattle {
   return {
     phase: 'ready',
     paused: false,

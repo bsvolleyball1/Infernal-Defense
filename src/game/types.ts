@@ -175,6 +175,8 @@ export interface SimulationEngine {
   readonly state: GameState;
   dispatch(command: GameCommand): GameEvent[];
   step(elapsedMs: number): GameEvent[];
+  /** True while unpaused in a phase whose ruleset advances simulation time. */
+  isRunning(): boolean;
   snapshot(): GameState;
   restore(state: GameState): void;
 }

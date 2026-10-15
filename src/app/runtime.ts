@@ -24,9 +24,7 @@ export function startRuntime(options: RuntimeOptions): () => void {
   function frame(now: number): void {
     const elapsed = Math.max(0, Math.min(250, now - previous));
     previous = now;
-    const simulationActive =
-      engine.state.phase === 'battle' || (engine.state.defense && engine.state.phase === 'ready');
-    if (options.isVisible() && !document.hidden && simulationActive && !engine.state.paused) {
+    if (options.isVisible() && !document.hidden && engine.isRunning()) {
       accumulator += elapsed;
       const events: GameEvent[] = [];
       while (accumulator >= step) {
