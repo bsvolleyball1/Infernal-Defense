@@ -4,6 +4,7 @@ import { defeatEnemy, finishBattle } from './rewards';
 import { battleRules, towerAttackInterval, towerDamage, towerRange } from './rules';
 import type { DragonType, Enemy, GameEvent, GameState, Projectile, Tower } from './types';
 import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
+import { advanceProjectile } from './projectile-motion';
 
 const projectileEffects: Record<DragonType, (target: Enemy, damageMultiplier: number) => void> = {
   fire: () => {},
@@ -67,16 +68,17 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
     const position = towerPosition(state, index);
     const target = selectTarget(state, tower, position, index);
     if (!target) return;
+    const bonus = towerDamageMultiplier(state, index);
     state.projectiles.push({
       id: state.nextEntityId++,
       x: position.x,
       y: position.y - battleRules.projectileOriginOffset,
       targetId: target.id,
       dragon: tower.type,
-      damage: towerDamage(tower) * towerDamageMultiplier(state, index),
+      damage: towerDamage(tower) * bonus,
       speed: tower.type === 'fire' ? battleRules.fireProjectileSpeed : battleRules.otherProjectileSpeed,
       level: tower.level,
-      ...(towerDamageMultiplier(state, index) > 1 ? { damageMultiplier: towerDamageMultiplier(state, index) } : {}),
+      ...(bonus > 1 ? { damageMultiplier: bonus } : {}),
     });
     tower.cooldown = towerAttackInterval(tower);
     events.push({ type: 'sound', dragon: tower.type });
@@ -88,20 +90,13 @@ export function updateProjectiles(state: GameState, elapsedMs: number, events: G
   for (const shot of state.projectiles) {
     const target = state.enemies.find((enemy) => enemy.id === shot.targetId);
     if (!target || target.hp <= 0) continue;
-    const [x, y] = entityPosition(state, target);
-    const dx = x - shot.x;
-    const dy = y - shot.y;
-    const distance = Math.hypot(dx, dy);
-    const travel = shot.speed * elapsedMs * battleRules.projectileTravelPerMillisecond;
-    if (distance < travel + battleRules.projectileHitTolerance) {
-      target.hp -= shot.damage;
-      projectileEffects[shot.dragon](target, shot.damageMultiplier ?? 1);
-      if (target.hp <= 0) defeatEnemy(state, target, events);
-    } else {
-      shot.x += (dx / distance) * travel;
-      shot.y += (dy / distance) * travel;
+    if (!advanceProjectile(state, shot, target, elapsedMs, battleRules.projectileHitTolerance)) {
       remaining.push(shot);
+      continue;
     }
+    target.hp -= shot.damage;
+    projectileEffects[shot.dragon](target, shot.damageMultiplier ?? 1);
+    if (target.hp <= 0) defeatEnemy(state, target, events);
   }
   state.projectiles = remaining.filter((shot) =>
     state.enemies.some((enemy) => enemy.id === shot.targetId && enemy.hp > 0),

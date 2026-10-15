@@ -3,7 +3,7 @@ import { positionAt } from '../content/path';
 import { enemyTraits } from '../content/enemies';
 import { bonusAreaAt } from '../content/maps';
 import type { Battlefield } from '../content/maps';
-import type { GameState, Point } from './types';
+import type { Enemy, GameState, Point } from './types';
 
 export function routeFor(state: GameState, routeId = 0): [number, number][] {
   return routesFor(getMap(state.activeLevel))[routeId];
@@ -21,6 +21,15 @@ export function entityPosition(
     return [first[0] + (last[0] - first[0]) * t, first[1] + (last[1] - first[1]) * t];
   }
   return positionAt(entity.progress, { path: routeFor(state, entity.routeId) });
+}
+
+/** Orders enemies nearest-first from a point, breaking ties by id for deterministic targeting. */
+export function byDistanceFrom(state: GameState, point: Point): (a: Enemy, b: Enemy) => number {
+  return (a, b) => {
+    const [ax, ay] = entityPosition(state, a),
+      [bx, by] = entityPosition(state, b);
+    return Math.hypot(ax - point.x, ay - point.y) - Math.hypot(bx - point.x, by - point.y) || a.id - b.id;
+  };
 }
 
 /** Equal progress is not equal location on separate branches. */
