@@ -3,7 +3,7 @@ import { defenseRules } from '../content/defense-rules';
 import { getMap } from '../content/catalog';
 import { towerPosition } from './geometry';
 import type { BonusAreaKind } from '../content/maps';
-import type { DefenseBattle, GameState, LegacyBattle } from './types';
+import type { DefenseBattle, GameState } from './types';
 
 export interface TowerBonus {
   kind: BonusAreaKind;
@@ -56,13 +56,5 @@ export function produceJourneyBonusResources(state: DefenseBattle, elapsedMs: nu
     state.bankedGold += (bonus.goldPerSecond * elapsedMs) / 1000;
     if (defense.mana < defense.maxMana)
       defense.mana = Math.min(defense.maxMana, defense.mana + (bonus.manaPerSecond * elapsedMs) / 1000);
-  }
-}
-
-/** The original rules have one currency, so food and gold areas both pay battle gold. */
-export function produceLegacyBonusGold(state: LegacyBattle, elapsedMs: number): void {
-  for (let index = 0; index < state.towers.length; index++) {
-    const bonus = towerBonus(state, index);
-    if (bonus) state.gold += ((bonus.foodPerSecond + bonus.goldPerSecond) * elapsedMs) / 1000;
   }
 }

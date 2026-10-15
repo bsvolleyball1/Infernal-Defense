@@ -4,7 +4,7 @@ import { GameEngine, createInitialState } from '../src/game/engine';
 import { createDefenseState } from '../src/game/defense-state';
 import { entityPosition } from '../src/game/geometry';
 import { moveEnemy, dropEgg } from '../src/game/eggs';
-import { updateTowers, updateProjectiles } from '../src/game/combat';
+import { updateTowers, updateProjectiles } from '../src/game/legacy/combat';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, GameEvent, GameState, Level } from '../src/game/types';

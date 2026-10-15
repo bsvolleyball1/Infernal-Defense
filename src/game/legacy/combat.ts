@@ -1,10 +1,10 @@
-import { entityPosition, towerPosition } from './geometry';
-import { moveEnemy } from './eggs';
-import { defeatEnemy, finishBattle } from './rewards';
-import { battleRules, towerAttackInterval, towerDamage, towerRange } from './rules';
-import type { DragonType, Enemy, GameEvent, GameState, Projectile, Tower } from './types';
-import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
-import { advanceProjectile } from './projectile-motion';
+import { entityPosition, towerPosition } from '../geometry';
+import { moveEnemy } from '../eggs';
+import { defeatEnemy, finishBattle } from '../rewards';
+import { battleRules, towerAttackInterval, towerDamage, towerRange } from '../rules';
+import type { DragonType, Enemy, GameEvent, GameState, Projectile, Tower } from '../types';
+import { towerDamageMultiplier, towerRangeMultiplier } from '../tower-bonuses';
+import { advanceProjectile } from '../projectile-motion';
 
 const projectileEffects: Record<DragonType, (target: Enemy, damageMultiplier: number) => void> = {
   fire: () => {},
@@ -19,6 +19,7 @@ const projectileEffects: Record<DragonType, (target: Enemy, damageMultiplier: nu
   },
 };
 
+/** Original-rules enemy movement and poison. Defense battles use defense-simulation instead. */
 export function updateEnemies(state: GameState, elapsedMs: number, events: GameEvent[]): void {
   for (const enemy of state.enemies) {
     if (enemy.hp > 0) {

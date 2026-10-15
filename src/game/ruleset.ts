@@ -1,5 +1,5 @@
 import { stepDefense } from './defense-simulation';
-import { stepLegacy } from './legacy-simulation';
+import { stepLegacy } from './legacy/simulation';
 import type { DefenseBattle, GameEvent, GameState, LegacyBattle } from './types';
 
 export interface Currency {

@@ -2,16 +2,16 @@
 
 ## Status
 
-Accepted. Isolation waits for the ruleset seam in phase 4.
+Accepted. The original ruleset is a sealed module in `src/game/legacy/`.
 
 ## Context
 
-New journeys already start on `defense-1`. The original ruleset remains so an interrupted pre-defense battle can resume. Phase 4 items 11 and 12, the `Ruleset` interface and the tagged `GameState` union, are the place to move that code into `game/legacy/`.
+New journeys already start on `defense-1`. The original ruleset remains so an interrupted pre-defense battle can resume. Its step, combat, and bonus-gold payout now live behind `legacyRuleset` and are not imported by the defense simulation.
 
 ## Decision
 
-Keep the legacy ruleset. Do not convert old battles into defense checkpoints, and do not delete the regression traces. After phase 4, move the legacy pipeline behind `Ruleset` as a sealed module.
+Keep the legacy ruleset. Do not convert old battles into defense checkpoints, and do not delete the regression traces.
 
 ## Consequences
 
-Save validation still accepts both rulesets. Persistence migrations in `src/services/migrations/` do not choose a ruleset; they only bring older documents forward.
+Save validation still accepts both rulesets. Persistence migrations in `src/services/migrations/` do not choose a ruleset; they only bring older documents forward. `game/legacy/` does not import defense modules.

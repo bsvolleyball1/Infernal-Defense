@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getMap, map, positionAt } from '../src/content/catalog';
 import { battlefields } from '../src/content/maps';
 import { GameEngine, createInitialState } from '../src/game/engine';
-import { updateTowers } from '../src/game/combat';
+import { updateTowers } from '../src/game/legacy/combat';
 import { canPlaceTower, isClearTowerPosition } from '../src/game/geometry';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';

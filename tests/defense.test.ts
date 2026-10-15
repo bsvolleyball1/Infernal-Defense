@@ -363,6 +363,17 @@ describe('enemy abilities and eggs', () => {
     expect(s.enemies[1].kind).toBe('imp');
     expect(s.enemiesSummoned).toBe(2);
   });
+  it('saves the summon clock left by a completed travel and still rejects a corrupt clock', () => {
+    const state = battle('necromancer');
+    const enemy = state.enemies[0];
+    for (let frame = 0; frame < 300; frame++) tickEnemyAbilities(state, enemy, 1000 / 60, []);
+    expect(enemy.summonPause).toBe(1000);
+    expect(enemy.summonClock).toBeLessThan(0);
+    const { repo } = storage();
+    expect(repo.saveSlot(0, state)).toEqual({ ok: true });
+    enemy.summonClock = -1;
+    expect(repo.saveSlot(0, state).ok).toBe(false);
+  });
   it('zombie train releases 5–10 valid children on death', () => {
     const s = battle('zombieTrain');
     applyDamage(s, s.enemies[0], 200, 'fire', []);

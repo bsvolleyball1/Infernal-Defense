@@ -1,3 +1,4 @@
+import { defenseRules } from '../content/defense-rules';
 import { isDefenseMonster } from '../content/enemies';
 import type { DefenseState, GameState } from '../game/types';
 
@@ -89,10 +90,12 @@ export function validateDefenseEntities(state: GameState): void {
       'invulnerable',
       'deathDelay',
       'lastHitAgo',
-      'summonClock',
       'summonPause',
     ] as const)
       if (enemy[key] !== undefined) check(finite(enemy[key]), `Invalid ${key}.`);
+    // A 5000ms travel at the 1000/60 step undershoots zero by a rounding error.
+    if (enemy.summonClock !== undefined)
+      check(finite(enemy.summonClock, -defenseRules.balanceEpsilon), 'Invalid summonClock.');
     for (const key of ['ghostTriggered', 'empowered'] as const)
       if (enemy[key] !== undefined) check(typeof enemy[key] === 'boolean', `Invalid ${key}.`);
     if (enemy.poisonSource !== undefined)

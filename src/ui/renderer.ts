@@ -27,14 +27,28 @@ export interface Renderer {
 }
 
 const NS = 'http://www.w3.org/2000/svg';
+const XLINK = 'http://www.w3.org/1999/xlink';
+
+/** Parses markup in the SVG namespace. innerHTML on a detached SVG node does not. */
+function appendMarkup(parent: SVGElement, markup: string): void {
+  const parsed = new DOMParser().parseFromString(`<svg xmlns="${NS}">${markup}</svg>`, 'image/svg+xml');
+  for (const child of [...parsed.documentElement.childNodes]) parent.appendChild(child);
+}
+
 function node<T extends SVGElement = SVGElement>(tag: string, markup = ''): T {
   const created = document.createElementNS(NS, tag) as T;
-  if (markup) created.innerHTML = markup;
+  if (markup) appendMarkup(created, markup);
   return created;
 }
+
 function attr(n: Element, name: string, value: string | number): void {
   const text = String(value);
   if (n.getAttribute(name) !== text) n.setAttribute(name, text);
+}
+
+function setPortrait(image: Element, url: string): void {
+  image.setAttribute('href', url);
+  image.setAttributeNS(XLINK, 'href', url);
 }
 
 const towerMarkup =
@@ -172,7 +186,7 @@ export class SvgRenderer implements Renderer {
     attr(group, 'aria-disabled', String(inactive));
     attr(group, 'tabindex', inactive ? -1 : 0);
     attr(group.querySelector('.tower-aura')!, 'fill', dragons[tower.type].color);
-    attr(group.querySelector('.tower-icon')!, 'href', dragonPortrait(tower.type, tower.level));
+    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level));
     group.style.filter =
       index === state.selected && !this.popover.isDismissed(index) ? 'drop-shadow(0 0 7px #ffdd82)' : '';
   }
@@ -195,7 +209,7 @@ export class SvgRenderer implements Renderer {
     attr(this.placementNode, 'visibility', 'visible');
     attr(this.placementNode, 'opacity', '.58');
     attr(this.placementNode.querySelector('.placement-ring')!, 'stroke', valid ? '#c5f39a' : '#ff8671');
-    attr(this.placementNode.querySelector('.placement-icon')!, 'href', dragonPortrait(state.chosen));
+    setPortrait(this.placementNode.querySelector('.placement-icon')!, dragonPortrait(state.chosen));
   }
 
   private renderSummonControl(state: GameState): void {
@@ -239,10 +253,9 @@ export class SvgRenderer implements Renderer {
   }
 
   private createEnemy(enemy: Enemy): SVGElement {
-    const group = node('g');
+    const group = node('g', enemyMarkup(enemy.kind === 'shield'));
     attr(group, 'data-appearance', this.appearance(enemy));
-    group.innerHTML = enemyMarkup(enemy.kind === 'shield');
-    attr(group.querySelector('.enemy-icon')!, 'href', monsterPortrait(enemy.kind));
+    setPortrait(group.querySelector('.enemy-icon')!, monsterPortrait(enemy.kind));
     const title = node('title');
     title.textContent = isDefenseMonster(enemy.kind) ? enemyRoster[enemy.kind].name : enemy.kind;
     group.append(title);

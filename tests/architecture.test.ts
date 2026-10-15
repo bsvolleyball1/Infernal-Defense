@@ -5,13 +5,17 @@ import { describe, expect, it } from 'vitest';
 import { nextGameSpeed } from '../src/ui/controls';
 import { isMenuPage } from '../src/ui/menus';
 
+function tsFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return tsFiles(path);
+    return entry.name.endsWith('.ts') ? [path] : [];
+  });
+}
+
 const sourceRoot = resolve('src');
 const layerNames = ['game', 'content', 'domain'] as const;
-const layerPaths = layerNames.flatMap((layer) =>
-  readdirSync(resolve(sourceRoot, layer))
-    .filter((name) => name.endsWith('.ts'))
-    .map((name) => resolve(sourceRoot, layer, name)),
-);
+const layerPaths = layerNames.flatMap((layer) => tsFiles(resolve(sourceRoot, layer)));
 const domainPaths = layerPaths;
 
 function parse(path: string): ts.SourceFile {
@@ -132,6 +136,18 @@ describe('CLEAN architecture boundaries', () => {
     for (const path of vocabulary) {
       expect(dependencies(parse(path)), path).toEqual([]);
     }
+  });
+
+  it('keeps the legacy ruleset from importing the defense simulation', () => {
+    const legacy = layerPaths.filter((path) => path.includes(`${resolve(sourceRoot, 'game', 'legacy')}`));
+    expect(legacy.length).toBeGreaterThan(0);
+    for (const path of legacy) {
+      for (const dependency of dependencies(parse(path))) {
+        expect(dependency, path).not.toMatch(/defense-/);
+      }
+    }
+    const defense = parse(resolve(sourceRoot, 'game/defense-simulation.ts'));
+    expect(dependencies(defense).some((dependency) => dependency.includes('legacy'))).toBe(false);
   });
 
   it('keeps defense controls outside the SVG renderer', () => {

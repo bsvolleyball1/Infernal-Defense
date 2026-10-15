@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { getMap } from '../src/content/catalog';
 import { createDefenseState } from '../src/game/defense-state';
 import { defenseRange } from '../src/game/defense-combat';
-import { towerBonus, produceJourneyBonusResources, produceLegacyBonusGold } from '../src/game/tower-bonuses';
+import { produceLegacyBonusGold } from '../src/game/legacy/bonus-gold';
+import { produceJourneyBonusResources, towerBonus } from '../src/game/tower-bonuses';
 import { GameEngine, createInitialState } from '../src/game/engine';
-import { updateEnemies, updateProjectiles, updateTowers } from '../src/game/combat';
+import { updateEnemies, updateProjectiles, updateTowers } from '../src/game/legacy/combat';
 import { towerDamage, towerRange } from '../src/game/rules';
 import type { Enemy } from '../src/game/types';
 
