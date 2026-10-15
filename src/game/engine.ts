@@ -4,6 +4,7 @@ import { copyState, createInitialState } from './state';
 import { finishWaveIfClear, spawnNextEnemy } from './waves';
 import type { GameCommand, GameEvent, GameState, SimulationEngine } from './types';
 import { stepDefense } from './defense-simulation';
+import { produceTowerBonusResources } from './tower-bonuses';
 
 // Preserve the existing public import while keeping construction/copying separate.
 export { createInitialState } from './state';
@@ -37,6 +38,7 @@ export class GameEngine implements SimulationEngine {
     const events: GameEvent[] = [];
     const simulationElapsedMs = elapsedMs * state.speed;
     state.simulationTime += simulationElapsedMs;
+    produceTowerBonusResources(state, simulationElapsedMs);
     spawnNextEnemy(state);
     updateEnemies(state, simulationElapsedMs, events);
     if (state.phase !== 'battle') return events;

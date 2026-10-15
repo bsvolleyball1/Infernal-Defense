@@ -34,7 +34,7 @@ test('updates automatically at a safe point, blocking failed saves and preservin
     // First reload makes the installed worker control this page.
     await page.reload(); await waitForServiceWorkerControl(page);
     await page.locator('[data-open="saves"]').click(); await page.locator('[data-new="0"]').click(); await page.locator('[data-level="level1"]').click();
-    await page.locator('#start').click();
+    await page.locator('.summon-control').click();
     release = 2;
     await page.evaluate(async () => { const registration = await navigator.serviceWorker.getRegistration(); await registration!.update(); });
     await expect(page.locator('#toast')).toContainText('applies automatically');

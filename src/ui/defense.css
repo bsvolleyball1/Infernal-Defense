@@ -94,6 +94,392 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.summon-control {
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px #0008);
+}
+.summon-control:hover circle:first-child + circle {
+  stroke: var(--gold);
+}
+.summon-control[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.55;
+}
+.arena {
+  position: relative;
+}
+.battlefield {
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+}
+.battle-toolbar {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 30px 10px 10px;
+  background: linear-gradient(0deg, #101610ed 8%, #101610a8 70%, transparent 100%);
+  pointer-events: none;
+}
+.battle-shortcuts,
+#battleStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+#battleMiddle {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+#battleStatus {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+#battleControls {
+  flex: 0 0 auto;
+}
+#battleControls .controls {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 3px;
+  pointer-events: auto;
+}
+#battleControls .mini {
+  min-width: 27px;
+  min-height: 28px;
+  padding: 3px 5px;
+  background: #111a16e8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+#battleControls #saveProgress,
+#battleControls #returnMenu {
+  min-width: 32px;
+  font-size: 9px;
+}
+#battleStatus .stats {
+  flex-wrap: nowrap;
+  gap: 5px;
+  font-size: 0;
+}
+#battleStatus .stats > span,
+#battleStatus #manaStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0;
+  white-space: nowrap;
+}
+#battleStatus .stats > span::before {
+  font-size: 10px;
+}
+#battleStatus .stats[data-mode='defense'] > span:first-child::before {
+  content: '🥩';
+}
+#battleStatus .stats[data-mode='classic'] > span:first-child::before {
+  content: '✦';
+}
+#battleStatus .stats > span:nth-child(2)::before {
+  content: '◉';
+}
+#battleStatus .stats > span:nth-child(3)::before {
+  content: '♥';
+}
+#battleStatus #manaStat::before {
+  content: '✦';
+  font-size: 10px;
+}
+#battleStatus .stats b {
+  margin: 0;
+  font-size: 11px;
+}
+#battleStatus #manaStat[hidden] {
+  display: none;
+}
+#battleStatus .nest {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0;
+  white-space: nowrap;
+}
+#battleStatus .nestrow span {
+  font-size: 0;
+}
+#battleStatus .nestrow span::before {
+  content: '🥚';
+  font-size: 10px;
+}
+#battleStatus .nestbar {
+  width: 30px;
+  height: 5px;
+  margin: 0;
+}
+#battleStatus #hpText {
+  font-size: 10px;
+}
+.battle-shortcuts {
+  justify-content: space-between;
+  pointer-events: none;
+}
+#battleSpells,
+#battleDragons,
+#spellControls,
+.spell-buttons,
+.towerlist {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+#spellControls {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+#spellControls[hidden] {
+  display: none;
+}
+#spellControls h3 {
+  display: none;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.towerlist {
+  margin: 0;
+  padding: 0;
+}
+#battleDragons .tower[hidden],
+#battleSpells [data-spell][hidden] {
+  display: none;
+}
+#battleDragons .tower[hidden],
+#battleSpells [data-spell][hidden] {
+  display: none;
+}
+.tower,
+.spell-buttons button {
+  position: relative;
+  display: grid;
+  flex: 0 0 52px;
+  place-items: center;
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  min-height: 52px;
+  padding: 0;
+  border: 2px solid #c6c6b2;
+  border-radius: 50%;
+  background: #111a16e8;
+  color: var(--ink);
+  box-shadow: 0 2px 8px #000b;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.tower:hover,
+.spell-buttons button:hover:not(:disabled) {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+.tower.selected,
+.spell-buttons button[aria-pressed='true'] {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px #e0b45f66, 0 2px 8px #000b;
+}
+.tower .towerrow {
+  justify-content: center;
+}
+.tower .orb,
+.spell-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border-radius: 50%;
+  background: #27342e;
+  font-size: 22px;
+}
+.tower .dragon-portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+.tower .towername,
+.tower .towerrole,
+.tower .towerdesc {
+  display: none;
+}
+.tower .price,
+.spell-cost {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  min-width: 28px;
+  padding: 2px 4px;
+  border: 1px solid #7c765e;
+  border-radius: 9px;
+  background: #1a211a;
+  color: var(--gold);
+  font: 9px 'DM Mono';
+  text-align: center;
+  white-space: nowrap;
+}
+.spell-buttons button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+.spell-buttons button .spell-icon {
+  font-size: 23px;
+}
+.spell-buttons button[data-spell='ice'] .spell-icon {
+  color: var(--ice);
+}
+.spell-buttons button[data-spell='poison'] .spell-icon {
+  color: #a4ce7a;
+}
+.battle-toolbar[hidden] {
+  display: none;
+}
+.side > h3,
+.side > .towerlist {
+  display: none;
+}
+.top .stats,
+.map-top .controls {
+  display: none;
+}
+.actions {
+  position: fixed;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  transform: translate(-50%, -100%);
+  padding: 5px;
+  border: 1px solid #6e805f;
+  border-radius: 6px;
+  background: #191f19ed;
+  box-shadow: 0 4px 12px #0009;
+}
+.actions[data-placement='below'] {
+  transform: translate(-50%, 0);
+}
+.actions[hidden] {
+  display: none;
+}
+#actionCost {
+  color: var(--ink);
+  font: 12px 'DM Mono';
+  white-space: nowrap;
+}
+.actions .btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+}
+.actions .btn.secondary {
+  margin-top: 0;
+}
+@media (max-width: 480px) {
+  .battle-toolbar {
+    padding: 18px 6px 6px;
+    gap: 5px;
+  }
+  #battleStatus .stats {
+    gap: 4px;
+  }
+  #battleStatus .stats b {
+    font-size: 10px;
+  }
+  #battleStatus .nestbar {
+    width: 24px;
+  }
+  #battleControls .mini {
+    min-height: 25px;
+    padding: 2px 4px;
+    font-size: 9px;
+  }
+  #battleControls #saveProgress,
+  #battleControls #returnMenu {
+    min-width: 28px;
+    font-size: 8px;
+  }
+  .battle-shortcuts {
+    align-items: flex-end;
+  }
+  #battleSpells,
+  #battleDragons,
+  #spellControls,
+  .spell-buttons,
+  .towerlist {
+    gap: 4px;
+  }
+  .tower,
+  .spell-buttons button {
+    flex-basis: 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .tower .orb,
+  .spell-icon {
+    width: 29px;
+    height: 29px;
+    font-size: 19px;
+  }
+}
+@container (max-width: 560px) {
+  .battle-shortcuts {
+    flex-wrap: wrap;
+    row-gap: 7px;
+  }
+  #battleMiddle {
+    order: -1;
+    flex: 1 0 100%;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  #battleControls .controls {
+    justify-content: flex-start;
+  }
+}
 @media (max-width: 480px) {
   .upgrade-row {
     flex-direction: column;

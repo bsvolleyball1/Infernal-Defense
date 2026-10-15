@@ -6,6 +6,18 @@ export interface JourneyProgress {
   completedLevels: Level[];
 }
 
+export const challengeLevels: readonly Level[] = ['fireTrial', 'iceTrial', 'poisonTrial'];
+
+export function levelPrerequisite(level: Level): Level | null {
+  const index = challengeLevels.indexOf(level);
+  return index > 0 ? challengeLevels[index - 1] : null;
+}
+
+export function isLevelUnlocked(level: Level, journey: JourneyProgress): boolean {
+  const prerequisite = levelPrerequisite(level);
+  return prerequisite === null || journey.completedLevels.includes(prerequisite);
+}
+
 export function createJourney(): JourneyProgress {
   return { activeBattle: false, completedLevels: [] };
 }

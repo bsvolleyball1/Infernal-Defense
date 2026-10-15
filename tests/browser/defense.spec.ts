@@ -4,6 +4,7 @@ import { createEnemy } from '../../src/game/enemy-factory';
 import { finishBattle } from '../../src/game/rewards';
 import { createJourney, recordJourneyResult } from '../../src/game/journey';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
+import { clickMapAt } from './map';
 import type { GameState } from '../../src/game/types';
 
 async function putSave(page: Page, state: GameState, active = true): Promise<void> {
@@ -70,13 +71,18 @@ test('a restored countdown waits for Resume and early summoning retains its bonu
   await putSave(page, state);
   await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
-  await expect(page.locator('#start')).toContainText('+30 mana');
+  await expect(page.locator('#start')).toBeHidden();
+  const summon = page.locator('.summon-control');
+  await expect(summon).toHaveAttribute('visibility', 'visible');
+  await expect(summon).toHaveAttribute('aria-label', /early summon mana bonus/);
+  await expect(summon.locator('.summon-icon')).toHaveText('👹');
+  await expect(summon.locator('.summon-progress')).toHaveAttribute('stroke-dashoffset', /[1-9]/);
   await page.locator('#saveProgress').click();
   const paused = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(paused.defense.countdown).toBe(2500);
   expect(paused.paused).toBe(true);
   await page.locator('#resumeBattle').click();
-  await page.locator('#start').click();
+  await page.locator('.summon-control').click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.wave).toBe(2);
   expect(saved.phase).toBe('battle');
@@ -106,9 +112,9 @@ for (const viewport of [
       await page.locator('[data-test-count="witch"]').fill('2');
       await page.locator('[data-test-count="witch"]').blur();
       await page.locator('[data-type="ice"]').tap();
-      await page.getByRole('button', { name: 'Empty perch 1', exact: true }).tap();
+      await clickMapAt(page, 90, 202);
       for (let i = 0; i < 5; i++) await page.locator('#upgrade').tap();
-      await expect(page.getByRole('button', { name: 'Frost, level 6, perch 1', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');
       await page.screenshot({

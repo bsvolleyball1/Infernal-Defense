@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dragons, map, monsters, positionAt, waves } from '../src/content/catalog';
 import { createInitialState, GameEngine } from '../src/game/engine';
+import { createDefenseState } from '../src/game/defense-state';
+import { moveEnemy } from '../src/game/eggs';
 import type { DragonType, Enemy, GameState, Projectile } from '../src/game/types';
 
 function enemy(overrides: Partial<Enemy> = {}): Enemy {
@@ -124,6 +126,20 @@ describe('commands and economy', () => {
 });
 
 describe('simulation clock and scheduled spawning', () => {
+  it('moves enemies at half speed in both legacy and defense battles', () => {
+    const legacyEnemy = enemy({ spd: 0.72, progress: 1 });
+    const legacy = battle({ enemies: [legacyEnemy] }).state;
+    moveEnemy(legacy, legacyEnemy, 100);
+    expect(legacyEnemy.progress).toBeCloseTo(1 + 0.72 * 100 * 0.0045 * 0.5);
+
+    const defenseEnemy = enemy({ spd: 0.72, progress: 1 });
+    const defense = createDefenseState();
+    defense.phase = 'battle';
+    defense.wave = 1;
+    moveEnemy(defense, defenseEnemy, 100);
+    expect(defenseEnemy.progress).toBeCloseTo(1 + 0.72 * 100 * 0.0045 * 0.5);
+  });
+
   it('does not pause ready states when leaving the game or loading a between-wave save', () => {
     const engine = new GameEngine();
     expect(engine.dispatch({ type: 'pause' })).toEqual([]);
@@ -204,8 +220,8 @@ describe('simulation clock and scheduled spawning', () => {
     fast.dispatch({ type: 'speed', speed: 2 });
     normal.step(10);
     fast.step(10);
-    expect(normal.state.enemies[0].progress).toBeCloseTo(0.72 * 10 * 0.0045);
-    expect(fast.state.enemies[0].progress).toBeCloseTo(0.72 * 20 * 0.0045);
+    expect(normal.state.enemies[0].progress).toBeCloseTo(0.72 * 10 * 0.0045 * 0.5);
+    expect(fast.state.enemies[0].progress).toBeCloseTo(0.72 * 20 * 0.0045 * 0.5);
     for (let i = 0; i < 33; i++) { normal.step(10); fast.step(10); }
     expect(normal.state.enemiesSummoned).toBe(1);
     expect(fast.state.enemiesSummoned).toBe(2);
@@ -369,7 +385,7 @@ describe('egg theft, rescue, and run completion', () => {
     expect(engine.state.enemies[0]).toMatchObject({ progress: 16, carryingEgg: 1, returning: true });
     expect(engine.state.eggs[0]).toMatchObject({ status: 'carried', carrier: 6, progress: null });
     engine.step(10);
-    expect(engine.state.enemies[0].progress).toBeCloseTo(16 - 0.72 * 10 * 0.0045);
+    expect(engine.state.enemies[0].progress).toBeCloseTo(16 - 0.72 * 10 * 0.0045 * 0.5);
   });
 
   it('drops a rescued egg at the carrier position and lets a later raider pick it up', () => {

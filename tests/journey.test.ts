@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../src/game/engine';
-import { createJourney, importJourney, recordJourneyResult } from '../src/game/journey';
+import { createJourney, importJourney, isLevelUnlocked, recordJourneyResult } from '../src/game/journey';
 import type { JourneyProgress } from '../src/game/journey';
 import { SaveRepository } from '../src/services/storage';
 
@@ -11,6 +11,18 @@ function repository() {
 }
 
 describe('player journeys, not per-level saves', () => {
+  it('unlocks the focused dragon trials in fire, ice, poison order', () => {
+    const progress = createJourney();
+    expect(isLevelUnlocked('fireTrial', progress)).toBe(true);
+    expect(isLevelUnlocked('iceTrial', progress)).toBe(false);
+    expect(isLevelUnlocked('poisonTrial', progress)).toBe(false);
+    progress.completedLevels.push('fireTrial');
+    expect(isLevelUnlocked('iceTrial', progress)).toBe(true);
+    expect(isLevelUnlocked('poisonTrial', progress)).toBe(false);
+    progress.completedLevels.push('iceTrial');
+    expect(isLevelUnlocked('poisonTrial', progress)).toBe(true);
+  });
+
   it('persists an empty player before selecting a level', () => {
     const { saves } = repository();
     expect(saves.saveSlot(0, createInitialState(), createJourney())).toEqual({ ok: true });

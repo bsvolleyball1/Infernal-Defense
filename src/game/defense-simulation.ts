@@ -5,12 +5,14 @@ import { moveEnemy } from './eggs';
 import { finishBattle } from './rewards';
 import { finishWaveIfClear, spawnNextEnemy, startWave } from './waves';
 import type { GameEvent, GameState } from './types';
+import { produceTowerBonusResources } from './tower-bonuses';
 
 export function stepDefense(state: GameState, elapsed: number): GameEvent[] {
   const events: GameEvent[] = [],
     dt = elapsed * state.speed,
     d = state.defense!;
   state.simulationTime += dt;
+  produceTowerBonusResources(state, dt);
   tickSpells(state, dt, events);
   if (state.phase === 'ready') {
     if (d.countdown !== null) {

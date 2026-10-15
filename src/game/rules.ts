@@ -7,6 +7,7 @@ export const battleRules = {
   eggCount: 5,
   maximumEnemies: 50,
   movementPerMillisecond: 0.0045,
+  enemySpeedMultiplier: 0.5,
   projectileTravelPerMillisecond: 0.25,
   projectileHitTolerance: 3,
   projectileOriginOffset: 18,

@@ -14,6 +14,7 @@ import type { MenuPage } from '../ui/menus';
 import { GameEngine } from '../game/engine';
 import { createDefenseState, nextBattle } from '../game/defense-state';
 import { defenseRules } from '../content/defense-rules';
+import { getMap } from '../content/catalog';
 import {
   bindDefenseControls,
   mountDefenseControls,
@@ -21,7 +22,7 @@ import {
   renderPermanent,
 } from '../ui/defense-controls';
 import type { GameCommand, GameEvent, GameState, Level } from '../game/types';
-import { createJourney, importJourney, recordJourneyResult } from '../game/journey';
+import { createJourney, importJourney, isLevelUnlocked, levelPrerequisite, recordJourneyResult } from '../game/journey';
 import type { JourneyProgress } from '../game/journey';
 import { SaveRepository } from '../services/storage';
 import { AudioService } from '../services/audio';
@@ -216,6 +217,12 @@ export function startApplication(): void {
       showMessage('Finish or end your current attempt before choosing another level.');
       return;
     }
+    const prerequisite = levelPrerequisite(level);
+    if (!isLevelUnlocked(level, journey)) {
+      if (!prerequisite) return;
+      showMessage(`Clear ${getMap(prerequisite).name} before starting ${getMap(level).name}.`);
+      return;
+    }
     const state = nextBattle(engine.state, level);
     state.defense!.countdown = defenseRules.waveCountdownMs;
     state.knownMonsters = [...engine.state.knownMonsters];
@@ -248,12 +255,15 @@ export function startApplication(): void {
     save: () => {
       saveJourney(true);
     },
+    previewPlacement: point => renderer.renderPlacement(point, engine.state),
   });
   element('#sound').addEventListener('click', () => {
     settings = { ...settings, quiet: !settings.quiet };
     audio.setSettings(settings);
     void audio.unlock();
-    setText('#sound', settings.quiet ? '♫ sound off' : '♫ sound on');
+    setText('#sound', '♫');
+    element<HTMLButtonElement>('#sound').setAttribute('aria-label', settings.quiet ? 'Turn sound on' : 'Turn sound off');
+    element<HTMLButtonElement>('#sound').title = settings.quiet ? 'Turn sound on' : 'Turn sound off';
     const result = repository.writeSettings(settings);
     if (!result.ok) showMessage(result.message);
   });
@@ -367,7 +377,9 @@ export function startApplication(): void {
       return saveJourney();
     },
   });
-  setText('#sound', settings.quiet ? '♫ sound off' : '♫ sound on');
+  setText('#sound', '♫');
+  element<HTMLButtonElement>('#sound').setAttribute('aria-label', settings.quiet ? 'Turn sound on' : 'Turn sound off');
+  element<HTMLButtonElement>('#sound').title = settings.quiet ? 'Turn sound on' : 'Turn sound off';
   renderer.render(engine.state, showResults);
   navigateToMenu('home');
 }

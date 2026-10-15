@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { createDefenseState, nextBattle } from '../src/game/defense-state';
-import { playableMonsters, movementSpeed } from '../src/content/enemies';
+import { enemyRoster, playableMonsters, movementSpeed } from '../src/content/enemies';
 import { createEnemy } from '../src/game/enemy-factory';
 import { applyDamage } from '../src/game/damage';
 import { tickEnemyAbilities } from '../src/game/enemy-abilities';
@@ -53,6 +53,20 @@ describe('expanded lifecycle and boundary regressions', () => {
     engine.dispatch({ type: 'perch', index: 0 });
     expect(engine.state.defense!.mana).toBe(10);
     expect(engine.state.towers[0]).toMatchObject({ charges: 1, chargeTimer: 1000 });
+  });
+  it('keeps fully recharged ice timers valid for terminal reward saves', () => {
+    const state = battle();
+    state.enemies = [];
+    state.towers[0] = { type: 'ice', level: 1, cooldown: 0, charges: 0, chargeTimer: 50 };
+    tickDefenseTowers(state, 1200, []);
+    expect(state.towers[0]).toMatchObject({ charges: 1, chargeTimer: 1000 });
+
+    state.wave = 5;
+    finishBattle(state, true, []);
+    const { repo } = storage();
+    expect(repo.saveSlot(0, state, recordJourneyResult({ ...createJourney(), activeBattle: true }, state))).toEqual({
+      ok: true,
+    });
   });
   it('continues passive upgrades after the effective egg and level caps', () => {
     const state = createDefenseState();
@@ -142,7 +156,7 @@ describe('expanded lifecycle and boundary regressions', () => {
     const engine = new GameEngine(createDefenseState('tutorial', undefined, true));
     engine.dispatch({ type: 'testWave', counts: { imp: 1 } });
     engine.dispatch({ type: 'startWave' });
-    for (let i = 0; i < 2000 && engine.state.phase === 'battle'; i++) engine.step(1000 / 60);
+    for (let i = 0; i < 4000 && engine.state.phase === 'battle'; i++) engine.step(1000 / 60);
     expect(engine.state.phase).toBe('ready');
     expect(engine.state.bankedGold).toBe(0);
     expect(engine.state.knownMonsters).toEqual([]);
@@ -271,6 +285,12 @@ describe('dragon strategies', () => {
   });
 });
 describe('enemy abilities and eggs', () => {
+  it('uses the revised Shade health and speed rating', () => {
+    expect(enemyRoster.shade).toMatchObject({ hp: 50, rating: 2 });
+    const state = createDefenseState();
+    const shade = createEnemy(state, 'shade', enemyRoster.shade.hp, movementSpeed(enemyRoster.shade.rating));
+    expect(shade).toMatchObject({ hp: 50, max: 50, spd: movementSpeed(2) });
+  });
   it.each([
     ['hellhound', 'fire', 2.5],
     ['fury', 'poison', 2.5],

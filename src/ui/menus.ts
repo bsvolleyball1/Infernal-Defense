@@ -4,7 +4,7 @@ import { enemyRoster, isDefenseMonster } from '../content/enemies';
 import type { Settings, SlotResult } from '../services/storage';
 import type { GameState } from '../game/types';
 import type { JourneyProgress } from '../game/journey';
-import { importJourney } from '../game/journey';
+import { importJourney, isLevelUnlocked, levelPrerequisite } from '../game/journey';
 import { element, elements, setText } from './dom';
 
 const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
@@ -29,10 +29,10 @@ export function showBattle(): void {
 export function renderLevelSelect(): void {
   element('#levelList').innerHTML = Object.entries(battlefields).map(([id, map]) => `
     <button class="level-card" data-level="${id}">
-      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : `${map.perches.length} dragon roosts`}</div>
+      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : map.challenge ? `${map.challenge.dragon} dragon · ${map.challenge.spell} spell` : map.forks.length ? 'Branching routes' : 'Free dragon placement'}</div>
       <strong>${id === 'tutorial' ? 'Tutorial' : map.name}</strong>
       <small>${map.description}</small>
-      <span class="level-number">${map.forks.length ? '⑂' : map.perches.length}</span>
+      <span class="level-number">${map.forks.length ? '⑂' : '✦'}</span>
     </button>`).join('');
 }
 
@@ -51,11 +51,14 @@ export function renderJourney(slot: number, state: GameState, journey: JourneyPr
   const upgrades=document.querySelector<HTMLButtonElement>('#openPermanent');
   if(upgrades) upgrades.disabled=journey.activeBattle;
   elements<HTMLButtonElement>('[data-level]').forEach(button => {
-    button.disabled = journey.activeBattle;
+    const level = button.dataset.level as GameState['activeLevel'],
+      prerequisite = levelPrerequisite(level),
+      locked = !isLevelUnlocked(level, journey);
+    button.disabled = journey.activeBattle || locked;
     const cleared = journey.completedLevels.includes(button.dataset.level as GameState['activeLevel']);
     button.classList.toggle('level-cleared', cleared);
-    button.querySelector('.level-number')!.textContent = cleared ? '✓' : button.dataset.level === 'volcanic' ? '⑂' : String(getMap(button.dataset.level as GameState['activeLevel']).perches.length);
-    button.setAttribute('aria-label', `${button.querySelector('strong')!.textContent}${cleared ? ', cleared' : ''}${journey.activeBattle ? ', finish your current attempt first' : ''}`);
+    button.querySelector('.level-number')!.textContent = cleared ? '✓' : button.dataset.level === 'volcanic' ? '⑂' : '✦';
+    button.setAttribute('aria-label', `${button.querySelector('strong')!.textContent}${cleared ? ', cleared' : ''}${locked ? `, locked until ${getMap(prerequisite!).name} is cleared` : ''}${journey.activeBattle ? ', finish your current attempt first' : ''}`);
   });
 }
 

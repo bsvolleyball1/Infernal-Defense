@@ -45,7 +45,7 @@ export function moveEnemy(state: GameState, enemy: Enemy, elapsedMs: number): bo
     enemy.slow = Math.max(0, enemy.slow - elapsedMs);
     return false;
   }
-  let travel = enemy.spd * elapsedMs * battleRules.movementPerMillisecond;
+  let travel = enemy.spd * elapsedMs * battleRules.movementPerMillisecond * battleRules.enemySpeedMultiplier;
   if (state.defense && enemy.kind === 'shade') {
     const route = routeFor(state,enemy.routeId), first=route[0], last=route[route.length-1];
     const distance = Math.hypot(last[0]-first[0],last[1]-first[1]);

@@ -1,4 +1,4 @@
-import type { DragonType, GameCommand, GameSpeed, GameState } from '../game/types';
+import type { DragonType, GameCommand, GameSpeed, GameState, Point } from '../game/types';
 import { element, elements } from './dom';
 
 export interface BattleControlActions {
@@ -8,6 +8,7 @@ export interface BattleControlActions {
   resume: () => void;
   returnHome: () => void;
   save: () => void;
+  previewPlacement: (point: Point | null) => void;
 }
 
 export function nextGameSpeed(speed: GameSpeed): GameSpeed {
@@ -19,25 +20,55 @@ export function nextGameSpeed(speed: GameSpeed): GameSpeed {
 export function bindBattleControls(actions: BattleControlActions): () => void {
   const controller = new AbortController();
   const { signal } = controller;
+  const map = element<SVGSVGElement>('#map');
+  let mapPointer: Point | null = null;
   elements<HTMLButtonElement>('.tower').forEach(button => {
     button.addEventListener('click', () => actions.dispatch({
       type: 'choose', dragon: button.dataset.type as DragonType,
     }), { signal });
+    button.addEventListener('click', () => {
+      actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
+    }, { signal });
   });
-  const map = element('#map');
+  map.addEventListener('pointermove', event => {
+    mapPointer = mapPoint(event, map);
+    actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
+  }, { signal });
+  map.addEventListener('pointerleave', () => {
+    mapPointer = null;
+    actions.previewPlacement(null);
+  }, { signal });
+  map.addEventListener('pointercancel', () => {
+    mapPointer = null;
+    actions.previewPlacement(null);
+  }, { signal });
   map.addEventListener('click', event => {
     if (!(event.target instanceof Element)) return;
-    const perch = event.target.closest<SVGGElement>('.perch');
-    // Large phone touch targets can overlap; use the closest roost center.
-    if (perch) activatePerch(closestPerch(event, perch), actions.dispatch);
+    if (event.target.closest('.summon-control')) {
+      if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
+      return;
+    }
+    const tower = event.target.closest<SVGGElement>('.tower-marker');
+    if (tower) {
+      actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
+    } else if (actions.readState().chosen) {
+      const point = mapPoint(event, map);
+      actions.dispatch({ type: 'place', point });
+    }
   }, { signal });
   map.addEventListener('keydown', event => {
     if (!(event.target instanceof Element) || !['Enter', ' '].includes(event.key)) return;
-    const perch = event.target.closest<SVGGElement>('.perch');
-    if (perch) { event.preventDefault(); activatePerch(perch, actions.dispatch); }
+    if (event.target.closest('.summon-control')) {
+      event.preventDefault();
+      if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
+      return;
+    }
+    const tower = event.target.closest<SVGGElement>('.tower-marker');
+    if (tower) {
+      event.preventDefault();
+      actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
+    }
   }, { signal });
-  const touchSizer = new ResizeObserver(sizePerchTargets);
-  touchSizer.observe(element('#map'));
 
   const onClick = (selector: string, callback: () => void) => {
     element(selector).addEventListener('click', callback, { signal });
@@ -54,42 +85,14 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   window.addEventListener('keydown', event => handleKeyboard(event, actions), { signal });
   return () => {
     controller.abort();
-    touchSizer.disconnect();
   };
 }
 
-function activatePerch(perch: SVGGElement, dispatch: BattleControlActions['dispatch']): void {
-  if (perch.getAttribute('aria-disabled') !== 'true') {
-    dispatch({ type: 'perch', index: Number(perch.dataset.id) });
-  }
-}
-
-function closestPerch(event: MouseEvent, fallback: SVGGElement): SVGGElement {
-  if (event.detail === 0) return fallback;
-  let closest = fallback;
-  let best = Infinity;
-  for (const perch of elements<SVGGElement>('.perch')) {
-    const matrix = perch.getScreenCTM();
-    const hit = perch.querySelector<SVGCircleElement>('.perch-hit');
-    if (!matrix || !hit) continue;
-    const dx = (event.clientX - matrix.e) / matrix.a;
-    const dy = (event.clientY - matrix.f) / matrix.d;
-    const distance = Math.hypot(dx, dy);
-    if (distance <= hit.r.baseVal.value && distance < best) { best = distance; closest = perch; }
-  }
-  return closest;
-}
-
-export function sizePerchTargets(): void {
-  const scale = element<SVGSVGElement>('#map').getScreenCTM();
-  if (!scale || !scale.a || !scale.d) return;
-  const minimumTouchRadiusPx = 22;
-  const visiblePerchRadius = 27;
-  const radius = Math.max(visiblePerchRadius,
-    minimumTouchRadiusPx / Math.min(Math.abs(scale.a), Math.abs(scale.d)));
-  elements<SVGGElement>('.perch').forEach(perch => {
-    perch.lastElementChild?.setAttribute('r', String(radius));
-  });
+function mapPoint(event: MouseEvent, map: SVGSVGElement): { x: number; y: number } {
+  const matrix = map.getScreenCTM();
+  if (!matrix) return { x: -1, y: -1 };
+  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+  return { x: point.x, y: point.y };
 }
 
 function handleKeyboard(event: KeyboardEvent, actions: BattleControlActions): void {
