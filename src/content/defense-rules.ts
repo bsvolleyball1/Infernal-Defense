@@ -65,3 +65,7 @@ export function upgradedEggCount(rank: number): number {
 export function eggReturnDelay(rank: number): number {
   return Math.max(defenseRules.minimumEggReturnMs, defenseRules.eggReturnMs - defenseRules.eggReturnReductionMs * rank);
 }
+
+export function maximumMana(totalManaRank: number): number {
+  return defenseRules.baseMana + defenseRules.manaPerTotalManaRank * totalManaRank;
+}

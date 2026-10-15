@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 // Complexity rules are warnings on purpose: they map the refactoring hotspots without blocking CI.
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'playwright-report', 'test-results', 'public', 'scripts'] },
+  { ignores: ['.claude', 'dist', 'node_modules', 'playwright-report', 'test-results', 'public', 'scripts'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { rules: { '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }] } },

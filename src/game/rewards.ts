@@ -32,6 +32,10 @@ export function defeatEnemy(state: GameState, enemy: Enemy, events: GameEvent[])
   );
 }
 
+export function terminalRewardGold(enemiesKilled: number, survivingEggs: number): number {
+  return enemiesKilled + survivingEggs * battleRules.survivingEggGold;
+}
+
 export function finishBattle(state: GameState, won: boolean, events: GameEvent[]): void {
   if (state.phase === 'won' || state.phase === 'lost') return;
   state.phase = won ? 'won' : 'lost';
@@ -48,7 +52,7 @@ export function finishBattle(state: GameState, won: boolean, events: GameEvent[]
   }
   if (!state.rewardsApplied) {
     const survivingEggs = state.eggs.filter((egg) => egg.status !== 'escaped').length;
-    state.rewardGold = state.enemiesKilled + survivingEggs * battleRules.survivingEggGold;
+    state.rewardGold = terminalRewardGold(state.enemiesKilled, survivingEggs);
     state.bankedGold += state.rewardGold;
     state.rewardsApplied = true;
   }
