@@ -17,28 +17,47 @@ export function startRuntime(options: RuntimeOptions): () => void {
   let lastAutosave = previous;
   let accumulator = 0;
   let raf = 0;
-  const resetClock = () => { previous = performance.now(); accumulator = 0; };
+  const resetClock = () => {
+    previous = performance.now();
+    accumulator = 0;
+  };
   function frame(now: number): void {
-    const elapsed = Math.max(0, Math.min(250, now - previous)); previous = now;
-    const simulationActive=engine.state.phase==='battle'||engine.state.defense && engine.state.phase==='ready';
+    const elapsed = Math.max(0, Math.min(250, now - previous));
+    previous = now;
+    const simulationActive =
+      engine.state.phase === 'battle' || (engine.state.defense && engine.state.phase === 'ready');
     if (options.isVisible() && !document.hidden && simulationActive && !engine.state.paused) {
       accumulator += elapsed;
       const events: GameEvent[] = [];
-      while (accumulator >= step) { events.push(...engine.step(step)); accumulator -= step; }
+      while (accumulator >= step) {
+        events.push(...engine.step(step));
+        accumulator -= step;
+      }
       options.onEvents(events);
-      if (now - lastAutosave >= 2000) { options.onSave(); lastAutosave = now; }
-    } else { accumulator = 0; lastAutosave = now; }
+      if (now - lastAutosave >= 2000) {
+        options.onSave();
+        lastAutosave = now;
+      }
+    } else {
+      accumulator = 0;
+      lastAutosave = now;
+    }
     if (options.isVisible() && !document.hidden) options.onRender();
     raf = requestAnimationFrame(frame);
   }
   function background(): void {
     engine.dispatch({ type: 'pause' });
-    options.onSave(); options.onBackground(); resetClock();
+    options.onSave();
+    options.onBackground();
+    resetClock();
     if (options.isVisible()) options.onRender();
   }
   function visibility(): void {
     if (document.hidden) background();
-    else { resetClock(); if (options.isVisible()) options.onRender(); }
+    else {
+      resetClock();
+      if (options.isVisible()) options.onRender();
+    }
   }
   document.addEventListener('visibilitychange', visibility);
   window.addEventListener('pagehide', background);

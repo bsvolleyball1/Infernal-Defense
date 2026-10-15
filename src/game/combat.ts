@@ -7,7 +7,9 @@ import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
 
 const projectileEffects: Record<DragonType, (target: Enemy, damageMultiplier: number) => void> = {
   fire: () => {},
-  ice: target => { target.slow = Math.max(target.slow, battleRules.freezeDurationMs); },
+  ice: (target) => {
+    target.slow = Math.max(target.slow, battleRules.freezeDurationMs);
+  },
   poison: (target, damageMultiplier) => {
     target.poison = battleRules.poisonDurationMs;
     target.poisonD = battleRules.initialPoisonTickMs;
@@ -21,14 +23,14 @@ export function updateEnemies(state: GameState, elapsedMs: number, events: GameE
     if (enemy.hp > 0) {
       if (moveEnemy(state, enemy, elapsedMs)) {
         events.push({ type: 'message', text: 'A raider escaped with an egg!' });
-        if (state.eggs.every(egg => egg.status === 'escaped')) finishBattle(state, false, events);
+        if (state.eggs.every((egg) => egg.status === 'escaped')) finishBattle(state, false, events);
       }
       if (state.phase !== 'battle') return;
       applyPoisonTick(enemy, elapsedMs);
     }
     if (enemy.hp <= 0 && !enemy.escaped) defeatEnemy(state, enemy, events);
   }
-  state.enemies = state.enemies.filter(enemy => enemy.hp > 0);
+  state.enemies = state.enemies.filter((enemy) => enemy.hp > 0);
 }
 
 function applyPoisonTick(enemy: Enemy, elapsedMs: number): void {
@@ -41,7 +43,12 @@ function applyPoisonTick(enemy: Enemy, elapsedMs: number): void {
   }
 }
 
-function selectTarget(state: GameState, tower: Tower, perch: { x: number; y: number }, index: number): Enemy | undefined {
+function selectTarget(
+  state: GameState,
+  tower: Tower,
+  perch: { x: number; y: number },
+  index: number,
+): Enemy | undefined {
   const range = towerRange(tower) * towerRangeMultiplier(state, index);
   let target: Enemy | undefined;
   for (const enemy of state.enemies) {
@@ -61,13 +68,15 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
     const target = selectTarget(state, tower, position, index);
     if (!target) return;
     state.projectiles.push({
-      id: state.nextEntityId++, x: position.x, y: position.y - battleRules.projectileOriginOffset,
-      targetId: target.id, dragon: tower.type, damage: towerDamage(tower) * towerDamageMultiplier(state, index),
+      id: state.nextEntityId++,
+      x: position.x,
+      y: position.y - battleRules.projectileOriginOffset,
+      targetId: target.id,
+      dragon: tower.type,
+      damage: towerDamage(tower) * towerDamageMultiplier(state, index),
       speed: tower.type === 'fire' ? battleRules.fireProjectileSpeed : battleRules.otherProjectileSpeed,
       level: tower.level,
-      ...(towerDamageMultiplier(state, index) > 1
-        ? { damageMultiplier: towerDamageMultiplier(state, index) }
-        : {}),
+      ...(towerDamageMultiplier(state, index) > 1 ? { damageMultiplier: towerDamageMultiplier(state, index) } : {}),
     });
     tower.cooldown = towerAttackInterval(tower);
     events.push({ type: 'sound', dragon: tower.type });
@@ -77,7 +86,7 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
 export function updateProjectiles(state: GameState, elapsedMs: number, events: GameEvent[]): void {
   const remaining: Projectile[] = [];
   for (const shot of state.projectiles) {
-    const target = state.enemies.find(enemy => enemy.id === shot.targetId);
+    const target = state.enemies.find((enemy) => enemy.id === shot.targetId);
     if (!target || target.hp <= 0) continue;
     const [x, y] = entityPosition(state, target);
     const dx = x - shot.x;
@@ -89,11 +98,13 @@ export function updateProjectiles(state: GameState, elapsedMs: number, events: G
       projectileEffects[shot.dragon](target, shot.damageMultiplier ?? 1);
       if (target.hp <= 0) defeatEnemy(state, target, events);
     } else {
-      shot.x += dx / distance * travel;
-      shot.y += dy / distance * travel;
+      shot.x += (dx / distance) * travel;
+      shot.y += (dy / distance) * travel;
       remaining.push(shot);
     }
   }
-  state.projectiles = remaining.filter(shot => state.enemies.some(enemy => enemy.id === shot.targetId && enemy.hp > 0));
-  state.enemies = state.enemies.filter(enemy => enemy.hp > 0);
+  state.projectiles = remaining.filter((shot) =>
+    state.enemies.some((enemy) => enemy.id === shot.targetId && enemy.hp > 0),
+  );
+  state.enemies = state.enemies.filter((enemy) => enemy.hp > 0);
 }

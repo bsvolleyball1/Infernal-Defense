@@ -2,13 +2,7 @@ import { getMap, routesFor, waves } from '../content/catalog';
 import { finishBattle } from './rewards';
 import { battleRules, waveReward } from './rules';
 import type { GameEvent, GameState } from './types';
-import {
-  defenseWaves,
-  tutorialRoster,
-  enemyRoster,
-  isDefenseMonster,
-  movementSpeed,
-} from '../content/enemies';
+import { defenseWaves, tutorialRoster, enemyRoster, isDefenseMonster, movementSpeed } from '../content/enemies';
 import { createEnemy } from './enemy-factory';
 import { defenseRules } from '../content/defense-rules';
 
@@ -34,10 +28,7 @@ export function startWave(state: GameState): GameEvent[] {
   let groups = waves[state.wave - 1];
   if (d) {
     if (d.countdown !== null)
-      d.mana = Math.min(
-        d.maxMana,
-        d.mana + Math.ceil(d.countdown / 1000) * defenseRules.earlyWaveManaPerSecond,
-      );
+      d.mana = Math.min(d.maxMana, d.mana + Math.ceil(d.countdown / 1000) * defenseRules.earlyWaveManaPerSecond);
     d.countdown = null;
     d.targeting = null;
     d.preview = null;

@@ -1,7 +1,7 @@
 import type { GameState } from '../game/types';
 import { createInitialState } from '../game/state';
-import { dragons, getMap, map, monsters, routesFor } from '../content/catalog';
-import { battlefields } from '../content/maps';
+import { dragons, getMap, monsters, routesFor } from '../content/catalog';
+import { gorge as map, battlefields } from '../content/maps';
 import type { Battlefield } from '../content/maps';
 import type { JourneyProgress } from '../game/journey';
 import { validateDefense, validateDefenseEntities } from './defense-validation';
@@ -18,16 +18,18 @@ export interface SaveDataV2 {
 }
 
 export type SlotResult =
-  | { status: 'empty' }
-  | { status: 'valid'; data: SaveDataV2; migrated: boolean }
-  | { status: 'error'; message: string };
+  { status: 'empty' } | { status: 'valid'; data: SaveDataV2; migrated: boolean } | { status: 'error'; message: string };
 export type WriteFailureCode = 'conflict' | 'quota' | 'blocked' | 'failure';
 export type WriteResult = { ok: true } | { ok: false; code: WriteFailureCode; message: string };
 export interface KeyValueStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 }
-export interface Settings { music: number; sound: number; quiet: boolean }
+export interface Settings {
+  music: number;
+  sound: number;
+  quiet: boolean;
+}
 
 const prefix = 'infernalDefense.';
 const defaults: Settings = { music: 24, sound: 55, quiet: false };
@@ -58,8 +60,12 @@ function choice(value: unknown, choices: readonly string[], name: string): asser
 function own(value: RecordValue, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
-function monster(value: unknown): void { choice(value, Object.keys(monsters), 'Monster kind'); }
-function dragon(value: unknown): void { choice(value, Object.keys(dragons), 'Dragon type'); }
+function monster(value: unknown): void {
+  choice(value, Object.keys(monsters), 'Monster kind');
+}
+function dragon(value: unknown): void {
+  choice(value, Object.keys(dragons), 'Dragon type');
+}
 function progress(value: unknown, geometry = map, routeId = 0): void {
   number(value, 'Path progress', 0, routesFor(geometry)[routeId].length - 1);
 }
@@ -77,8 +83,7 @@ function tower(value: unknown, geometry: Battlefield, legacy = false): void {
   if (value === null) return;
   object(value, 'Tower');
   dragon(value.type);
-  if (geometry.challenge)
-    check(value.type === geometry.challenge.dragon, 'Tower does not match this level challenge.');
+  if (geometry.challenge) check(value.type === geometry.challenge.dragon, 'Tower does not match this level challenge.');
   integer(value.level, 'Tower level', 1);
   if (own(value, 'position')) {
     object(value.position, 'Tower position');
@@ -93,17 +98,22 @@ function tower(value: unknown, geometry: Battlefield, legacy = false): void {
     if (own(value, 'last')) number(value.last, 'Legacy tower timer');
   } else number(value.cooldown, 'Tower cooldown');
 }
-function towers(value: unknown, geometry: Battlefield, legacy = false, count = map.perches.length): asserts value is unknown[] {
+function towers(
+  value: unknown,
+  geometry: Battlefield,
+  legacy = false,
+  count = map.perches.length,
+): asserts value is unknown[] {
   array(value, 'Towers');
-  check(value.length >= count || legacy && value.length === 5, 'Tower slots must match the battlefield.');
+  check(value.length >= count || (legacy && value.length === 5), 'Tower slots must match the battlefield.');
   for (const item of value) tower(item, geometry, legacy);
 }
 function egg(value: unknown, legacy = false, geometry = map, count = 5): asserts value is RecordValue {
   object(value, 'Egg');
   integer(value.id, 'Egg id', 1, count);
   choice(value.status, ['nest', 'carried', 'dropped', 'escaped'], 'Egg status');
-  const routeId = value.status === 'dropped' || value.status === 'carried' || own(value, 'routeId')
-    ? route(value, geometry) : 0;
+  const routeId =
+    value.status === 'dropped' || value.status === 'carried' || own(value, 'routeId') ? route(value, geometry) : 0;
   if (value.progress !== null) progress(value.progress, geometry, routeId);
   if (value.status === 'nest') check(!own(value, 'routeId'), 'A nest egg cannot have a route.');
   if (value.carrier !== null) {
@@ -131,10 +141,10 @@ function eggs(value: unknown, legacy = false, geometry = map, count = 5): assert
 
 function validateState(value: unknown): asserts value is GameState {
   object(value, 'State');
-  if(own(value,'defense')) validateDefense(value.defense);
-  const eggCount=value.defense && Array.isArray(value.eggs) ? value.eggs.length : 5;
-  check(eggCount>=(value.defense ? 3 : 5) && eggCount<=8,'Invalid egg count.');
-  const sandbox=(value.defense as GameState['defense'])?.mode==='sandbox';
+  if (own(value, 'defense')) validateDefense(value.defense);
+  const eggCount = value.defense && Array.isArray(value.eggs) ? value.eggs.length : 5;
+  check(eggCount >= (value.defense ? 3 : 5) && eggCount <= 8, 'Invalid egg count.');
+  const sandbox = (value.defense as GameState['defense'])?.mode === 'sandbox';
   choice(value.phase, ['ready', 'battle', 'won', 'lost'], 'Phase');
   boolean(value.paused, 'Paused');
   number(value.simulationTime, 'Simulation time');
@@ -164,7 +174,7 @@ function validateState(value: unknown): asserts value is GameState {
   array(value.spawnSchedule, 'Spawn schedule');
   integer(value.nextEntityId, 'Next entity id', eggCount + 1);
 
-  const ids = new Set<number>(value.eggs.map(item => item.id as number));
+  const ids = new Set<number>(value.eggs.map((item) => item.id as number));
   const enemies = new Map<number, RecordValue>();
   const claimId = (id: unknown) => {
     integer(id, 'Entity id', 1);
@@ -220,32 +230,49 @@ function validateState(value: unknown): asserts value is GameState {
   for (const item of value.eggs) {
     if (item.status === 'carried') {
       const carrier = enemies.get(item.carrier as number);
-      check(carrier && carrier.carryingEgg === item.id && carrier.returning && !carrier.escaped && (carrier.hp as number) > 0,
-        'Egg carrier reference is inconsistent.');
+      check(
+        carrier &&
+          carrier.carryingEgg === item.id &&
+          carrier.returning &&
+          !carrier.escaped &&
+          (carrier.hp as number) > 0,
+        'Egg carrier reference is inconsistent.',
+      );
       check((carrier.routeId ?? 0) === (item.routeId ?? 0), 'Egg carrier route is inconsistent.');
     }
   }
   for (const enemy of enemies.values()) {
     if (enemy.carryingEgg !== null) {
-      check(value.eggs.some(item => item.id === enemy.carryingEgg && item.status === 'carried' && item.carrier === enemy.id),
-        'Enemy carried egg reference is inconsistent.');
+      check(
+        value.eggs.some(
+          (item) => item.id === enemy.carryingEgg && item.status === 'carried' && item.carrier === enemy.id,
+        ),
+        'Enemy carried egg reference is inconsistent.',
+      );
     }
   }
   check(value.enemies.length <= value.enemiesSummoned, 'Live enemy count exceeds summoned count.');
-  const remaining = value.eggs.filter(item => item.status !== 'escaped').length;
+  const remaining = value.eggs.filter((item) => item.status !== 'escaped').length;
   const terminal = value.phase === 'won' || value.phase === 'lost';
   check(value.rewardsApplied === terminal, 'Reward state does not match phase.');
   if (terminal) {
-    check(value.enemies.length === 0 && value.projectiles.length === 0 && value.spawnSchedule.length === 0,
-      'A finished run cannot contain active combat.');
-    check(value.phase === 'won' ? value.wave === 5 && remaining > 0 : remaining === 0,
-      'Terminal phase does not match wave or eggs.');
+    check(
+      value.enemies.length === 0 && value.projectiles.length === 0 && value.spawnSchedule.length === 0,
+      'A finished run cannot contain active combat.',
+    );
+    check(
+      value.phase === 'won' ? value.wave === 5 && remaining > 0 : remaining === 0,
+      'Terminal phase does not match wave or eggs.',
+    );
   } else {
     check(sandbox || value.wave < 5 || value.phase === 'battle', 'A completed fifth wave must be terminal.');
     check(remaining > 0, 'An active run must have eggs remaining.');
     check(value.rewardGold === 0, 'An active run cannot have a terminal reward.');
-    if (value.phase === 'ready') check(value.enemies.length === 0 && value.projectiles.length === 0 && value.spawnSchedule.length === 0,
-      'A ready checkpoint cannot contain active combat.');
+    if (value.phase === 'ready')
+      check(
+        value.enemies.length === 0 && value.projectiles.length === 0 && value.spawnSchedule.length === 0,
+        'A ready checkpoint cannot contain active combat.',
+      );
     else check(value.wave > 0, 'Battle requires a started wave.');
   }
   validateDefenseEntities(value as unknown as GameState);
@@ -261,20 +288,32 @@ function validateSave(value: unknown): asserts value is SaveDataV2 {
     boolean(value.journey.activeBattle, 'Active battle');
     array(value.journey.completedLevels, 'Completed levels');
     for (const level of value.journey.completedLevels) choice(level, Object.keys(battlefields), 'Completed level');
-    check(new Set(value.journey.completedLevels).size === value.journey.completedLevels.length, 'Completed levels must be unique.');
+    check(
+      new Set(value.journey.completedLevels).size === value.journey.completedLevels.length,
+      'Completed levels must be unique.',
+    );
     const terminal = value.state.phase === 'won' || value.state.phase === 'lost';
     check(!terminal || value.journey.activeBattle === false, 'Finished battles cannot remain active.');
-    if (value.state.phase === 'won') check(value.journey.completedLevels.includes(value.state.activeLevel), 'Won level must be recorded in the journey.');
+    if (value.state.phase === 'won')
+      check(
+        value.journey.completedLevels.includes(value.state.activeLevel),
+        'Won level must be recorded in the journey.',
+      );
     if (!terminal && !value.journey.activeBattle) {
-      check(value.state.phase === 'ready' && value.state.wave === 0 && value.state.towers.every(t => t === null)
-        && value.state.eggs.every(egg => egg.status === 'nest'), 'An inactive journey cannot contain an unfinished battle.');
+      check(
+        value.state.phase === 'ready' &&
+          value.state.wave === 0 &&
+          value.state.towers.every((t) => t === null) &&
+          value.state.eggs.every((egg) => egg.status === 'nest'),
+        'An inactive journey cannot contain an unfinished battle.',
+      );
     }
   }
 }
 
 function migrate(value: RecordValue): SaveDataV2 {
   // v1 stores a restartable checkpoint, never an exact combat snapshot.
-  const expanded=own(value,'mana')||own(value,'permanentRanks')||own(value,'permanentUpgrades');
+  const expanded = own(value, 'mana') || own(value, 'permanentRanks') || own(value, 'permanentUpgrades');
   const state = expanded ? createDefenseState() : createInitialState();
   const numeric = (key: string, fallback: number, max = Number.MAX_SAFE_INTEGER) => {
     if (!own(value, key)) return fallback;
@@ -287,25 +326,46 @@ function migrate(value: RecordValue): SaveDataV2 {
   state.wave = numeric('wave', 0, 5);
   state.enemiesKilled = numeric('enemiesKilled', 0);
   state.enemiesSummoned = numeric('enemiesSummoned', state.enemiesKilled);
-  if(expanded) {
-    const d=state.defense!;
-    for(const [source,dest] of [['fire','fire'],['green','poison'],['blue','ice']] as const) {
-      if(own(value,'permanentRanks')) {
-        object(value.permanentRanks,'Legacy upgrade ranks');
-        const ranks=value.permanentRanks[source]; array(ranks,'Legacy ranks');
-        check(ranks.length===5,'Legacy ranks must contain five nodes.');
-        ranks.forEach(n=>integer(n,'Legacy rank',0,1000));
-        d.ranks[dest]=[...ranks as number[],0];
+  if (expanded) {
+    const d = state.defense!;
+    for (const [source, dest] of [
+      ['fire', 'fire'],
+      ['green', 'poison'],
+      ['blue', 'ice'],
+    ] as const) {
+      if (own(value, 'permanentRanks')) {
+        object(value.permanentRanks, 'Legacy upgrade ranks');
+        const ranks = value.permanentRanks[source];
+        array(ranks, 'Legacy ranks');
+        check(ranks.length === 5, 'Legacy ranks must contain five nodes.');
+        ranks.forEach((n) => integer(n, 'Legacy rank', 0, 1000));
+        d.ranks[dest] = [...(ranks as number[]), 0];
       }
-      if(own(value,'permanentUpgrades')) { object(value.permanentUpgrades,'Legacy attack upgrades'); d.ranks[dest][5]=numericRank(value.permanentUpgrades[source]); }
+      if (own(value, 'permanentUpgrades')) {
+        object(value.permanentUpgrades, 'Legacy attack upgrades');
+        d.ranks[dest][5] = numericRank(value.permanentUpgrades[source]);
+      }
     }
-    d.maxMana=200+25*d.ranks.fire[0];
-    if(own(value,'maxMana')) { number(value.maxMana,'Legacy maximum mana',1); d.maxMana=value.maxMana; }
-    if(own(value,'mana')) { number(value.mana,'Legacy mana',0,d.maxMana); d.mana=value.mana; }
-    const count=Array.isArray(value.eggs) ? value.eggs.length : Math.max(upgradedEggCount(d.ranks.poison[2]),numeric('lives',0,8));
-    check(count>=3 && count<=8,'Invalid legacy egg count.');
-    state.eggs=Array.from({length:count},(_,i)=>({id:i+1,status:'nest',progress:null,carrier:null}));
-    state.nextEntityId=state.eggs.length+1;
+    d.maxMana = 200 + 25 * d.ranks.fire[0];
+    if (own(value, 'maxMana')) {
+      number(value.maxMana, 'Legacy maximum mana', 1);
+      d.maxMana = value.maxMana;
+    }
+    if (own(value, 'mana')) {
+      number(value.mana, 'Legacy mana', 0, d.maxMana);
+      d.mana = value.mana;
+    }
+    const count = Array.isArray(value.eggs)
+      ? value.eggs.length
+      : Math.max(upgradedEggCount(d.ranks.poison[2]), numeric('lives', 0, 8));
+    check(count >= 3 && count <= 8, 'Invalid legacy egg count.');
+    state.eggs = Array.from({ length: count }, (_, i) => ({
+      id: i + 1,
+      status: 'nest',
+      progress: null,
+      carrier: null,
+    }));
+    state.nextEntityId = state.eggs.length + 1;
   }
   const lives = numeric('lives', state.eggs.length, state.eggs.length);
   if (own(value, 'activeLevel')) {
@@ -318,7 +378,7 @@ function migrate(value: RecordValue): SaveDataV2 {
   }
   if (own(value, 'towers')) {
     towers(value.towers, map, true);
-    state.towers = value.towers.map(item => {
+    state.towers = value.towers.map((item) => {
       if (item === null) return null;
       const t = item as RecordValue;
       return { type: t.type, level: t.level, cooldown: 0 } as NonNullable<GameState['towers'][number]>;
@@ -327,10 +387,10 @@ function migrate(value: RecordValue): SaveDataV2 {
   }
   if (own(value, 'eggs')) {
     eggs(value.eggs, true, map, state.eggs.length);
-    state.eggs = value.eggs.map(item => ({
+    state.eggs = value.eggs.map((item) => ({
       id: item.id,
       status: item.status === 'carried' ? 'dropped' : item.status,
-      progress: item.status === 'carried' ? item.progress ?? map.path.length - 1 : item.progress,
+      progress: item.status === 'carried' ? (item.progress ?? map.path.length - 1) : item.progress,
       carrier: null,
     })) as GameState['eggs'];
     // During a battle v1's lives value may be newer than its checkpoint eggs.
@@ -338,8 +398,10 @@ function migrate(value: RecordValue): SaveDataV2 {
   } else {
     state.eggs = state.eggs.map((item, i) => ({ ...item, status: i < lives ? 'nest' : 'escaped' }));
   }
-  const remaining = state.eggs.filter(item => item.status !== 'escaped').length;
-  if(state.defense) for(const egg of state.eggs) if(egg.status==='dropped') egg.returnTimer=eggReturnDelay(state.defense.ranks.fire[4]);
+  const remaining = state.eggs.filter((item) => item.status !== 'escaped').length;
+  if (state.defense)
+    for (const egg of state.eggs)
+      if (egg.status === 'dropped') egg.returnTimer = eggReturnDelay(state.defense.ranks.fire[4]);
   state.phase = remaining === 0 ? 'lost' : state.wave === 5 ? 'won' : 'ready';
   state.rewardsApplied = state.phase === 'won' || state.phase === 'lost';
   state.rewardGold = state.rewardsApplied ? state.enemiesKilled + remaining * 10 : 0;
@@ -349,7 +411,10 @@ function migrate(value: RecordValue): SaveDataV2 {
   return data;
 }
 
-function numericRank(value: unknown): number { integer(value,'Legacy attack rank',0,1000); return value; }
+function numericRank(value: unknown): number {
+  integer(value, 'Legacy attack rank', 0, 1000);
+  return value;
+}
 
 function settings(value: unknown): Settings {
   object(value, 'Settings');
@@ -405,8 +470,11 @@ export class SaveRepository {
       let expanded = false;
       if (value.version === 2) {
         object(value.state, 'State');
-        if (['level1', 'tutorial'].includes(value.state.activeLevel as string)
-          && Array.isArray(value.state.towers) && value.state.towers.length === 5) {
+        if (
+          ['level1', 'tutorial'].includes(value.state.activeLevel as string) &&
+          Array.isArray(value.state.towers) &&
+          value.state.towers.length === 5
+        ) {
           value.state.towers = [...value.state.towers, ...Array(map.perches.length - 5).fill(null)];
           expanded = true;
         }
@@ -414,7 +482,9 @@ export class SaveRepository {
       validateSave(value);
       if (adopt || !this.revisions.has(index)) this.revisions.set(index, raw);
       return { status: 'valid', data: value, migrated: expanded };
-    } catch (error) { return { status: 'error', message: `Could not read this save: ${message(error)}` }; }
+    } catch (error) {
+      return { status: 'error', message: `Could not read this save: ${message(error)}` };
+    }
   }
 
   saveSlot(index: number, state: GameState, journey?: JourneyProgress): WriteResult {
@@ -423,9 +493,7 @@ export class SaveRepository {
       // Preserve campaign metadata if a compatibility caller updates only battle state.
       const previous = this.revisions.get(index);
       const progress = journey ?? (previous ? (JSON.parse(previous) as SaveDataV2).journey : undefined);
-      const data: SaveDataV2 = { version: 2, savedAt: Date.now(), state,
-        ...(progress ? { journey: progress } : {}),
-      };
+      const data: SaveDataV2 = { version: 2, savedAt: Date.now(), state, ...(progress ? { journey: progress } : {}) };
       validateSave(data);
       const raw = JSON.stringify(data);
       validateSave(JSON.parse(raw));
@@ -434,20 +502,25 @@ export class SaveRepository {
         return {
           ok: false,
           code: 'conflict',
-          message: 'Could not save journey: This slot changed in another tab. Reload this app and use Load Save to continue the newer journey before saving.',
+          message:
+            'Could not save journey: This slot changed in another tab. Reload this app and use Load Save to continue the newer journey before saving.',
         };
       }
       this.storage.setItem(key, raw);
       this.revisions.set(index, raw);
       return { ok: true };
-    } catch (error) { return writeFailure('Could not save journey', error); }
+    } catch (error) {
+      return writeFailure('Could not save journey', error);
+    }
   }
 
   readSettings(): Settings {
     try {
       const raw = this.storage.getItem(`${prefix}settings`);
       return raw === null ? { ...defaults } : settings(JSON.parse(raw));
-    } catch { return { ...defaults }; }
+    } catch {
+      return { ...defaults };
+    }
   }
 
   writeSettings(value: Settings): WriteResult {
@@ -457,7 +530,9 @@ export class SaveRepository {
       number(value.sound, 'Sound volume', 0, 100);
       boolean(value.quiet, 'Quiet');
       return this.write(`${prefix}settings`, settings(value), 'Could not save settings');
-    } catch (error) { return writeFailure('Could not save settings', error); }
+    } catch (error) {
+      return writeFailure('Could not save settings', error);
+    }
   }
 
   readBestiary(): string[] {
@@ -467,20 +542,26 @@ export class SaveRepository {
       const value: unknown = JSON.parse(raw);
       kinds(value, false);
       return [...new Set(value)];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   }
 
   writeBestiary(value: string[]): WriteResult {
     try {
       kinds(value, false);
       return this.write(`${prefix}bestiary`, [...new Set(value)], 'Could not save bestiary');
-    } catch (error) { return writeFailure('Could not save bestiary', error); }
+    } catch (error) {
+      return writeFailure('Could not save bestiary', error);
+    }
   }
 
   private write(key: string, value: unknown, operation: string): WriteResult {
     try {
       this.storage.setItem(key, JSON.stringify(value));
       return { ok: true };
-    } catch (error) { return writeFailure(operation, error); }
+    } catch (error) {
+      return writeFailure(operation, error);
+    }
   }
 }

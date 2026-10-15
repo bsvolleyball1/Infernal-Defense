@@ -22,53 +22,83 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   const { signal } = controller;
   const map = element<SVGSVGElement>('#map');
   let mapPointer: Point | null = null;
-  elements<HTMLButtonElement>('.tower').forEach(button => {
-    button.addEventListener('click', () => actions.dispatch({
-      type: 'choose', dragon: button.dataset.type as DragonType,
-    }), { signal });
-    button.addEventListener('click', () => {
-      actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
-    }, { signal });
+  elements<HTMLButtonElement>('.tower').forEach((button) => {
+    button.addEventListener(
+      'click',
+      () =>
+        actions.dispatch({
+          type: 'choose',
+          dragon: button.dataset.type as DragonType,
+        }),
+      { signal },
+    );
+    button.addEventListener(
+      'click',
+      () => {
+        actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
+      },
+      { signal },
+    );
   });
-  map.addEventListener('pointermove', event => {
-    mapPointer = mapPoint(event, map);
-    actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
-  }, { signal });
-  map.addEventListener('pointerleave', () => {
-    mapPointer = null;
-    actions.previewPlacement(null);
-  }, { signal });
-  map.addEventListener('pointercancel', () => {
-    mapPointer = null;
-    actions.previewPlacement(null);
-  }, { signal });
-  map.addEventListener('click', event => {
-    if (!(event.target instanceof Element)) return;
-    if (event.target.closest('.summon-control')) {
-      if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
-      return;
-    }
-    const tower = event.target.closest<SVGGElement>('.tower-marker');
-    if (tower) {
-      actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
-    } else if (actions.readState().chosen) {
-      const point = mapPoint(event, map);
-      actions.dispatch({ type: 'place', point });
-    }
-  }, { signal });
-  map.addEventListener('keydown', event => {
-    if (!(event.target instanceof Element) || !['Enter', ' '].includes(event.key)) return;
-    if (event.target.closest('.summon-control')) {
-      event.preventDefault();
-      if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
-      return;
-    }
-    const tower = event.target.closest<SVGGElement>('.tower-marker');
-    if (tower) {
-      event.preventDefault();
-      actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
-    }
-  }, { signal });
+  map.addEventListener(
+    'pointermove',
+    (event) => {
+      mapPointer = mapPoint(event, map);
+      actions.previewPlacement(actions.readState().chosen ? mapPointer : null);
+    },
+    { signal },
+  );
+  map.addEventListener(
+    'pointerleave',
+    () => {
+      mapPointer = null;
+      actions.previewPlacement(null);
+    },
+    { signal },
+  );
+  map.addEventListener(
+    'pointercancel',
+    () => {
+      mapPointer = null;
+      actions.previewPlacement(null);
+    },
+    { signal },
+  );
+  map.addEventListener(
+    'click',
+    (event) => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.summon-control')) {
+        if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
+        return;
+      }
+      const tower = event.target.closest<SVGGElement>('.tower-marker');
+      if (tower) {
+        actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
+      } else if (actions.readState().chosen) {
+        const point = mapPoint(event, map);
+        actions.dispatch({ type: 'place', point });
+      }
+    },
+    { signal },
+  );
+  map.addEventListener(
+    'keydown',
+    (event) => {
+      if (!(event.target instanceof Element) || !['Enter', ' '].includes(event.key)) return;
+      if (event.target.closest('.summon-control')) {
+        event.preventDefault();
+        if (!actions.readState().paused) actions.dispatch({ type: 'startWave' });
+        return;
+      }
+      const tower = event.target.closest<SVGGElement>('.tower-marker');
+      if (tower) {
+        event.preventDefault();
+        actions.dispatch({ type: 'perch', index: Number(tower.dataset.id) });
+      }
+    },
+    { signal },
+  );
 
   const onClick = (selector: string, callback: () => void) => {
     element(selector).addEventListener('click', callback, { signal });
@@ -82,7 +112,7 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   onClick('#pauseMenu', actions.returnHome);
   onClick('#returnMenu', actions.returnHome);
   onClick('#saveProgress', actions.save);
-  window.addEventListener('keydown', event => handleKeyboard(event, actions), { signal });
+  window.addEventListener('keydown', (event) => handleKeyboard(event, actions), { signal });
   return () => {
     controller.abort();
   };

@@ -1,4 +1,6 @@
-import { getMap, positionAt, routesFor } from '../content/catalog';
+import { getMap, routesFor } from '../content/catalog';
+import { positionAt } from '../content/path';
+import { enemyTraits } from '../content/enemies';
 import { bonusAreaAt } from '../content/maps';
 import type { Battlefield } from '../content/maps';
 import type { GameState, Point } from './types';
@@ -7,17 +9,27 @@ export function routeFor(state: GameState, routeId = 0): [number, number][] {
   return routesFor(getMap(state.activeLevel))[routeId];
 }
 
-export function entityPosition(state: GameState, entity: { progress: number; routeId?: number; kind?: string; direct?: boolean }): [number, number] {
-  if (state.defense && (entity.kind === 'shade' || entity.direct)) {
-    const path = routeFor(state,entity.routeId), t = entity.progress/(path.length-1);
-    const first = path[0], last = path[path.length-1];
-    return [first[0]+(last[0]-first[0])*t,first[1]+(last[1]-first[1])*t];
+export function entityPosition(
+  state: GameState,
+  entity: { progress: number; routeId?: number; kind?: string; direct?: boolean },
+): [number, number] {
+  if (state.defense && (entity.direct || (entity.kind !== undefined && enemyTraits(entity.kind).directPath))) {
+    const path = routeFor(state, entity.routeId),
+      t = entity.progress / (path.length - 1);
+    const first = path[0],
+      last = path[path.length - 1];
+    return [first[0] + (last[0] - first[0]) * t, first[1] + (last[1] - first[1]) * t];
   }
   return positionAt(entity.progress, { path: routeFor(state, entity.routeId) });
 }
 
 /** Equal progress is not equal location on separate branches. */
-export function sharesTrail(state: GameState, routeId: number | undefined, otherRoute: number | undefined, progress: number): boolean {
+export function sharesTrail(
+  state: GameState,
+  routeId: number | undefined,
+  otherRoute: number | undefined,
+  progress: number,
+): boolean {
   if ((routeId ?? 0) === (otherRoute ?? 0)) return true;
   const first = routeFor(state, routeId);
   const second = routeFor(state, otherRoute);
@@ -34,8 +46,7 @@ export function towerPosition(state: GameState, index: number): Point {
 }
 
 export function isClearTowerPosition(point: Point, geometry: Battlefield): boolean {
-  if (point.x < 25 || point.x > geometry.width - 25 || point.y < 25 || point.y > geometry.height - 25)
-    return false;
+  if (point.x < 25 || point.x > geometry.width - 25 || point.y < 25 || point.y > geometry.height - 25) return false;
 
   const roadClearance = 45;
   return routesFor(geometry).every((path) =>
@@ -59,4 +70,22 @@ export function canPlaceTower(state: GameState, point: Point): boolean {
     if (targetBonus && targetBonus.index === bonusAreaAt(geometry, existing)?.index) return false;
     return Math.hypot(point.x - existing.x, point.y - existing.y) >= 42;
   });
+}
+
+export function clampToBattlefield(point: Point, geometry: Pick<Battlefield, 'width' | 'height'>): Point {
+  return {
+    x: Math.max(0, Math.min(geometry.width, point.x)),
+    y: Math.max(0, Math.min(geometry.height, point.y)),
+  };
+}
+
+export function isInsideBattlefield(point: Point, geometry: Pick<Battlefield, 'width' | 'height'>): boolean {
+  return (
+    Number.isFinite(point.x) &&
+    Number.isFinite(point.y) &&
+    point.x >= 0 &&
+    point.y >= 0 &&
+    point.x <= geometry.width &&
+    point.y <= geometry.height
+  );
 }

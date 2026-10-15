@@ -1,8 +1,10 @@
 import { monsters } from '../content/catalog';
+import { enemyTraits } from '../content/enemies';
+import { defenseRules } from '../content/defense-rules';
 import { dropEgg } from './eggs';
 import { battleRules } from './rules';
 import type { Enemy, GameEvent, GameState } from './types';
-import { randomValue, rank } from './defense-state';
+import { randomValue, rankOf } from './defense-state';
 import { summonEnemy } from './enemy-factory';
 
 export function defeatEnemy(state: GameState, enemy: Enemy, events: GameEvent[]): void {
@@ -12,11 +14,12 @@ export function defeatEnemy(state: GameState, enemy: Enemy, events: GameEvent[])
   state.enemiesKilled++;
   state.gold += battleRules.enemyGold + (enemy.kind === 'chief' ? battleRules.chiefBonusGold : 0);
   if (state.defense) {
-    state.gold += 2 * rank(state,'poison',4);
-    if (enemy.kind === 'zombieTrain') {
-      const count = 5 + Math.floor(randomValue(state)*6);
-      const kinds = ['imp','demon','seaSerpent'] as const;
-      for (let i=0;i<count;i++) summonEnemy(state,kinds[Math.floor(randomValue(state)*3)],enemy);
+    state.gold += defenseRules.killFoodPerRank * rankOf(state, 'poison', 'foodFromKills');
+    const death = enemyTraits(enemy.kind).onDeath;
+    if (death) {
+      const count = death.minimum + Math.floor(randomValue(state) * death.span);
+      for (let i = 0; i < count; i++)
+        summonEnemy(state, death.kinds[Math.floor(randomValue(state) * death.kinds.length)], enemy);
     }
     if (state.defense.mode === 'sandbox') return;
   }
@@ -44,7 +47,7 @@ export function finishBattle(state: GameState, won: boolean, events: GameEvent[]
     for (const tower of state.towers) if (tower?.beamIds) tower.beamIds = [];
   }
   if (!state.rewardsApplied) {
-    const survivingEggs = state.eggs.filter(egg => egg.status !== 'escaped').length;
+    const survivingEggs = state.eggs.filter((egg) => egg.status !== 'escaped').length;
     state.rewardGold = state.enemiesKilled + survivingEggs * battleRules.survivingEggGold;
     state.bankedGold += state.rewardGold;
     state.rewardsApplied = true;

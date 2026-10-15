@@ -33,7 +33,14 @@ export class GameEngine implements SimulationEngine {
   /** elapsedMs is foreground time; the runtime supplies fixed steps. */
   step(elapsedMs: number): GameEvent[] {
     const state = this.state;
-    if (state.defense && !state.paused && (state.phase==='battle' || state.phase==='ready') && Number.isFinite(elapsedMs) && elapsedMs>0) return stepDefense(state,elapsedMs);
+    if (
+      state.defense &&
+      !state.paused &&
+      (state.phase === 'battle' || state.phase === 'ready') &&
+      Number.isFinite(elapsedMs) &&
+      elapsedMs > 0
+    )
+      return stepDefense(state, elapsedMs);
     if (state.paused || state.phase !== 'battle' || !Number.isFinite(elapsedMs) || elapsedMs <= 0) return [];
     const events: GameEvent[] = [];
     const simulationElapsedMs = elapsedMs * state.speed;

@@ -1,7 +1,10 @@
-export type DragonType = 'fire' | 'ice' | 'poison';
-export type MonsterKind = 'scout' | 'shield' | 'runner' | 'chief' | 'imp' | 'seaSerpent' | 'demon' | 'hellhound' | 'fury' | 'devil' | 'ghost' | 'gargoyle' | 'witch' | 'hag' | 'troll' | 'necromancer' | 'zombieTrain' | 'lich' | 'skeleton' | 'phantom' | 'shade';
-export type SpellKind = 'poison' | 'ice' | 'fire';
-export interface Point { x: number; y: number }
+import type { DragonType, Level, MonsterKind, SpellKind } from '../domain/model';
+
+export type { DragonType, Level, MonsterKind, SpellKind };
+export interface Point {
+  x: number;
+  y: number;
+}
 export interface DefenseState {
   ruleset: 'defense-1';
   mode: 'journey' | 'sandbox';
@@ -17,14 +20,6 @@ export interface DefenseState {
   visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number }[];
   testWave: Partial<Record<MonsterKind, number>>;
 }
-export type Level =
-  | 'level1'
-  | 'tutorial'
-  | 'meadow'
-  | 'volcanic'
-  | 'fireTrial'
-  | 'iceTrial'
-  | 'poisonTrial';
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 

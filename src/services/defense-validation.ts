@@ -43,10 +43,7 @@ export function validateDefense(value: unknown): asserts value is DefenseState {
   for (const impact of value.impacts as unknown[]) {
     record(impact);
     point(impact);
-    check(
-      integer(impact.id, 1) && finite(impact.remaining, 0, 500) && finite(impact.damage),
-      'Invalid impact.',
-    );
+    check(integer(impact.id, 1) && finite(impact.remaining, 0, 500) && finite(impact.damage), 'Invalid impact.');
   }
   for (const visual of value.visuals as unknown[]) {
     record(visual);
@@ -73,8 +70,7 @@ export function validateDefenseEntities(state: GameState): void {
   for (const tower of state.towers)
     if (tower) {
       check(tower.level <= 6, 'Expanded dragon exceeds level six.');
-      if (tower.charges !== undefined)
-        check(integer(tower.charges, 0, 3 + d.ranks.ice[2]), 'Invalid ice charges.');
+      if (tower.charges !== undefined) check(integer(tower.charges, 0, 3 + d.ranks.ice[2]), 'Invalid ice charges.');
       if (tower.chargeTimer !== undefined) check(finite(tower.chargeTimer, 0, 1000), 'Invalid charge timer.');
       if (tower.beamIds !== undefined)
         check(

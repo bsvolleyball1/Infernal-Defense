@@ -7,14 +7,18 @@ export function mountApplication(): void {
   element('#app').innerHTML = template;
   renderLevelSelect();
   element('#map').innerHTML = battlefieldArtwork();
-  element('#map').setAttribute('aria-label', 'A switchback trail across a river gorge and a cliffside nest. Place dragons on clear ground away from the road.');
+  element('#map').setAttribute(
+    'aria-label',
+    'A switchback trail across a river gorge and a cliffside nest. Place dragons on clear ground away from the road.',
+  );
   element('.side h3').textContent = 'Dragon roster';
   element('.legend span:last-child').textContent = 'Choose a dragon, then tap clear ground away from the road';
   const pauseOverlay = document.createElement('div');
   pauseOverlay.id = 'pauseOverlay';
   pauseOverlay.className = 'pause-overlay';
   pauseOverlay.hidden = true;
-  pauseOverlay.innerHTML = '<section class="pause-card" role="dialog" aria-labelledby="pauseTitle"><h2 id="pauseTitle">Battle paused</h2><p>Your dragons are waiting.</p><button class="btn" id="resumeBattle">Resume battle</button><button class="btn secondary" id="pauseMenu">Save and return to menu</button></section>';
+  pauseOverlay.innerHTML =
+    '<section class="pause-card" role="dialog" aria-labelledby="pauseTitle"><h2 id="pauseTitle">Battle paused</h2><p>Your dragons are waiting.</p><button class="btn" id="resumeBattle">Resume battle</button><button class="btn secondary" id="pauseMenu">Save and return to menu</button></section>';
   const battlefield = document.createElement('div');
   battlefield.className = 'battlefield';
   const toolbar = document.createElement('div');

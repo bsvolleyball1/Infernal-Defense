@@ -3,43 +3,41 @@ import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules'
 import { startWave } from './waves';
 import type { GameCommand, GameEvent, GameState } from './types';
 import { castSpell } from './spells';
-import { rank, levelCap } from './defense-state';
+import { levelCap, rankOf } from './defense-state';
 import { upgradeTrees, upgradeCost } from '../content/upgrades';
 import { isDefenseMonster } from '../content/enemies';
 import { defenseRules } from '../content/defense-rules';
-import { canPlaceTower } from './geometry';
+import { canPlaceTower, clampToBattlefield } from './geometry';
 import { getMap } from '../content/catalog';
 
 /** Commands mutate only engine-owned state and return data-only events. */
 export function applyCommand(state: GameState, command: GameCommand): GameEvent[] {
-  if (command.type === 'buyPermanent') {
-    const d = state.defense,
-      node = upgradeTrees[command.dragon]?.nodes[command.node];
-    if (!d || d.mode === 'sandbox' || state.phase === 'battle' || !node || !Number.isInteger(command.node))
+  switch (command.type) {
+    case 'buyPermanent':
+      return buyPermanent(state, command);
+    case 'pause':
+    case 'resume':
+      return setPaused(state, command);
+    case 'speed':
+      if ([1, 1.5, 2].includes(command.speed)) state.speed = command.speed;
       return [];
-    const current = d.ranks[command.dragon][command.node],
-      cost = upgradeCost(current);
-    if (state.bankedGold < cost || current >= (node.cap ?? defenseRules.maximumUpgradeRank)) return [];
-    state.bankedGold -= cost;
-    d.ranks[command.dragon][command.node]++;
-    return [{ type: 'save' }, { type: 'message', text: 'Permanent upgrade purchased' }];
+    case 'spell':
+    case 'spellTarget':
+    case 'previewSpell':
+    case 'testWave':
+    case 'choose':
+    case 'perch':
+    case 'place':
+    case 'upgrade':
+    case 'sell':
+    case 'startWave':
+      break;
+    default: {
+      const unexpected: never = command;
+      throw new Error(`Unexpected command: ${JSON.stringify(unexpected)}`);
+    }
   }
-  if (command.type === 'pause' || command.type === 'resume') {
-    if (command.type === 'resume') state.paused = false;
-    else if (
-      state.phase === 'battle' ||
-      (state.defense && state.phase === 'ready' && state.defense.countdown !== null)
-    )
-      state.paused = true;
-    return [];
-  }
-  if (command.type === 'speed') {
-    if ([1, 1.5, 2].includes(command.speed)) state.speed = command.speed;
-    return [];
-  }
-  if (state.phase === 'won' || state.phase === 'lost' || (state.phase === 'battle' && state.paused))
-    return [];
-  if (state.defense && state.paused) return [];
+  if (battleInputBlocked(state)) return [];
   switch (command.type) {
     case 'spell':
       return castSpell(state, command.spell, command.point);
@@ -47,7 +45,9 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
       if (
         state.defense &&
         [null, 'fire', 'poison'].includes(command.spell) &&
-        (!getMap(state.activeLevel).challenge || command.spell === null || getMap(state.activeLevel).challenge?.spell === command.spell)
+        (!getMap(state.activeLevel).challenge ||
+          command.spell === null ||
+          getMap(state.activeLevel).challenge?.spell === command.spell)
       ) {
         state.defense.targeting = command.spell;
         state.defense.preview = null;
@@ -55,10 +55,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
       return [];
     case 'previewSpell':
       if (state.defense?.targeting && Number.isFinite(command.point.x) && Number.isFinite(command.point.y))
-        state.defense.preview = {
-          x: Math.max(0, Math.min(700, command.point.x)),
-          y: Math.max(0, Math.min(430, command.point.y)),
-        };
+        state.defense.preview = clampToBattlefield(command.point, getMap(state.activeLevel));
       return [];
     case 'testWave':
       if (
@@ -72,8 +69,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
     case 'choose':
       if (
         !Object.prototype.hasOwnProperty.call(dragons, command.dragon) ||
-        (getMap(state.activeLevel).challenge &&
-          getMap(state.activeLevel).challenge?.dragon !== command.dragon)
+        (getMap(state.activeLevel).challenge && getMap(state.activeLevel).challenge?.dragon !== command.dragon)
       )
         return [];
       state.chosen = command.dragon;
@@ -89,7 +85,35 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
       return sellTower(state);
     case 'startWave':
       return startWave(state);
+    default: {
+      const unexpected: never = command;
+      throw new Error(`Unexpected command: ${JSON.stringify(unexpected)}`);
+    }
   }
+}
+
+function battleInputBlocked(state: GameState): boolean {
+  if (state.phase === 'won' || state.phase === 'lost' || (state.phase === 'battle' && state.paused)) return true;
+  return Boolean(state.defense && state.paused);
+}
+
+function buyPermanent(state: GameState, command: Extract<GameCommand, { type: 'buyPermanent' }>): GameEvent[] {
+  const d = state.defense,
+    node = upgradeTrees[command.dragon]?.nodes[command.node];
+  if (!d || d.mode === 'sandbox' || state.phase === 'battle' || !node || !Number.isInteger(command.node)) return [];
+  const current = d.ranks[command.dragon][command.node],
+    cost = upgradeCost(current);
+  if (state.bankedGold < cost || current >= (node.cap ?? defenseRules.maximumUpgradeRank)) return [];
+  state.bankedGold -= cost;
+  d.ranks[command.dragon][command.node]++;
+  return [{ type: 'save' }, { type: 'message', text: 'Permanent upgrade purchased' }];
+}
+
+function setPaused(state: GameState, command: Extract<GameCommand, { type: 'pause' | 'resume' }>): GameEvent[] {
+  if (command.type === 'resume') state.paused = false;
+  else if (state.phase === 'battle' || (state.defense && state.phase === 'ready' && state.defense.countdown !== null))
+    state.paused = true;
+  return [];
 }
 
 function selectPerch(state: GameState, index: number): GameEvent[] {
@@ -110,9 +134,9 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
   if (state.defense) {
     state.defense.mana = Math.min(
       state.defense.maxMana,
-      state.defense.mana + defenseRules.placementManaPerRank * rank(state, 'fire', 2),
+      state.defense.mana + defenseRules.placementManaPerRank * rankOf(state, 'fire', 'placementMana'),
     );
-    if (state.chosen === 'ice') Object.assign(state.towers[index]!, { charges: 1, chargeTimer: 1000 });
+    if (state.chosen === 'ice') Object.assign(state.towers[index]!, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
   }
   state.selected = index;
   state.chosen = null;
@@ -134,12 +158,12 @@ function placeTower(state: GameState, point: { x: number; y: number }): GameEven
   const index = state.towers.findIndex((tower) => tower === null);
   const slot = index < 0 ? state.towers.length : index;
   const tower = { type: state.chosen, level: 1, cooldown: 0, position: { ...point } };
-  if (state.defense && state.chosen === 'ice') Object.assign(tower, { charges: 1, chargeTimer: 1000 });
+  if (state.defense && state.chosen === 'ice') Object.assign(tower, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
   state.towers[slot] = tower;
   if (state.defense) {
     state.defense.mana = Math.min(
       state.defense.maxMana,
-      state.defense.mana + defenseRules.placementManaPerRank * rank(state, 'fire', 2),
+      state.defense.mana + defenseRules.placementManaPerRank * rankOf(state, 'fire', 'placementMana'),
     );
   }
   state.selected = slot;
@@ -171,8 +195,5 @@ function sellTower(state: GameState): GameEvent[] {
   state.gold += refund;
   state.towers[state.selected] = null;
   state.selected = null;
-  return [
-    { type: 'save' },
-    { type: 'message', text: 'Dragon sold · ' + refund + (state.defense ? ' food' : ' gold') },
-  ];
+  return [{ type: 'save' }, { type: 'message', text: 'Dragon sold · ' + refund + (state.defense ? ' food' : ' gold') }];
 }

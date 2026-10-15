@@ -1,6 +1,7 @@
 import { entityPosition, towerPosition } from './geometry';
 import { towerRange, battleRules } from './rules';
-import { rank, rankTotal, randomValue } from './defense-state';
+import { rankOf, rankTotal, randomValue } from './defense-state';
+import { defenseRules } from '../content/defense-rules';
 import { applyDamage, damageMultiplier } from './damage';
 import type { Enemy, GameEvent, GameState, Tower } from './types';
 import { attackIndex, fireLevels, iceLevels, poisonLevels } from '../content/dragon-attacks';
@@ -8,9 +9,11 @@ import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
 
 export function defenseRange(state: GameState, tower: Tower): number {
   const index = state.towers.indexOf(tower);
-  return towerRange(tower) *
-    (tower.type === 'ice' ? 1 + rankTotal(state, 'ice') * 0.01 : 1) *
-    towerRangeMultiplier(state, index);
+  return (
+    towerRange(tower) *
+    (tower.type === 'ice' ? 1 + rankTotal(state, 'ice') * defenseRules.nonAttackRankBonus : 1) *
+    towerRangeMultiplier(state, index)
+  );
 }
 export function targetsInRange(state: GameState, tower: Tower, index: number): Enemy[] {
   const p = towerPosition(state, index),
@@ -33,8 +36,8 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
       const affected = profile.area ? targets : targets.slice(0, profile.beams);
       tower.beamIds = tower.level < 5 ? affected.map((e) => e.id) : [];
       if (tower.level >= 5) {
-        if (tower.cooldown > 1e-7) return;
-        tower.cooldown = 1000;
+        if (tower.cooldown > defenseRules.balanceEpsilon) return;
+        tower.cooldown = defenseRules.fireWaveCooldownMs;
         for (const e of affected)
           applyDamage(
             state,
@@ -51,7 +54,7 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
             x: p.x,
             y: p.y,
             radius: defenseRange(state, tower),
-            remaining: 350,
+            remaining: defenseRules.fireWaveVisualMs,
           });
         }
       } else
@@ -66,19 +69,19 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
       return;
     }
     if (tower.type === 'ice') {
-      const capacity = iceLevels[attackIndex(tower.level)].capacity + rank(state, 'ice', 2);
+      const capacity = iceLevels[attackIndex(tower.level)].capacity + rankOf(state, 'ice', 'moreCharges');
       if (tower.charges === undefined) {
         tower.charges = capacity;
-        tower.chargeTimer = 1000;
+        tower.chargeTimer = defenseRules.iceChargeIntervalMs;
       }
       if (tower.charges < capacity) {
-        tower.chargeTimer = (tower.chargeTimer ?? 1000) - dt;
-        while (tower.chargeTimer <= 1e-7 && tower.charges < capacity) {
+        tower.chargeTimer = (tower.chargeTimer ?? defenseRules.iceChargeIntervalMs) - dt;
+        while (tower.chargeTimer <= defenseRules.balanceEpsilon && tower.charges < capacity) {
           tower.charges++;
-          tower.chargeTimer += 1000;
+          tower.chargeTimer += defenseRules.iceChargeIntervalMs;
         }
       }
-      if (tower.charges >= capacity) tower.chargeTimer = 1000;
+      if (tower.charges >= capacity) tower.chargeTimer = defenseRules.iceChargeIntervalMs;
       if (!targets.length || !tower.charges) return;
       const p = towerPosition(state, index);
       targets.sort((a, b) => {
@@ -88,11 +91,11 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
       });
       for (let i = 0; i < tower.charges; i++) fireProjectile(state, tower, index, targets[0]);
       tower.charges = 0;
-      tower.chargeTimer = 1000;
+      tower.chargeTimer = defenseRules.iceChargeIntervalMs;
     } else {
-      if (!targets.length || tower.cooldown > 1e-7) return;
+      if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
       fireProjectile(state, tower, index, targets[0]);
-      tower.cooldown = 250 / (1 + rankTotal(state, 'poison') * 0.01);
+      tower.cooldown = defenseRules.poisonShotIntervalMs / (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus);
     }
     events.push({ type: 'sound', dragon: tower.type });
   });
@@ -105,14 +108,12 @@ function fireProjectile(state: GameState, tower: Tower, index: number, target: E
   state.projectiles.push({
     id: state.nextEntityId++,
     x: p.x,
-    y: p.y - 18,
+    y: p.y - defenseRules.projectileOriginOffset,
     targetId: target.id,
     dragon: tower.type,
     damage: base * damageMultiplier(state, tower.type) * towerDamageMultiplier(state, index),
-    ...(towerDamageMultiplier(state, index) > 1
-      ? { damageMultiplier: towerDamageMultiplier(state, index) }
-      : {}),
-    speed: 5,
+    ...(towerDamageMultiplier(state, index) > 1 ? { damageMultiplier: towerDamageMultiplier(state, index) } : {}),
+    speed: defenseRules.projectileSpeed,
     level: tower.level,
     towerIndex: index,
     freezeChance: tower.type === 'ice' ? ice.freeze : 0,
@@ -122,9 +123,7 @@ function fireProjectile(state: GameState, tower: Tower, index: number, target: E
 }
 export function tickDefenseProjectiles(state: GameState, dt: number, events: GameEvent[]): void {
   for (const shot of state.projectiles) {
-    let target = state.enemies.find(
-      (e) => e.id === shot.targetId && e.hp > 0 && !e.rewarded && !(e.untargetable! > 0),
-    );
+    let target = state.enemies.find((e) => e.id === shot.targetId && e.hp > 0 && !e.rewarded && !(e.untargetable! > 0));
     if (!target && shot.dragon === 'ice' && shot.towerIndex !== undefined) {
       const tower = state.towers[shot.towerIndex];
       if (tower) {
@@ -132,9 +131,7 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
         target = targetsInRange(state, tower, shot.towerIndex).sort((a, b) => {
           const [ax, ay] = entityPosition(state, a),
             [bx, by] = entityPosition(state, b);
-          return (
-            Math.hypot(ax - perch.x, ay - perch.y) - Math.hypot(bx - perch.x, by - perch.y) || a.id - b.id
-          );
+          return Math.hypot(ax - perch.x, ay - perch.y) - Math.hypot(bx - perch.x, by - perch.y) || a.id - b.id;
         })[0];
       }
       if (target) shot.targetId = target.id;
@@ -148,16 +145,15 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
       dy = y - shot.y,
       distance = Math.hypot(dx, dy);
     const travel = shot.speed * dt * battleRules.projectileTravelPerMillisecond;
-    if (distance < travel + 3) {
+    if (distance < travel + defenseRules.projectileHitSlop) {
       applyDamage(state, target, shot.damage, shot.dragon, events);
       if (target.hp > 0 && !target.deathDelay && !target.invulnerable) {
         if (shot.freezeChance && randomValue(state) < shot.freezeChance)
-          target.frozen = Math.max(target.frozen ?? 0, 1000);
+          target.frozen = Math.max(target.frozen ?? 0, defenseRules.iceFreezeOnHitMs);
         if (shot.poisonDuration) {
           target.poison = shot.poisonDuration;
-          target.poisonD = 1000;
-          target.poisonDamage =
-            target.max * 0.01 * damageMultiplier(state, shot.dragon) * (shot.damageMultiplier ?? 1);
+          target.poisonD = defenseRules.poisonTickMs;
+          target.poisonDamage = target.max * defenseRules.poisonShotHealthFraction * damageMultiplier(state, shot.dragon) * (shot.damageMultiplier ?? 1);
           target.poisonSource = shot.dragon;
         }
         if (shot.slowDuration) target.slow = Math.max(target.slow, shot.slowDuration);
@@ -181,9 +177,9 @@ export function towerSummary(state: GameState, tower: Tower): string {
   }
   if (tower.type === 'ice') {
     const profile = iceLevels[index],
-      capacity = profile.capacity + rank(state, 'ice', 2);
+      capacity = profile.capacity + rankOf(state, 'ice', 'moreCharges');
     return `${tower.charges ?? capacity} / ${capacity} charges · ${(profile.damage * damage).toFixed(1)} damage · ${profile.freeze * 100}% freeze`;
   }
   const profile = poisonLevels[index];
-  return `${(profile.damage * damage).toFixed(1)} damage · ${(4 * (1 + rankTotal(state, 'poison') * 0.01)).toFixed(2)} shots/s${profile.poison ? ' · poison' : ''}${profile.slow ? ' · 50% slow' : ''}`;
+  return `${(profile.damage * damage).toFixed(1)} damage · ${((1000 / defenseRules.poisonShotIntervalMs) * (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus)).toFixed(2)} shots/s${profile.poison ? ' · poison' : ''}${profile.slow ? ' · 50% slow' : ''}`;
 }

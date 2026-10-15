@@ -25,7 +25,8 @@ test('freeform placement supports upgrading, selling and reload', async ({ page 
   expect(Math.abs(placed.position.y - 202)).toBeLessThan(1);
   await page.reload();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   // Expanded pre-wave countdowns also require an explicit Resume after loading.
   await page.locator('#resumeBattle').click();
   await page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true }).click();
@@ -98,7 +99,7 @@ async function savedState(page: Page) {
 
 test('placement, upgrades, selling, wave controls and save navigation', async ({ page }) => {
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
@@ -122,7 +123,8 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await expect(page.locator('#menuScreen')).toBeVisible();
   await page.locator('#journeyExit').click();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   expect((await savedState(page)).spawnSchedule).toEqual(state.spawnSchedule);
   await page.locator('#resumeBattle').click();
@@ -138,19 +140,52 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   state.enemiesSummoned = 2;
   state.nextEntityId = 12;
   state.enemies = [
-    { id: 6, kind: 'shield', hp: 90, max: 120, spd: .47, progress: 12, slow: 300, poison: 900, poisonD: 200, carryingEgg: 1, returning: true, escaped: false, rewarded: false },
-    { id: 7, kind: 'scout', hp: 40, max: 45, spd: .72, progress: 4, slow: 0, poison: 0, poisonD: 0, carryingEgg: null, returning: false, escaped: false, rewarded: false },
+    {
+      id: 6,
+      kind: 'shield',
+      hp: 90,
+      max: 120,
+      spd: 0.47,
+      progress: 12,
+      slow: 300,
+      poison: 900,
+      poisonD: 200,
+      carryingEgg: 1,
+      returning: true,
+      escaped: false,
+      rewarded: false,
+    },
+    {
+      id: 7,
+      kind: 'scout',
+      hp: 40,
+      max: 45,
+      spd: 0.72,
+      progress: 4,
+      slow: 0,
+      poison: 0,
+      poisonD: 0,
+      carryingEgg: null,
+      returning: false,
+      escaped: false,
+      rewarded: false,
+    },
   ];
   state.eggs[0] = { id: 1, status: 'carried', progress: null, carrier: 6 };
   state.eggs[1] = { id: 2, status: 'dropped', progress: 6, carrier: null };
   state.towers[0] = { type: 'ice', level: 2, cooldown: 321 };
   state.projectiles = [{ id: 8, x: 100, y: 200, targetId: 7, dragon: 'ice', damage: 11.36, speed: 5, level: 2 }];
-  state.spawnSchedule = state.spawnSchedule.filter(spawn => spawn.at > 250);
+  state.spawnSchedule = state.spawnSchedule.filter((spawn) => spawn.at > 250);
   await page.goto('./');
-  await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
+  await page.evaluate(
+    (value) =>
+      localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })),
+    state,
+  );
   await page.reload();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await expect(page.locator('#enemies > g')).toHaveCount(2);
   await expect(page.locator('#enemies > g .enemy-icon')).toHaveCount(2);
@@ -161,7 +196,8 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   expect(await savedState(page)).toEqual({ ...state, paused: true });
   await page.reload();
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await page.locator('#resumeBattle').click();
   await page.waitForTimeout(200);
@@ -180,7 +216,8 @@ test('backgrounding pauses and captures the battle before returning', async ({ p
   });
   const state = await savedState(page);
   expect(state.paused).toBe(true);
-  const second = await context.newPage(); await second.goto('about:blank');
+  const second = await context.newPage();
+  await second.goto('about:blank');
   await page.waitForTimeout(200);
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
@@ -193,12 +230,24 @@ test('backgrounding pauses and captures the battle before returning', async ({ p
 
 test('completed results survive reload without awarding rewards twice', async ({ page }) => {
   const state = createInitialState();
-  state.phase = 'won'; state.wave = 5; state.enemiesKilled = 12; state.enemiesSummoned = 12;
-  state.rewardGold = 62; state.bankedGold = 62; state.rewardsApplied = true;
+  state.phase = 'won';
+  state.wave = 5;
+  state.enemiesKilled = 12;
+  state.enemiesSummoned = 12;
+  state.rewardGold = 62;
+  state.bankedGold = 62;
+  state.rewardsApplied = true;
   await page.goto('./');
-  await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
+  await page.evaluate(
+    (value) =>
+      localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })),
+    state,
+  );
   for (let i = 0; i < 2; i++) {
-    await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+    await page.reload();
+    await page.locator('[data-open="saves"]').click();
+    await page.locator('[data-load="0"]').click();
+    await page.locator('#journeyResume').click();
     await expect(page.locator('#resultTitle')).toHaveText('Valley defended');
     await expect(page.locator('#resultGold')).toHaveText('62 gold');
     await page.locator('#resultContinue').click();
@@ -213,8 +262,13 @@ test('corrupt saves are preserved and storage failures never claim success', asy
   await expect(page.locator('.error-card')).toContainText('preserved');
   await expect(page.locator('[data-new="1"]')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('infernalDefense.save.1'))).toBe('{broken');
-  await page.locator('[data-new="0"]').click(); await page.locator('[data-level="level1"]').click();
-  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('Device storage is full.', 'QuotaExceededError'); }; });
+  await page.locator('[data-new="0"]').click();
+  await page.locator('[data-level="level1"]').click();
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException('Device storage is full.', 'QuotaExceededError');
+    };
+  });
   await page.locator('#saveProgress').click();
   await expect(page.locator('#toast')).toContainText('storage is full');
   await expect(page.locator('#toast')).not.toContainText('Journey saved');
@@ -224,8 +278,11 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
-  const newer = await context.newPage(); await newer.goto('./');
-  await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click(); await newer.locator("#journeyResume").click();
+  const newer = await context.newPage();
+  await newer.goto('./');
+  await newer.locator('[data-open="saves"]').click();
+  await newer.locator('[data-load="0"]').click();
+  await newer.locator('#journeyResume').click();
   await expect(newer.locator('#pauseOverlay')).toBeVisible();
   await newer.locator('#resumeBattle').click();
   await newer.locator('#upgrade').click();
@@ -241,14 +298,29 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
 
 test('failed result saves keep the result open until saving succeeds', async ({ page }) => {
   const state = createInitialState();
-  state.phase = 'battle'; state.wave = 5; state.paused = true; state.enemiesKilled = 1; state.enemiesSummoned = 1;
+  state.phase = 'battle';
+  state.wave = 5;
+  state.paused = true;
+  state.enemiesKilled = 1;
+  state.enemiesSummoned = 1;
   await page.goto('./');
-  await page.evaluate(value => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })), state);
-  await page.reload(); await page.locator('[data-open="saves"]').click(); await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+  await page.evaluate(
+    (value) =>
+      localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: value })),
+    state,
+  );
+  await page.reload();
+  await page.locator('[data-open="saves"]').click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
-    (window as unknown as { restoreStorage: () => void }).restoreStorage = () => { Storage.prototype.setItem = original; };
-    Storage.prototype.setItem = () => { throw new DOMException('Storage full', 'QuotaExceededError'); };
+    (window as unknown as { restoreStorage: () => void }).restoreStorage = () => {
+      Storage.prototype.setItem = original;
+    };
+    Storage.prototype.setItem = () => {
+      throw new DOMException('Storage full', 'QuotaExceededError');
+    };
   });
   await page.locator('#resumeBattle').click();
   await expect(page.locator('#gameOver')).toBeVisible();
@@ -264,70 +336,89 @@ test('failed result saves keep the result open until saving succeeds', async ({ 
 
 test('keyboard dragon selection and renderer preserve live entity nodes', async ({ page }) => {
   await startJourney(page);
-  await page.locator('[data-type="fire"]').focus(); await page.keyboard.press('Enter');
-  await page.locator('[data-type="fire"]').focus(); await page.keyboard.press('Enter');
+  await page.locator('[data-type="fire"]').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-type="fire"]').focus();
+  await page.keyboard.press('Enter');
   await clickMapAt(page, 90, 202);
   await expect(page.locator('#gold')).toHaveText('60');
   await page.locator('.summon-control').click();
   await expect(page.locator('#enemies > g')).not.toHaveCount(0);
   const enemy = await page.locator('#enemies > g').first().elementHandle();
   await page.waitForTimeout(60);
-  expect(await enemy!.evaluate(node => node.isConnected)).toBe(true);
+  expect(await enemy!.evaluate((node) => node.isConnected)).toBe(true);
   await page.locator('#pause').click();
 });
 
 test.describe('phone touch input', () => {
-test.use({ hasTouch: true, isMobile: true });
-for (const viewport of [{ width: 375, height: 812 }, { width: 320, height: 640 }, { width: 844, height: 390 }]) {
-  test(`touch controls and layout at ${viewport.width}×${viewport.height}`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await startJourney(page);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await expect(page.locator('[data-type="fire"] .price')).toBeVisible();
-    const summonTarget = await page.locator('.summon-hit').boundingBox();
-    expect(summonTarget!.height).toBeGreaterThanOrEqual(44);
-    const mapBox = await page.locator('#map').boundingBox();
-    expect(mapBox!.width).toBeGreaterThanOrEqual(43.9);
-    await page.locator('[data-type="fire"]').tap();
-    await clickMapAt(page, 90, 202);
-    await expect(page.locator('#gold')).toHaveText('60');
-    await page.screenshot({ path: test.info().outputPath(`phone-${viewport.width}.png`), fullPage: true });
-  });
-}
+  test.use({ hasTouch: true, isMobile: true });
+  for (const viewport of [
+    { width: 375, height: 812 },
+    { width: 320, height: 640 },
+    { width: 844, height: 390 },
+  ]) {
+    test(`touch controls and layout at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await startJourney(page);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect(page.locator('[data-type="fire"] .price')).toBeVisible();
+      const summonTarget = await page.locator('.summon-hit').boundingBox();
+      expect(summonTarget!.height).toBeGreaterThanOrEqual(44);
+      const mapBox = await page.locator('#map').boundingBox();
+      expect(mapBox!.width).toBeGreaterThanOrEqual(43.9);
+      await page.locator('[data-type="fire"]').tap();
+      await clickMapAt(page, 90, 202);
+      await expect(page.locator('#gold')).toHaveText('60');
+      await page.screenshot({ path: test.info().outputPath(`phone-${viewport.width}.png`), fullPage: true });
+    });
+  }
 });
 
-test('manifest, icons, service worker and offline cold launch work at repository subpath', async ({ page, context, request }) => {
+test('manifest, icons, service worker and offline cold launch work at repository subpath', async ({
+  page,
+  context,
+  request,
+}) => {
   const requests: string[] = [];
-  context.on('request', request => requests.push(request.url()));
+  context.on('request', (request) => requests.push(request.url()));
   await startJourney(page);
   await waitForServiceWorkerActivation(page);
   await page.reload();
   await waitForServiceWorkerControl(page);
   await page.locator('[data-open="saves"]').click();
-  await page.locator('[data-load="0"]').click(); await page.locator('#journeyResume').click();
+  await page.locator('[data-load="0"]').click();
+  await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   await page.locator('#resumeBattle').click();
   await expect(page.locator('#pwaPanel')).toHaveCount(0);
   const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute('href');
   const response = await request.get(new URL(manifestUrl!, page.url()).href);
   const manifest = await response.json();
-  expect(manifest.scope).toBe('/Infernal-Defense/'); expect(manifest.start_url).toBe('/Infernal-Defense/');
-  expect(manifest.display).toBe('standalone'); expect(manifest.orientation).toBe('any');
+  expect(manifest.scope).toBe('/Infernal-Defense/');
+  expect(manifest.start_url).toBe('/Infernal-Defense/');
+  expect(manifest.display).toBe('standalone');
+  expect(manifest.orientation).toBe('any');
   for (const icon of manifest.icons) expect((await request.get(new URL(icon.src, page.url()).href)).ok()).toBe(true);
-  await page.locator('.summon-control').click(); await page.locator('#pause').click();
+  await page.locator('.summon-control').click();
+  await page.locator('#pause').click();
   const before = await savedState(page);
   await waitForServiceWorkerControl(page);
   await context.setOffline(true);
   await page.close();
-  const cold = await context.newPage(); await cold.goto('./');
-  await cold.locator('[data-open="saves"]').click(); await cold.locator('[data-load="0"]').click(); await cold.locator("#journeyResume").click();
+  const cold = await context.newPage();
+  await cold.goto('./');
+  await cold.locator('[data-open="saves"]').click();
+  await cold.locator('[data-load="0"]').click();
+  await cold.locator('#journeyResume').click();
   await expect(cold.locator('#pauseOverlay')).toBeVisible();
   await cold.evaluate(() => document.fonts.ready);
   expect(await cold.evaluate(() => document.fonts.check('14px "DM Sans"'))).toBe(true);
   await cold.locator('#saveProgress').click();
   expect(await savedState(cold)).toEqual(before);
-  await cold.locator('#resumeBattle').click(); await cold.waitForTimeout(100); await cold.locator('#pause').click();
+  await cold.locator('#resumeBattle').click();
+  await cold.waitForTimeout(100);
+  await cold.locator('#pause').click();
   expect((await savedState(cold)).simulationTime).toBeGreaterThan(before.simulationTime);
   await context.setOffline(false);
-  expect(requests.filter(url => new URL(url).origin !== new URL(cold.url()).origin)).toEqual([]);
+  expect(requests.filter((url) => new URL(url).origin !== new URL(cold.url()).origin)).toEqual([]);
 });

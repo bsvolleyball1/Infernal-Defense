@@ -51,8 +51,10 @@ export function towerUpgradeCost(tower: Tower): number {
 }
 
 export function towerSaleRefund(tower: Tower): number {
-  return Math.floor(dragons[tower.type].cost * battleRules.saleFraction)
-    + (tower.level - 1) * battleRules.saleGoldPerExtraLevel;
+  return (
+    Math.floor(dragons[tower.type].cost * battleRules.saleFraction) +
+    (tower.level - 1) * battleRules.saleGoldPerExtraLevel
+  );
 }
 
 export function waveReward(wave: number): number {

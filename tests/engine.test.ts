@@ -7,22 +7,48 @@ import type { DragonType, Enemy, GameState, Projectile } from '../src/game/types
 
 function enemy(overrides: Partial<Enemy> = {}): Enemy {
   return {
-    id: 6, kind: 'scout', hp: 45, max: 45, spd: 0, progress: 1,
-    slow: 0, poison: 0, poisonD: 0, carryingEgg: null,
-    returning: false, escaped: false, rewarded: false, ...overrides,
+    id: 6,
+    kind: 'scout',
+    hp: 45,
+    max: 45,
+    spd: 0,
+    progress: 1,
+    slow: 0,
+    poison: 0,
+    poisonD: 0,
+    carryingEgg: null,
+    returning: false,
+    escaped: false,
+    rewarded: false,
+    ...overrides,
   };
 }
 
 function battle(overrides: Partial<GameState> = {}): GameEngine {
   return new GameEngine({
-    ...createInitialState(), phase: 'battle', wave: 1,
-    enemies: [enemy()], enemiesSummoned: 1, nextEntityId: 7, ...overrides,
+    ...createInitialState(),
+    phase: 'battle',
+    wave: 1,
+    enemies: [enemy()],
+    enemiesSummoned: 1,
+    nextEntityId: 7,
+    ...overrides,
   });
 }
 
 function shot(target: Enemy, dragon: DragonType = 'fire', overrides: Partial<Projectile> = {}): Projectile {
   const [x, y] = positionAt(target.progress);
-  return { id: 20, x, y, targetId: target.id, dragon, damage: dragons[dragon].damage, speed: dragon === 'fire' ? 6 : 5, level: 1, ...overrides };
+  return {
+    id: 20,
+    x,
+    y,
+    targetId: target.id,
+    dragon,
+    damage: dragons[dragon].damage,
+    speed: dragon === 'fire' ? 6 : 5,
+    level: 1,
+    ...overrides,
+  };
 }
 
 describe('original content and initial state', () => {
@@ -30,13 +56,31 @@ describe('original content and initial state', () => {
     expect(map.width).toBe(700);
     expect(map.height).toBe(430);
     expect(map.path).toHaveLength(17);
-    expect(map.perches).toEqual([{ x: 90, y: 202 }, { x: 230, y: 155 }, { x: 365, y: 205 }, { x: 430, y: 78 }, { x: 594, y: 205 }, { x: 220, y: 345 }, { x: 410, y: 385 }, { x: 590, y: 345 }]);
-    expect(Object.values(dragons).map(({ name, cost, damage, rate, range }) => [name, cost, damage, rate, range])).toEqual([
-      ['Ember', 60, 27, 680, 132], ['Frost', 55, 8, 820, 145], ['Thorn', 50, 7, 760, 125],
+    expect(map.perches).toEqual([
+      { x: 90, y: 202 },
+      { x: 230, y: 155 },
+      { x: 365, y: 205 },
+      { x: 430, y: 78 },
+      { x: 594, y: 205 },
+      { x: 220, y: 345 },
+      { x: 410, y: 385 },
+      { x: 590, y: 345 },
     ]);
-    expect(waves.map(groups => groups.reduce((sum, group) => sum + group.n, 0))).toEqual([10, 12, 18, 18, 19]);
+    expect(
+      Object.values(dragons).map(({ name, cost, damage, rate, range }) => [name, cost, damage, rate, range]),
+    ).toEqual([
+      ['Ember', 60, 27, 680, 132],
+      ['Frost', 55, 8, 820, 145],
+      ['Thorn', 50, 7, 760, 125],
+    ]);
+    expect(waves.map((groups) => groups.reduce((sum, group) => sum + group.n, 0))).toEqual([10, 12, 18, 18, 19]);
     expect(waves[4][2]).toEqual({ kind: 'chief', n: 1, hp: 900, spd: 0.4 });
-    expect((['scout','shield','runner','chief'] as const).map(kind => monsters[kind].name)).toEqual(['Pass raider', 'Iron guard', 'Ash runner', 'Raid chief']);
+    expect((['scout', 'shield', 'runner', 'chief'] as const).map((kind) => monsters[kind].name)).toEqual([
+      'Pass raider',
+      'Iron guard',
+      'Ash runner',
+      'Raid chief',
+    ]);
   });
 
   it('interpolates fractional path progress and clamps the endpoints', () => {
@@ -51,10 +95,23 @@ describe('original content and initial state', () => {
 
   it('creates independent version-free state with five eggs and eight empty perches', () => {
     const state = createInitialState();
-    expect(state).toMatchObject({ phase: 'ready', paused: false, simulationTime: 0, speed: 1, gold: 120, bankedGold: 0, wave: 0, activeLevel: 'level1', rewardsApplied: false, rewardGold: 0, selected: null, chosen: null });
+    expect(state).toMatchObject({
+      phase: 'ready',
+      paused: false,
+      simulationTime: 0,
+      speed: 1,
+      gold: 120,
+      bankedGold: 0,
+      wave: 0,
+      activeLevel: 'level1',
+      rewardsApplied: false,
+      rewardGold: 0,
+      selected: null,
+      chosen: null,
+    });
     expect(state).not.toHaveProperty('version');
     expect(state.towers).toEqual(Array(8).fill(null));
-    expect(state.eggs).toEqual([1, 2, 3, 4, 5].map(id => ({ id, status: 'nest', progress: null, carrier: null })));
+    expect(state.eggs).toEqual([1, 2, 3, 4, 5].map((id) => ({ id, status: 'nest', progress: null, carrier: null })));
     state.eggs[0].status = 'escaped';
     expect(createInitialState().eggs[0].status).toBe('nest');
     expect(createInitialState('tutorial', 83)).toMatchObject({ activeLevel: 'tutorial', bankedGold: 83, gold: 120 });
@@ -103,7 +160,8 @@ describe('commands and economy', () => {
     const engine = new GameEngine({ ...createInitialState(), gold: 10 });
     engine.dispatch({ type: 'choose', dragon: 'poison' });
     const state = engine.snapshot();
-    for (const index of [-1, map.perches.length, 0.5, NaN]) expect(engine.dispatch({ type: 'perch', index })).toEqual([]);
+    for (const index of [-1, map.perches.length, 0.5, NaN])
+      expect(engine.dispatch({ type: 'perch', index })).toEqual([]);
     expect(engine.dispatch({ type: 'perch', index: 1 })).toEqual([{ type: 'message', text: 'Not enough gold' }]);
     expect(engine.dispatch({ type: 'upgrade' })).toEqual([]);
     expect(engine.dispatch({ type: 'sell' })).toEqual([]);
@@ -112,7 +170,13 @@ describe('commands and economy', () => {
 
   it('keeps completed results intact when gameplay commands arrive', () => {
     for (const phase of ['won', 'lost'] as const) {
-      const engine = new GameEngine({ ...createInitialState(), phase, rewardGold: 62, rewardsApplied: true, bankedGold: 62 });
+      const engine = new GameEngine({
+        ...createInitialState(),
+        phase,
+        rewardGold: 62,
+        rewardsApplied: true,
+        bankedGold: 62,
+      });
       const state = engine.snapshot();
       engine.dispatch({ type: 'choose', dragon: 'fire' });
       engine.dispatch({ type: 'perch', index: 0 });
@@ -175,7 +239,13 @@ describe('simulation clock and scheduled spawning', () => {
   });
 
   it('blocks keyboard gameplay commands during a paused battle while permitting speed and resume', () => {
-    const engine = battle({ paused: true, gold: 200, chosen: 'ice', selected: 0, towers: [{ type: 'fire', level: 1, cooldown: 100 }, null, null, null, null] });
+    const engine = battle({
+      paused: true,
+      gold: 200,
+      chosen: 'ice',
+      selected: 0,
+      towers: [{ type: 'fire', level: 1, cooldown: 100 }, null, null, null, null],
+    });
     const state = engine.snapshot();
     expect(engine.dispatch({ type: 'choose', dragon: 'poison' })).toEqual([]);
     expect(engine.dispatch({ type: 'perch', index: 1 })).toEqual([]);
@@ -206,9 +276,13 @@ describe('simulation clock and scheduled spawning', () => {
     for (let wave = 1; wave <= 5; wave++) {
       const engine = new GameEngine({ ...createInitialState(), wave: wave - 1 });
       engine.dispatch({ type: 'startWave' });
-      const expected = waves[wave - 1].flatMap(group => Array.from({ length: group.n }, () => ({ kind: group.kind, hp: group.hp, spd: group.spd })));
+      const expected = waves[wave - 1].flatMap((group) =>
+        Array.from({ length: group.n }, () => ({ kind: group.kind, hp: group.hp, spd: group.spd })),
+      );
       expect(engine.state.spawnSchedule.map(({ at, ...spawn }) => spawn)).toEqual(expected);
-      expect(engine.state.spawnSchedule.map(spawn => spawn.at)).toEqual(expected.map((_, i) => i * Math.max(390, 710 - wave * 54)));
+      expect(engine.state.spawnSchedule.map((spawn) => spawn.at)).toEqual(
+        expected.map((_, i) => i * Math.max(390, 710 - wave * 54)),
+      );
     }
   });
 
@@ -222,7 +296,10 @@ describe('simulation clock and scheduled spawning', () => {
     fast.step(10);
     expect(normal.state.enemies[0].progress).toBeCloseTo(0.72 * 10 * 0.0045 * 0.5);
     expect(fast.state.enemies[0].progress).toBeCloseTo(0.72 * 20 * 0.0045 * 0.5);
-    for (let i = 0; i < 33; i++) { normal.step(10); fast.step(10); }
+    for (let i = 0; i < 33; i++) {
+      normal.step(10);
+      fast.step(10);
+    }
     expect(normal.state.enemiesSummoned).toBe(1);
     expect(fast.state.enemiesSummoned).toBe(2);
     expect(fast.state.simulationTime).toBe(680);
@@ -231,7 +308,8 @@ describe('simulation clock and scheduled spawning', () => {
   it('pauses every timer and resumes without consuming background time', () => {
     const target = enemy({ spd: 0.72, slow: 400, poison: 900, poisonD: 200 });
     const engine = battle({
-      enemies: [target], towers: [{ type: 'fire', level: 1, cooldown: 300 }, null, null, null, null],
+      enemies: [target],
+      towers: [{ type: 'fire', level: 1, cooldown: 300 }, null, null, null, null],
       projectiles: [shot(target, 'fire', { x: -100 })],
       spawnSchedule: [{ kind: 'runner', hp: 55, spd: 1.22, at: 500 }],
     });
@@ -250,7 +328,12 @@ describe('simulation clock and scheduled spawning', () => {
 
   it('scales cooldown, freeze, poison, and projectile timers together', () => {
     const target = enemy({ slow: 1000, poison: 1000, poisonD: 500 });
-    const engine = battle({ speed: 1.5, enemies: [target], towers: [{ type: 'ice', level: 1, cooldown: 300 }, null, null, null, null], projectiles: [shot(target, 'fire', { x: -100 })] });
+    const engine = battle({
+      speed: 1.5,
+      enemies: [target],
+      towers: [{ type: 'ice', level: 1, cooldown: 300 }, null, null, null, null],
+      projectiles: [shot(target, 'fire', { x: -100 })],
+    });
     engine.step(20);
     expect(engine.state.simulationTime).toBe(30);
     expect(engine.state.enemies[0]).toMatchObject({ slow: 970, poison: 970, poisonD: 470 });
@@ -269,7 +352,11 @@ describe('simulation clock and scheduled spawning', () => {
   });
 
   it('respects the 50-enemy cap without discarding scheduled enemies', () => {
-    const engine = battle({ enemies: Array.from({ length: 50 }, (_, i) => enemy({ id: i + 6 })), nextEntityId: 56, spawnSchedule: [{ kind: 'scout', hp: 45, spd: 0.72, at: 0 }] });
+    const engine = battle({
+      enemies: Array.from({ length: 50 }, (_, i) => enemy({ id: i + 6 })),
+      nextEntityId: 56,
+      spawnSchedule: [{ kind: 'scout', hp: 45, spd: 0.72, at: 0 }],
+    });
     engine.step(10);
     expect(engine.state.enemies).toHaveLength(50);
     expect(engine.state.spawnSchedule).toHaveLength(1);
@@ -285,13 +372,16 @@ describe('simulation clock and scheduled spawning', () => {
     engine.dispatch({ type: 'choose', dragon: 'fire' });
     engine.dispatch({ type: 'perch', index: 0 });
     engine.dispatch({ type: 'startWave' });
-    const observed = new Set(engine.state.eggs.map(egg => egg.id));
+    const observed = new Set(engine.state.eggs.map((egg) => egg.id));
     for (let i = 0; i < 80; i++) {
       const firstNewId = engine.state.nextEntityId;
       engine.step(10);
       for (const entity of [...engine.state.enemies, ...engine.state.projectiles]) {
         expect(Number.isInteger(entity.id)).toBe(true);
-        if (entity.id >= firstNewId) { expect(observed.has(entity.id)).toBe(false); observed.add(entity.id); }
+        if (entity.id >= firstNewId) {
+          expect(observed.has(entity.id)).toBe(false);
+          observed.add(entity.id);
+        }
       }
     }
     expect(engine.state.enemies[0].id).toBe(6);
@@ -301,14 +391,28 @@ describe('simulation clock and scheduled spawning', () => {
 
 describe('combat formulas and rewards', () => {
   it('targets the enemy with the greatest progress in range and retains upgrade formulas', () => {
-    const engine = battle({ enemies: [enemy({ id: 6, progress: 1 }), enemy({ id: 7, progress: 2 }), enemy({ id: 8, progress: 16 })], towers: [{ type: 'fire', level: 3, cooldown: 0 }, null, null, null, null], nextEntityId: 9 });
+    const engine = battle({
+      enemies: [enemy({ id: 6, progress: 1 }), enemy({ id: 7, progress: 2 }), enemy({ id: 8, progress: 16 })],
+      towers: [{ type: 'fire', level: 3, cooldown: 0 }, null, null, null, null],
+      nextEntityId: 9,
+    });
     expect(engine.step(1)).toContainEqual({ type: 'sound', dragon: 'fire' });
-    expect(engine.state.projectiles[0]).toMatchObject({ id: 9, targetId: 7, dragon: 'fire', damage: 27 * (1 + 2 * 0.42), speed: 6, level: 3 });
+    expect(engine.state.projectiles[0]).toMatchObject({
+      id: 9,
+      targetId: 7,
+      dragon: 'fire',
+      damage: 27 * (1 + 2 * 0.42),
+      speed: 6,
+      level: 3,
+    });
     expect(engine.state.towers[0]?.cooldown).toBeCloseTo(680 / (1 + 2 * 0.13));
   });
 
   it('never shoots outside the upgraded range or before cooldown expiry', () => {
-    const engine = battle({ enemies: [enemy({ progress: 16 })], towers: [{ type: 'fire', level: 1, cooldown: 0 }, null, null, null, null] });
+    const engine = battle({
+      enemies: [enemy({ progress: 16 })],
+      towers: [{ type: 'fire', level: 1, cooldown: 0 }, null, null, null, null],
+    });
     engine.step(10);
     expect(engine.state.projectiles).toHaveLength(0);
     engine.state.enemies[0].progress = 1;
@@ -350,14 +454,17 @@ describe('combat formulas and rewards', () => {
 
   it('awards a kill and discovery once even when multiple projectiles target a dying enemy', () => {
     const target = enemy({ hp: 20 });
-    const engine = battle({ enemies: [target, enemy({ id: 7, progress: 16 })], projectiles: [shot(target), shot(target, 'fire', { id: 21 })] });
+    const engine = battle({
+      enemies: [target, enemy({ id: 7, progress: 16 })],
+      projectiles: [shot(target), shot(target, 'fire', { id: 21 })],
+    });
     const events = engine.step(10);
     expect(engine.state).toMatchObject({ gold: 132, enemiesKilled: 1, knownMonsters: ['scout'] });
-    expect(events.filter(event => event.type === 'discovery')).toEqual([{ type: 'discovery', kind: 'scout' }]);
+    expect(events.filter((event) => event.type === 'discovery')).toEqual([{ type: 'discovery', kind: 'scout' }]);
     expect(engine.state.projectiles).toHaveLength(0);
-    expect(engine.state.enemies.map(item => item.id)).toEqual([7]);
+    expect(engine.state.enemies.map((item) => item.id)).toEqual([7]);
     engine.state.projectiles.push(shot(engine.state.enemies[0], 'fire', { damage: 100 }));
-    expect(engine.step(10).filter(event => event.type === 'discovery')).toEqual([]);
+    expect(engine.step(10).filter((event) => event.type === 'discovery')).toEqual([]);
     expect(engine.state.enemiesKilled).toBe(2);
   });
 
@@ -365,7 +472,12 @@ describe('combat formulas and rewards', () => {
     const target = enemy({ kind: 'chief', hp: 4, poison: 100, poisonD: 10 });
     const engine = battle({ enemies: [target] });
     const events = engine.step(10);
-    expect(engine.state).toMatchObject({ phase: 'ready', gold: 120 + 132 + 35, enemiesKilled: 1, knownMonsters: ['chief'] });
+    expect(engine.state).toMatchObject({
+      phase: 'ready',
+      gold: 120 + 132 + 35,
+      enemiesKilled: 1,
+      knownMonsters: ['chief'],
+    });
     expect(events).toContainEqual({ type: 'discovery', kind: 'chief' });
     expect(engine.state.bankedGold).toBe(0);
   });
@@ -403,14 +515,17 @@ describe('egg theft, rescue, and run completion', () => {
 
   it('returns without an egg if the nest is empty and never rewards an escape', () => {
     const engine = battle({ enemies: [enemy({ progress: 15.99, spd: 1 })] });
-    engine.state.eggs.forEach(egg => { egg.status = 'dropped'; egg.progress = 8; });
+    engine.state.eggs.forEach((egg) => {
+      egg.status = 'dropped';
+      egg.progress = 8;
+    });
     engine.step(10);
     expect(engine.state.enemies[0]).toMatchObject({ carryingEgg: null, returning: true });
     engine.state.enemies[0].progress = 0.01;
     engine.step(10);
     expect(engine.state).toMatchObject({ phase: 'ready', enemiesKilled: 0, gold: 155 });
     expect(engine.state.knownMonsters).toEqual([]);
-    expect(engine.state.eggs.filter(egg => egg.status === 'escaped')).toHaveLength(0);
+    expect(engine.state.eggs.filter((egg) => egg.status === 'escaped')).toHaveLength(0);
   });
 
   it('marks only the stolen egg escaped, including when poison was about to kill its carrier', () => {
@@ -425,12 +540,32 @@ describe('egg theft, rescue, and run completion', () => {
 
   it('ends immediately when the last egg escapes and applies the result reward once', () => {
     const carrier = enemy({ carryingEgg: 5, returning: true, progress: 0.01, spd: 1 });
-    const engine = battle({ bankedGold: 100, enemiesKilled: 9, enemiesSummoned: 15, enemies: [carrier, enemy({ id: 7, hp: 1, poison: 100, poisonD: 1 })], spawnSchedule: [{ kind: 'chief', hp: 900, spd: 0.4, at: 1000 }], projectiles: [shot(carrier)] });
-    engine.state.eggs.forEach(egg => { egg.status = 'escaped'; });
+    const engine = battle({
+      bankedGold: 100,
+      enemiesKilled: 9,
+      enemiesSummoned: 15,
+      enemies: [carrier, enemy({ id: 7, hp: 1, poison: 100, poisonD: 1 })],
+      spawnSchedule: [{ kind: 'chief', hp: 900, spd: 0.4, at: 1000 }],
+      projectiles: [shot(carrier)],
+    });
+    engine.state.eggs.forEach((egg) => {
+      egg.status = 'escaped';
+    });
     engine.state.eggs[4] = { id: 5, status: 'carried', progress: null, carrier: 6 };
     const events = engine.step(10);
-    expect(engine.state).toMatchObject({ phase: 'lost', gold: 120, rewardGold: 9, bankedGold: 109, rewardsApplied: true, enemiesKilled: 9, enemiesSummoned: 15, enemies: [], projectiles: [], spawnSchedule: [] });
-    expect(events.filter(event => event.type === 'result')).toHaveLength(1);
+    expect(engine.state).toMatchObject({
+      phase: 'lost',
+      gold: 120,
+      rewardGold: 9,
+      bankedGold: 109,
+      rewardsApplied: true,
+      enemiesKilled: 9,
+      enemiesSummoned: 15,
+      enemies: [],
+      projectiles: [],
+      spawnSchedule: [],
+    });
+    expect(events.filter((event) => event.type === 'result')).toHaveLength(1);
     const result = engine.snapshot();
     expect(engine.step(100000)).toEqual([]);
     engine.restore(JSON.parse(JSON.stringify(result)) as GameState);
@@ -440,12 +575,27 @@ describe('egg theft, rescue, and run completion', () => {
 
   it('wins after the final wave and rewards all intact eggs, including dropped eggs', () => {
     const target = enemy({ hp: 20 });
-    const engine = battle({ wave: 5, bankedGold: 80, enemiesKilled: 30, enemiesSummoned: 50, enemies: [target], projectiles: [shot(target)] });
+    const engine = battle({
+      wave: 5,
+      bankedGold: 80,
+      enemiesKilled: 30,
+      enemiesSummoned: 50,
+      enemies: [target],
+      projectiles: [shot(target)],
+    });
     engine.state.eggs[0].status = 'escaped';
     engine.state.eggs[1] = { id: 2, status: 'dropped', progress: 8, carrier: null };
     const events = engine.step(10);
-    expect(engine.state).toMatchObject({ phase: 'won', gold: 120 + 12 + 75, enemiesKilled: 31, enemiesSummoned: 50, rewardGold: 71, bankedGold: 151, rewardsApplied: true });
-    expect(events.filter(event => event.type === 'result')).toEqual([{ type: 'result' }]);
+    expect(engine.state).toMatchObject({
+      phase: 'won',
+      gold: 120 + 12 + 75,
+      enemiesKilled: 31,
+      enemiesSummoned: 50,
+      rewardGold: 71,
+      bankedGold: 151,
+      rewardsApplied: true,
+    });
+    expect(events.filter((event) => event.type === 'result')).toEqual([{ type: 'result' }]);
     expect(events).toContainEqual({ type: 'save' });
     const state = engine.snapshot();
     engine.step(10);
@@ -462,9 +612,10 @@ describe('egg theft, rescue, and run completion', () => {
     const engine = new GameEngine();
     engine.dispatch({ type: 'startWave' });
     const results = [];
-    for (let i = 0; i < 3000 && engine.state.phase === 'battle'; i++) results.push(...engine.step(10).filter(event => event.type === 'result'));
+    for (let i = 0; i < 3000 && engine.state.phase === 'battle'; i++)
+      results.push(...engine.step(10).filter((event) => event.type === 'result'));
     expect(engine.state.phase).toBe('lost');
-    expect(engine.state.eggs.every(egg => egg.status === 'escaped')).toBe(true);
+    expect(engine.state.eggs.every((egg) => egg.status === 'escaped')).toBe(true);
     expect(engine.state).toMatchObject({ enemiesKilled: 0, rewardGold: 0, rewardsApplied: true, bankedGold: 0 });
     expect(results).toHaveLength(1);
   });
@@ -472,7 +623,12 @@ describe('egg theft, rescue, and run completion', () => {
 
 describe('snapshot and exact restore', () => {
   it('copies every mutable collection in construction, snapshots, and restores', () => {
-    const state = battle({ towers: [{ type: 'fire', level: 1, cooldown: 100 }, null, null, null, null], projectiles: [shot(enemy())], spawnSchedule: [{ kind: 'scout', hp: 45, spd: 0.72, at: 500 }], knownMonsters: ['scout'] }).snapshot();
+    const state = battle({
+      towers: [{ type: 'fire', level: 1, cooldown: 100 }, null, null, null, null],
+      projectiles: [shot(enemy())],
+      spawnSchedule: [{ kind: 'scout', hp: 45, spd: 0.72, at: 500 }],
+      knownMonsters: ['scout'],
+    }).snapshot();
     const engine = new GameEngine(state);
     const expected = engine.snapshot();
     const snapshot = engine.snapshot();
@@ -492,7 +648,17 @@ describe('snapshot and exact restore', () => {
 
   it('restores a running battle exactly without force-pausing or normalizing any fields', () => {
     const carrier = enemy({ returning: true, carryingEgg: 1, progress: 10, slow: 33, poison: 650, poisonD: 123 });
-    const state = battle({ speed: 2, simulationTime: 1234, enemies: [carrier], projectiles: [shot(carrier)], towers: [{ type: 'poison', level: 2, cooldown: 356 }, null, null, null, null], chosen: 'ice', selected: 0, nextEntityId: 21, spawnSchedule: [{ kind: 'chief', hp: 900, spd: 0.4, at: 1678 }] }).snapshot();
+    const state = battle({
+      speed: 2,
+      simulationTime: 1234,
+      enemies: [carrier],
+      projectiles: [shot(carrier)],
+      towers: [{ type: 'poison', level: 2, cooldown: 356 }, null, null, null, null],
+      chosen: 'ice',
+      selected: 0,
+      nextEntityId: 21,
+      spawnSchedule: [{ kind: 'chief', hp: 900, spd: 0.4, at: 1678 }],
+    }).snapshot();
     state.eggs[0] = { id: 1, status: 'carried', progress: null, carrier: 6 };
     const engine = new GameEngine();
     engine.restore(state);

@@ -12,8 +12,8 @@ describe('battlefield tower bonus areas', () => {
   it('scales damage and range by the occupying dragon level', () => {
     const state = createDefenseState('meadow');
     const map = getMap('meadow');
-    const damage = map.bonusAreas.find(area => area.kind === 'damage')!;
-    const range = map.bonusAreas.find(area => area.kind === 'range')!;
+    const damage = map.bonusAreas.find((area) => area.kind === 'damage')!;
+    const range = map.bonusAreas.find((area) => area.kind === 'range')!;
     state.towers[0] = { type: 'fire', level: 1, cooldown: 0, position: { x: damage.x, y: damage.y } };
     expect(towerBonus(state, 0)?.damageMultiplier).toBe(1.1);
 
@@ -34,9 +34,19 @@ describe('battlefield tower bonus areas', () => {
       position: { x: 240, y: 245 },
     };
     const target: Enemy = {
-      id: 12, kind: 'scout', hp: 100, max: 100, spd: 0.72, progress: 8,
-      slow: 0, poison: 0, poisonD: 0, carryingEgg: null, returning: false,
-      escaped: false, rewarded: false,
+      id: 12,
+      kind: 'scout',
+      hp: 100,
+      max: 100,
+      spd: 0.72,
+      progress: 8,
+      slow: 0,
+      poison: 0,
+      poisonD: 0,
+      carryingEgg: null,
+      returning: false,
+      escaped: false,
+      rewarded: false,
     };
     state.enemies = [target];
     state.enemiesSummoned = 1;
@@ -55,7 +65,7 @@ describe('battlefield tower bonus areas', () => {
     const state = createDefenseState('meadow');
     const areas = getMap('meadow').bonusAreas;
     for (const [index, kind] of ['mana', 'food', 'gold'].entries()) {
-      const area = areas.find(item => item.kind === kind)!;
+      const area = areas.find((item) => item.kind === kind)!;
       state.towers[index] = { type: 'fire', level: 1, cooldown: 0, position: { x: area.x, y: area.y } };
     }
     state.defense!.mana = 199.8;
@@ -77,7 +87,7 @@ describe('battlefield tower bonus areas', () => {
 
   it('accrues resource-area income during active simulation and stops while paused', () => {
     const state = createDefenseState('meadow');
-    const mana = getMap('meadow').bonusAreas.find(area => area.kind === 'mana')!;
+    const mana = getMap('meadow').bonusAreas.find((area) => area.kind === 'mana')!;
     state.defense!.mana = 100;
     state.towers[0] = { type: 'fire', level: 1, cooldown: 0, position: { x: mana.x, y: mana.y } };
     const engine = new GameEngine(state);

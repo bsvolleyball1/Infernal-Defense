@@ -29,8 +29,7 @@ test('permanent trees purchase all nodes, persist across levels, and stay player
   await page.locator('#openPermanent').click();
   await expect(page.locator('[data-permanent]')).toHaveCount(18);
   for (const type of ['fire', 'poison', 'ice'])
-    for (let node = 0; node < 6; node++)
-      await page.locator(`[data-permanent="${type}"][data-node="${node}"]`).click();
+    for (let node = 0; node < 6; node++) await page.locator(`[data-permanent="${type}"][data-node="${node}"]`).click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.defense.ranks).toEqual({
     fire: [1, 1, 1, 1, 1, 1],
@@ -93,9 +92,7 @@ for (const viewport of [
   { width: 375, height: 812 },
   { width: 844, height: 390 },
 ]) {
-  test(`Test Mode is isolated and touch-operable at ${viewport.width}x${viewport.height}`, async ({
-    browser,
-  }) => {
+  test(`Test Mode is isolated and touch-operable at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
     const context = await browser.newContext({ viewport, hasTouch: true });
     const page = await context.newPage();
     try {
@@ -149,24 +146,19 @@ for (const spell of ['fire', 'ice', 'poison'] as const) {
     }
     await page.locator('#pause').click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
-    const before = await page.evaluate(
-      () => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state,
-    );
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
     expect(before.defense.mana).toBeLessThan(60);
     expect(before.defense.spellCooldowns[spell]).toBeGreaterThan(0);
     await page.reload();
     await page.locator('#continueJourney').click();
     await page.locator('#journeyResume').click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
-    expect(
-      await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state),
-    ).toEqual(before);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(
+      before,
+    );
   });
 }
-test('offline cold launch retains expanded carrier, charges, spell impact and RNG state', async ({
-  page,
-  context,
-}) => {
+test('offline cold launch retains expanded carrier, charges, spell impact and RNG state', async ({ page, context }) => {
   const state = createDefenseState('volcanic');
   state.phase = 'battle';
   state.paused = true;
@@ -193,8 +185,6 @@ test('offline cold launch retains expanded carrier, charges, spell impact and RN
   await cold.locator('#continueJourney').click();
   await cold.locator('#journeyResume').click();
   await expect(cold.locator('#pauseOverlay')).toBeVisible();
-  expect(
-    await cold.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state),
-  ).toEqual(state);
+  expect(await cold.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(state);
   await context.setOffline(false);
 });
