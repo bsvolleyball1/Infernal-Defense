@@ -13,9 +13,9 @@ import { finishBattle } from '../src/game/rewards';
 import { upgradedEggCount } from '../src/content/defense-rules';
 import { SaveRepository } from '../src/services/storage';
 import { createJourney, recordJourneyResult } from '../src/game/journey';
-import type { GameState, MonsterKind } from '../src/game/types';
+import type { DefenseBattle, MonsterKind } from '../src/game/types';
 
-function battle(kind: MonsterKind = 'demon'): GameState {
+function battle(kind: MonsterKind = 'demon'): DefenseBattle {
   const state = createDefenseState();
   state.phase = 'battle';
   state.wave = 1;

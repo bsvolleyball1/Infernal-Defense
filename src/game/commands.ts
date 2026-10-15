@@ -61,7 +61,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
       if (
         state.defense?.mode === 'sandbox' &&
         Object.entries(command.counts).every(
-          ([kind, n]) => isDefenseMonster(kind) && Number.isInteger(n) && n! >= 0 && n! <= 999,
+          ([kind, n]) => isDefenseMonster(kind) && typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 999,
         )
       )
         state.defense.testWave = { ...command.counts };
@@ -136,7 +136,8 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
       state.defense.maxMana,
       state.defense.mana + defenseRules.placementManaPerRank * rankOf(state, 'fire', 'placementMana'),
     );
-    if (state.chosen === 'ice') Object.assign(state.towers[index]!, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
+    if (state.chosen === 'ice')
+      Object.assign(state.towers[index]!, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
   }
   state.selected = index;
   state.chosen = null;
@@ -158,7 +159,8 @@ function placeTower(state: GameState, point: { x: number; y: number }): GameEven
   const index = state.towers.findIndex((tower) => tower === null);
   const slot = index < 0 ? state.towers.length : index;
   const tower = { type: state.chosen, level: 1, cooldown: 0, position: { ...point } };
-  if (state.defense && state.chosen === 'ice') Object.assign(tower, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
+  if (state.defense && state.chosen === 'ice')
+    Object.assign(tower, { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs });
   state.towers[slot] = tower;
   if (state.defense) {
     state.defense.mana = Math.min(

@@ -2,10 +2,10 @@ import { createInitialState } from './state';
 import { defenseRules, upgradedEggCount } from '../content/defense-rules';
 import { nodeIndex } from '../content/upgrades';
 import type { UpgradeNodeId } from '../content/upgrades';
-import type { DefenseState, DragonType, GameState, Level, Tower } from './types';
+import type { DefenseBattle, DefenseState, DragonType, GameState, Level, Tower } from './types';
 
-export function createDefenseState(level: Level = 'level1', previous?: GameState, sandbox = false): GameState {
-  const state = createInitialState(level, previous?.bankedGold ?? 0);
+export function createDefenseState(level: Level = 'level1', previous?: GameState, sandbox = false): DefenseBattle {
+  const initial = createInitialState(level, previous?.bankedGold ?? 0);
   const ranks: DefenseState['ranks'] = previous?.defense
     ? structuredClone(previous.defense.ranks)
     : { fire: [0, 0, 0, 0, 0, 0], ice: [0, 0, 0, 0, 0, 0], poison: [0, 0, 0, 0, 0, 0] };
@@ -15,7 +15,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
   const totalMana = ranks.fire[nodeIndex('fire', 'totalMana')];
   const startingMana = ranks.poison[nodeIndex('poison', 'startingMana')];
   const startingFood = ranks.ice[nodeIndex('ice', 'startingFood')];
-  state.defense = {
+  const defense: DefenseState = {
     ruleset: 'defense-1',
     mode: sandbox ? 'sandbox' : 'journey',
     ranks,
@@ -33,6 +33,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
     visuals: [],
     testWave: { imp: 3 },
   };
+  const state: DefenseBattle = { ...initial, defense };
   state.gold += defenseRules.startingFoodPerRank * startingFood;
   const count = upgradedEggCount(ranks.poison[nodeIndex('poison', 'moreEggs')]);
   state.eggs = Array.from({ length: count }, (_, i) => ({
@@ -46,7 +47,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
   return state;
 }
 
-export function nextBattle(previous: GameState, level: Level): GameState {
+export function nextBattle(previous: GameState, level: Level): DefenseBattle {
   return createDefenseState(level, previous);
 }
 
@@ -65,8 +66,8 @@ export const levelCap = (state: GameState, tower: Tower): number =>
     ? Math.min(defenseRules.maximumDragonLevel, defenseRules.baseDragonLevel + rankOf(state, tower.type, 'maxLevel'))
     : Infinity;
 
-export function randomValue(state: GameState): number {
-  const defense = state.defense!;
+export function randomValue(state: DefenseBattle): number {
+  const defense = state.defense;
   let x = defense.rng;
   x ^= x << 13;
   x ^= x >>> 17;

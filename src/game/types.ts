@@ -102,10 +102,8 @@ export interface Spawn {
   at: number;
 }
 
-/** Save-file schema versions belong to persistence, not the simulation. */
-export interface GameState {
-  /** Missing means the original ruleset, retained for interrupted legacy saves. */
-  defense?: DefenseState;
+/** Fields shared by both rulesets. Save-file schema versions belong to persistence, not the simulation. */
+export interface BattleCore {
   phase: GamePhase;
   paused: boolean;
   simulationTime: number;
@@ -127,6 +125,26 @@ export interface GameState {
   eggs: Egg[];
   spawnSchedule: Spawn[];
   nextEntityId: number;
+}
+
+/** The original rules, retained for interrupted legacy saves. */
+export interface LegacyBattle extends BattleCore {
+  defense?: undefined;
+}
+
+/** The `defense-1` rules used by every new journey and level. */
+export interface DefenseBattle extends BattleCore {
+  defense: DefenseState;
+}
+
+/**
+ * Tagged by the presence of `defense`, so `if (state.defense)` narrows to `DefenseBattle`
+ * while the stored snapshot keeps its existing shape.
+ */
+export type GameState = LegacyBattle | DefenseBattle;
+
+export function isDefenseBattle(state: GameState): state is DefenseBattle {
+  return state.defense !== undefined;
 }
 
 export type GameCommand =

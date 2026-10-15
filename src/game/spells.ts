@@ -3,7 +3,7 @@ import { applyDamage } from './damage';
 import { rankOf } from './defense-state';
 import { defenseRules } from '../content/defense-rules';
 import { enemyTraits } from '../content/enemies';
-import type { GameEvent, GameState, Point, SpellKind } from './types';
+import type { DefenseBattle, GameEvent, GameState, Point, SpellKind } from './types';
 import { getMap } from '../content/catalog';
 
 export function castSpell(state: GameState, spell: SpellKind, point: Point | undefined): GameEvent[] {
@@ -29,7 +29,10 @@ export function castSpell(state: GameState, spell: SpellKind, point: Point | und
   if (spell === 'ice') {
     for (const e of state.enemies)
       if (!enemyTraits(e.kind).spellImmune)
-        e.frozen = Math.max(e.frozen ?? 0, defenseRules.iceFreezeBaseMs + defenseRules.iceFreezePerRankMs * rankOf(state, 'poison', 'iceDuration'));
+        e.frozen = Math.max(
+          e.frozen ?? 0,
+          defenseRules.iceFreezeBaseMs + defenseRules.iceFreezePerRankMs * rankOf(state, 'poison', 'iceDuration'),
+        );
   } else if (point) {
     d.visuals.push({
       id: state.nextEntityId++,
@@ -43,12 +46,14 @@ export function castSpell(state: GameState, spell: SpellKind, point: Point | und
         id: state.nextEntityId++,
         ...point,
         remaining: defenseRules.fireRainImpactDelayMs,
-        damage: defenseRules.fireRainDamage * (1 + rankOf(state, 'fire', 'fireRain') * defenseRules.fireRainDamagePerRank),
+        damage:
+          defenseRules.fireRainDamage * (1 + rankOf(state, 'fire', 'fireRain') * defenseRules.fireRainDamagePerRank),
       });
     else
       for (const e of state.enemies) {
         const [x, y] = entityPosition(state, e);
-        if (enemyTraits(e.kind).spellImmune || Math.hypot(x - point.x, y - point.y) > defenseRules.poisonCloudRadius) continue;
+        if (enemyTraits(e.kind).spellImmune || Math.hypot(x - point.x, y - point.y) > defenseRules.poisonCloudRadius)
+          continue;
         e.slow = Math.max(e.slow, defenseRules.poisonSlowMs);
         e.poison = defenseRules.poisonCloudDurationMs;
         e.poisonD = defenseRules.poisonTickMs;
@@ -69,11 +74,15 @@ export function castSpell(state: GameState, spell: SpellKind, point: Point | und
     },
   ];
 }
-export function tickSpells(state: GameState, dt: number, events: GameEvent[]): void {
-  const d = state.defense!;
+export function tickSpells(state: DefenseBattle, dt: number, events: GameEvent[]): void {
+  const d = state.defense;
   d.mana = Math.min(
     d.maxMana,
-    d.mana + (defenseRules.manaPerSecond * (1 + rankOf(state, 'ice', 'manaRegeneration') * defenseRules.manaRegenPerRank) * dt) / 1000,
+    d.mana +
+      (defenseRules.manaPerSecond *
+        (1 + rankOf(state, 'ice', 'manaRegeneration') * defenseRules.manaRegenPerRank) *
+        dt) /
+        1000,
   );
   for (const key of ['fire', 'ice', 'poison'] as const) d.spellCooldowns[key] = Math.max(0, d.spellCooldowns[key] - dt);
   for (const impact of d.impacts) {
@@ -81,7 +90,8 @@ export function tickSpells(state: GameState, dt: number, events: GameEvent[]): v
     if (impact.remaining > defenseRules.balanceEpsilon) continue;
     for (const e of state.enemies) {
       const [x, y] = entityPosition(state, e);
-      if (Math.hypot(x - impact.x, y - impact.y) <= defenseRules.fireRainRadius) applyDamage(state, e, impact.damage, 'spell', events);
+      if (Math.hypot(x - impact.x, y - impact.y) <= defenseRules.fireRainRadius)
+        applyDamage(state, e, impact.damage, 'spell', events);
     }
   }
   d.impacts = d.impacts.filter((i) => i.remaining > defenseRules.balanceEpsilon);

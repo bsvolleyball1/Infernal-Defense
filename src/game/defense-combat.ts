@@ -3,7 +3,7 @@ import { towerRange, battleRules } from './rules';
 import { rankOf, rankTotal, randomValue } from './defense-state';
 import { defenseRules } from '../content/defense-rules';
 import { applyDamage, damageMultiplier } from './damage';
-import type { Enemy, GameEvent, GameState, Tower } from './types';
+import type { DefenseBattle, Enemy, GameEvent, GameState, Tower } from './types';
 import { attackIndex, fireLevels, iceLevels, poisonLevels } from '../content/dragon-attacks';
 import { towerDamageMultiplier, towerRangeMultiplier } from './tower-bonuses';
 
@@ -21,11 +21,11 @@ export function targetsInRange(state: GameState, tower: Tower, index: number): E
   return state.enemies
     .filter((e) => {
       const [x, y] = entityPosition(state, e);
-      return e.hp > 0 && !e.rewarded && !(e.untargetable! > 0) && Math.hypot(x - p.x, y - p.y) < range;
+      return e.hp > 0 && !e.rewarded && !((e.untargetable ?? 0) > 0) && Math.hypot(x - p.x, y - p.y) < range;
     })
     .sort((a, b) => b.progress - a.progress || a.id - b.id);
 }
-export function tickDefenseTowers(state: GameState, dt: number, events: GameEvent[]): void {
+export function tickDefenseTowers(state: DefenseBattle, dt: number, events: GameEvent[]): void {
   state.towers.forEach((tower, index) => {
     if (!tower) return;
     const targets = targetsInRange(state, tower, index);
@@ -48,7 +48,7 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
           );
         if (affected.length) {
           const p = towerPosition(state, index);
-          state.defense!.visuals.push({
+          state.defense.visuals.push({
             id: state.nextEntityId++,
             kind: 'fire',
             x: p.x,
@@ -95,7 +95,8 @@ export function tickDefenseTowers(state: GameState, dt: number, events: GameEven
     } else {
       if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
       fireProjectile(state, tower, index, targets[0]);
-      tower.cooldown = defenseRules.poisonShotIntervalMs / (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus);
+      tower.cooldown =
+        defenseRules.poisonShotIntervalMs / (1 + rankTotal(state, 'poison') * defenseRules.nonAttackRankBonus);
     }
     events.push({ type: 'sound', dragon: tower.type });
   });
@@ -121,9 +122,11 @@ function fireProjectile(state: GameState, tower: Tower, index: number, target: E
     slowDuration: tower.type === 'poison' ? poison.slow : 0,
   });
 }
-export function tickDefenseProjectiles(state: GameState, dt: number, events: GameEvent[]): void {
+export function tickDefenseProjectiles(state: DefenseBattle, dt: number, events: GameEvent[]): void {
   for (const shot of state.projectiles) {
-    let target = state.enemies.find((e) => e.id === shot.targetId && e.hp > 0 && !e.rewarded && !(e.untargetable! > 0));
+    let target = state.enemies.find(
+      (e) => e.id === shot.targetId && e.hp > 0 && !e.rewarded && !((e.untargetable ?? 0) > 0),
+    );
     if (!target && shot.dragon === 'ice' && shot.towerIndex !== undefined) {
       const tower = state.towers[shot.towerIndex];
       if (tower) {
@@ -153,7 +156,11 @@ export function tickDefenseProjectiles(state: GameState, dt: number, events: Gam
         if (shot.poisonDuration) {
           target.poison = shot.poisonDuration;
           target.poisonD = defenseRules.poisonTickMs;
-          target.poisonDamage = target.max * defenseRules.poisonShotHealthFraction * damageMultiplier(state, shot.dragon) * (shot.damageMultiplier ?? 1);
+          target.poisonDamage =
+            target.max *
+            defenseRules.poisonShotHealthFraction *
+            damageMultiplier(state, shot.dragon) *
+            (shot.damageMultiplier ?? 1);
           target.poisonSource = shot.dragon;
         }
         if (shot.slowDuration) target.slow = Math.max(target.slow, shot.slowDuration);

@@ -5,15 +5,16 @@ import { applyDamage } from './damage';
 import { summonEnemy } from './enemy-factory';
 import { defeatEnemy } from './rewards';
 import { defenseRules } from '../content/defense-rules';
-import type { Enemy, GameEvent, GameState } from './types';
+import type { DefenseBattle, Enemy, GameEvent } from './types';
 
 /** Returns false while an ability holds the enemy in place. */
-export function tickEnemyAbilities(state: GameState, enemy: Enemy, dt: number, events: GameEvent[]): boolean {
+export function tickEnemyAbilities(state: DefenseBattle, enemy: Enemy, dt: number, events: GameEvent[]): boolean {
   enemy.untargetable = Math.max(0, (enemy.untargetable ?? 0) - dt);
   enemy.invulnerable = Math.max(0, (enemy.invulnerable ?? 0) - dt);
   enemy.lastHitAgo = (enemy.lastHitAgo ?? 0) + dt;
-  if ((enemy.deathDelay ?? 0) > 0) {
-    enemy.deathDelay = Math.max(0, enemy.deathDelay! - dt);
+  const deathDelay = enemy.deathDelay ?? 0;
+  if (deathDelay > 0) {
+    enemy.deathDelay = Math.max(0, deathDelay - dt);
     if (enemy.deathDelay < defenseRules.balanceEpsilon) {
       enemy.hp = 0;
       defeatEnemy(state, enemy, events);
@@ -47,17 +48,17 @@ export function tickEnemyAbilities(state: GameState, enemy: Enemy, dt: number, e
 }
 
 function tickSummoner(
-  state: GameState,
+  state: DefenseBattle,
   enemy: Enemy,
   dt: number,
   summoner: { travelMs: number; pauseMs: number },
 ): boolean {
-  if ((enemy.summonPause ?? 0) > 0) {
-    enemy.summonPause = Math.max(0, enemy.summonPause! - dt);
+  const summonPause = enemy.summonPause ?? 0;
+  if (summonPause > 0) {
+    enemy.summonPause = Math.max(0, summonPause - dt);
     if (enemy.summonPause < defenseRules.balanceEpsilon) {
       const candidates = state.knownMonsters.filter(isDefenseMonster);
-      if (candidates.length)
-        summonEnemy(state, candidates[Math.floor(randomValue(state) * candidates.length)], enemy);
+      if (candidates.length) summonEnemy(state, candidates[Math.floor(randomValue(state) * candidates.length)], enemy);
       enemy.summonClock = summoner.travelMs;
     }
     return false;
