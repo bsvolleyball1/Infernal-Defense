@@ -110,7 +110,11 @@ for (const viewport of [
       await page.locator('[data-test-count="witch"]').blur();
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
-      for (let i = 0; i < 5; i++) await page.locator('#upgrade').tap();
+      // Each upgrade closes the action popover, so the dragon is selected again before the next one.
+      for (let level = 1; level <= 5; level++) {
+        await page.getByRole('button', { name: `Frost, level ${level}, dragon 1`, exact: true }).tap();
+        await page.locator('#upgrade').tap();
+      }
       await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');
