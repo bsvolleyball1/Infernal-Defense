@@ -8,9 +8,7 @@ import { boolean, integer, number, object, own, storageMessage } from './validat
 export type { SaveDataV2 } from './save-schema';
 
 export type SlotResult =
-  | { status: 'empty' }
-  | { status: 'valid'; data: SaveDataV2; migrated: boolean }
-  | { status: 'error'; message: string };
+  { status: 'empty' } | { status: 'valid'; data: SaveDataV2; migrated: boolean } | { status: 'error'; message: string };
 export type WriteFailureCode = 'conflict' | 'quota' | 'blocked' | 'failure';
 export type WriteResult = { ok: true } | { ok: false; code: WriteFailureCode; message: string };
 export interface KeyValueStorage {

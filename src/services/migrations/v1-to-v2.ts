@@ -62,7 +62,10 @@ export function migrateV1ToV2(value: RecordValue): SaveDataV2 {
     }
     const count = Array.isArray(value.eggs)
       ? value.eggs.length
-      : Math.max(upgradedEggCount(defense.ranks.poison[nodeIndex('poison', 'moreEggs')]), numeric(value, 'lives', 0, 8));
+      : Math.max(
+          upgradedEggCount(defense.ranks.poison[nodeIndex('poison', 'moreEggs')]),
+          numeric(value, 'lives', 0, 8),
+        );
     check(count >= 3 && count <= 8, 'Invalid legacy egg count.');
     state.eggs = Array.from({ length: count }, (_, i) => ({
       id: i + 1,
@@ -104,7 +107,8 @@ export function migrateV1ToV2(value: RecordValue): SaveDataV2 {
   const remaining = state.eggs.filter((item) => item.status !== 'escaped').length;
   if (state.defense)
     for (const egg of state.eggs)
-      if (egg.status === 'dropped') egg.returnTimer = eggReturnDelay(state.defense.ranks.fire[nodeIndex('fire', 'eggReturn')]);
+      if (egg.status === 'dropped')
+        egg.returnTimer = eggReturnDelay(state.defense.ranks.fire[nodeIndex('fire', 'eggReturn')]);
   state.phase = remaining === 0 ? 'lost' : state.wave === 5 ? 'won' : 'ready';
   state.rewardsApplied = state.phase === 'won' || state.phase === 'lost';
   // Terminal v1 saves already banked this reward; adding it again would duplicate it.
