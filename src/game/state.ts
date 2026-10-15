@@ -1,6 +1,6 @@
 import { getMap } from '../content/catalog';
 import { battleRules } from './rules';
-import type { GameState, LegacyBattle, Level } from './types';
+import type { GameState, LegacyBattle, Level, Tower } from './types';
 
 export function createInitialState(level: Level = 'level1', bankedGold = 0): LegacyBattle {
   return {
@@ -33,21 +33,20 @@ export function createInitialState(level: Level = 'level1', bankedGold = 0): Leg
   };
 }
 
+function copyTower(tower: Tower): Tower {
+  const copy = { ...tower };
+  if (tower.position) copy.position = { ...tower.position };
+  if (copy.type === 'fire' && copy.beamIds) copy.beamIds = [...copy.beamIds];
+  return copy;
+}
+
 /** Copies every mutable collection; snapshots never share entity references. */
 export function copyState(state: GameState): GameState {
   return {
     ...state,
     knownMonsters: [...state.knownMonsters],
     ...(state.defense ? { defense: structuredClone(state.defense) } : {}),
-    towers: state.towers.map((tower) =>
-      tower
-        ? {
-            ...tower,
-            ...(tower.position ? { position: { ...tower.position } } : {}),
-            ...(tower.beamIds ? { beamIds: [...tower.beamIds] } : {}),
-          }
-        : null,
-    ),
+    towers: state.towers.map((tower) => (tower ? copyTower(tower) : null)),
     enemies: state.enemies.map((enemy) => ({ ...enemy })),
     projectiles: state.projectiles.map((projectile) => ({ ...projectile })),
     eggs: state.eggs.map((egg) => ({ ...egg })),

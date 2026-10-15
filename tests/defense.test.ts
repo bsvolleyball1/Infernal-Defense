@@ -180,7 +180,8 @@ describe('expanded lifecycle and boundary regressions', () => {
       const state = createDefenseState();
       state.towers[0] = { type: 'ice', level: 1, cooldown: 0 };
       if (field === 'charges') state.towers[0].charges = 100;
-      if (field === 'beam') state.towers[0].beamIds = [999];
+      // Deliberately corrupt: beams belong to fire dragons, and enemy 999 does not exist.
+      if (field === 'beam') (state.towers[0] as { beamIds?: number[] }).beamIds = [999];
       if (field === 'cooldown') state.defense!.spellCooldowns.fire = -1;
       if (field === 'impact') state.defense!.impacts = [{ id: 999, x: 701, y: 0, remaining: 500, damage: 25 }];
       if (field === 'mana') state.defense!.mana = 201;

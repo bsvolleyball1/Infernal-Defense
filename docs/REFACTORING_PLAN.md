@@ -154,6 +154,11 @@ Goal: the type system knows which ruleset a battle uses, so a battle cannot sile
 
 **Done when:** no `?? 0` defaults remain on enemy timers in `enemy-abilities.ts` and `damage.ts`.
 
+**Status (branch `refactor/phase-4`):** `Tower` is now `FireTower | IceTower | PoisonTower`. The enemy and projectile parts are **handed off to Phase 6 (#20)**. `defense-validation.ts` accepts `defense-1` saves in which every enemy status field is missing, so the simulation can't treat those fields as required until loading fills them in. To finish this item:
+1. Add a pure `normalizeDefenseEntities(state)` to the storage read path that fills each missing enemy status field with the value `createEnemy` uses, and turns a projectile's flat `freezeChance` / `poisonDuration` / `slowDuration` into a single `effect`.
+2. Record that change as a schema migration, because it changes the stored shape.
+3. Make `DefenseStatus` and `Projectile.effect` required in `game/types.ts`, then remove the `?? 0` defaults.
+
 ### 14. Deduplicate the combat pipelines
 **Smell:**
 - Projectile travel and hit logic exists twice: `combat.ts:77-99` and `defense-combat.ts:123-174`.

@@ -154,13 +154,10 @@ function purchaseTower(state: GameState, slot: number, position?: Point): GameEv
 }
 
 function newTower(state: GameState, type: DragonType, position?: Point): Tower {
-  return {
-    type,
-    level: 1,
-    cooldown: 0,
-    ...(position ? { position: { ...position } } : {}),
-    ...(state.defense && type === 'ice' ? { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs } : {}),
-  };
+  const placed = position ? { position: { ...position } } : {};
+  if (type !== 'ice') return { type, level: 1, cooldown: 0, ...placed };
+  const charged = state.defense ? { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs } : {};
+  return { type, level: 1, cooldown: 0, ...placed, ...charged };
 }
 
 /** Sandbox battles ignore food costs. */

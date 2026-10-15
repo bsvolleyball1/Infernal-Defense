@@ -23,17 +23,38 @@ export interface DefenseState {
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 
-export interface Tower {
-  type: DragonType;
+interface TowerCore {
   level: number;
   /** Coordinates are absent only on pre-free-placement saves. */
   position?: Point;
   /** Remaining simulation milliseconds before the next shot. */
   cooldown: number;
+}
+
+/** Fire dragons track the enemies their beams currently burn. */
+export interface FireTower extends TowerCore {
+  type: 'fire';
+  beamIds?: number[];
+  charges?: undefined;
+  chargeTimer?: undefined;
+}
+
+/** Ice dragons store charges and spend them all at once. */
+export interface IceTower extends TowerCore {
+  type: 'ice';
   charges?: number;
   chargeTimer?: number;
-  beamIds?: number[];
+  beamIds?: undefined;
 }
+
+export interface PoisonTower extends TowerCore {
+  type: 'poison';
+  charges?: undefined;
+  chargeTimer?: undefined;
+  beamIds?: undefined;
+}
+
+export type Tower = FireTower | IceTower | PoisonTower;
 
 export interface Enemy {
   /** Omitted for legacy single-route battles. */
