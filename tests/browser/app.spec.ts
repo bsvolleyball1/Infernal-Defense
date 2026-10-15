@@ -280,6 +280,10 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
+  // A running countdown autosaves every two seconds. Pause the older tab so that autosave cannot win the
+  // race and make the newer tab the stale one when loading and upgrading there takes longer than that.
+  await page.locator('#pause').click();
+  await expect(page.locator('#pauseOverlay')).toBeVisible();
   const newer = await context.newPage();
   await newer.goto('./');
   await newer.locator('[data-open="saves"]').click();
