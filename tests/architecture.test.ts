@@ -5,13 +5,18 @@ import { describe, expect, it } from 'vitest';
 import { nextGameSpeed } from '../src/ui/controls';
 import { isMenuPage } from '../src/ui/menus';
 
+function tsFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return tsFiles(path);
+    return entry.name.endsWith('.ts') ? [path] : [];
+  });
+}
+
 const sourceRoot = resolve('src');
-const domainPaths = [
-  ...readdirSync(resolve(sourceRoot, 'game')).filter(name => name.endsWith('.ts'))
-    .map(name => resolve(sourceRoot, 'game', name)),
-  ...readdirSync(resolve(sourceRoot, 'content')).filter(name => name.endsWith('.ts'))
-    .map(name => resolve(sourceRoot, 'content', name)),
-];
+const layerNames = ['game', 'content', 'domain'] as const;
+const layerPaths = layerNames.flatMap((layer) => tsFiles(resolve(sourceRoot, layer)));
+const domainPaths = layerPaths;
 
 function parse(path: string): ts.SourceFile {
   return ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
@@ -23,11 +28,35 @@ function dependencies(source: ts.SourceFile, runtimeOnly = false): string[] {
     if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
     const specifier = statement.moduleSpecifier;
     if (!specifier || !ts.isStringLiteral(specifier)) continue;
-    if (runtimeOnly && (ts.isImportDeclaration(statement)
-      ? statement.importClause?.isTypeOnly : statement.isTypeOnly)) continue;
+    if (runtimeOnly && (ts.isImportDeclaration(statement) ? statement.importClause?.isTypeOnly : statement.isTypeOnly))
+      continue;
     result.push(specifier.text);
   }
   return result;
+}
+
+/** Declared type text of every variable, parameter or property with this name, read from the AST. */
+function declaredTypes(source: ts.SourceFile, name: string): string[] {
+  const types: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node) || ts.isPropertySignature(node)) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.type
+    ) {
+      types.push(node.type.getText());
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return types;
+}
+
+function sourcePaths(directory: string): string[] {
+  return readdirSync(resolve(sourceRoot, directory))
+    .filter((file) => file.endsWith('.ts'))
+    .map((file) => resolve(sourceRoot, directory, file));
 }
 
 describe('CLEAN architecture boundaries', () => {
@@ -42,8 +71,19 @@ describe('CLEAN architecture boundaries', () => {
 
   it('keeps browser globals, audio, storage, clocks, and nondeterministic randomness out of simulation', () => {
     const forbidden = new Set([
-      'window', 'document', 'localStorage', 'sessionStorage', 'AudioContext', 'performance',
-      'Date', 'setTimeout', 'setInterval', 'requestAnimationFrame', 'Storage', 'HTMLElement', 'SVGElement',
+      'window',
+      'document',
+      'localStorage',
+      'sessionStorage',
+      'AudioContext',
+      'performance',
+      'Date',
+      'setTimeout',
+      'setInterval',
+      'requestAnimationFrame',
+      'Storage',
+      'HTMLElement',
+      'SVGElement',
     ]);
     for (const path of domainPaths) {
       const visit = (node: ts.Node): void => {
@@ -67,23 +107,80 @@ describe('CLEAN architecture boundaries', () => {
       }
       visited.add(path);
     }
-    domainPaths.forEach(path => visit(path, []));
+    domainPaths.forEach((path) => visit(path, []));
   });
 
   it('makes runtime depend on the engine contract rather than its concrete class', () => {
     const runtime = parse(resolve(sourceRoot, 'app/runtime.ts'));
     expect(dependencies(runtime)).toEqual(['../game/types']);
-    expect(runtime.getText()).toContain('engine: SimulationEngine');
+    expect(declaredTypes(runtime, 'engine')).toEqual(['SimulationEngine']);
+  });
+
+  it('holds the composition root engine and renderer by their contracts', () => {
+    const application = parse(resolve(sourceRoot, 'app/application.ts'));
+    expect(declaredTypes(application, 'engine')).toEqual(['SimulationEngine']);
+    expect(declaredTypes(application, 'renderer')).toEqual(['Renderer']);
+  });
+
+  it('keeps content from depending on the simulation', () => {
+    const contentPaths = layerPaths.filter((path) => path.includes(`${resolve(sourceRoot, 'content')}`));
+    for (const path of contentPaths) {
+      for (const dependency of dependencies(parse(path))) {
+        expect(dependency, path).not.toMatch(/^\.\.\/game(\/|$)/);
+      }
+    }
+  });
+
+  it('keeps shared vocabulary free of game and content imports', () => {
+    const vocabulary = layerPaths.filter((path) => path.includes(`${resolve(sourceRoot, 'domain')}`));
+    for (const path of vocabulary) {
+      expect(dependencies(parse(path)), path).toEqual([]);
+    }
+  });
+
+  it('keeps the legacy ruleset from importing the defense simulation', () => {
+    const legacy = layerPaths.filter((path) => path.includes(`${resolve(sourceRoot, 'game', 'legacy')}`));
+    expect(legacy.length).toBeGreaterThan(0);
+    for (const path of legacy) {
+      for (const dependency of dependencies(parse(path))) {
+        expect(dependency, path).not.toMatch(/defense-/);
+      }
+    }
+    const defense = parse(resolve(sourceRoot, 'game/defense-simulation.ts'));
+    expect(dependencies(defense).some((dependency) => dependency.includes('legacy'))).toBe(false);
+  });
+
+  it('keeps defense controls outside the SVG renderer', () => {
+    expect(dependencies(parse(resolve(sourceRoot, 'ui/renderer.ts')))).not.toContain('./defense-controls');
   });
 });
 
 describe('typed UI routing and controls', () => {
-  it.each([1, 1.5, 2] as const)('cycles supported speed %s without adding a new speed', speed => {
+  it.each([1, 1.5, 2] as const)('cycles supported speed %s without adding a new speed', (speed) => {
     expect(nextGameSpeed(speed)).toBe(speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1);
   });
 
   it('recognizes all menu routes and rejects unknown browser-provided values', () => {
     expect(['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'].every(isMenuPage)).toBe(true);
     expect(['battle', 'toString', '', undefined, null, 1].some(isMenuPage)).toBe(false);
+  });
+
+  it('keeps adapters in services/ independent of the UI', () => {
+    for (const path of sourcePaths('services')) {
+      for (const dependency of dependencies(parse(path))) expect(dependency, path).not.toMatch(/(^|\/)ui\//);
+    }
+  });
+
+  it('lets view files and the renderer import game only as types', () => {
+    const views = tsFiles(resolve(sourceRoot, 'ui')).filter((path) => {
+      const name = path.split(/[/\\]/).pop() ?? '';
+      return name.endsWith('-view.ts') || name === 'renderer.ts';
+    });
+    expect(views.length).toBeGreaterThan(3);
+    for (const path of views) {
+      for (const dependency of dependencies(parse(path), true)) {
+        expect(dependency, path).not.toMatch(/\/game\//);
+      }
+    }
   });
 });

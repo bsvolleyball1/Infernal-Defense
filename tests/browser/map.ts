@@ -11,9 +11,12 @@ export async function movePointerToMap(page: Page, x: number, y: number): Promis
 }
 
 async function mapScreenPoint(page: Page, x: number, y: number): Promise<{ x: number; y: number }> {
-  return page.locator('#map').evaluate((svg: SVGSVGElement, point) => {
-    const matrix = svg.getScreenCTM();
-    if (!matrix) throw new Error('Map is not rendered');
-    return new DOMPoint(point.x, point.y).matrixTransform(matrix).toJSON();
-  }, { x, y });
+  return page.locator('#map').evaluate(
+    (svg: SVGSVGElement, point) => {
+      const matrix = svg.getScreenCTM();
+      if (!matrix) throw new Error('Map is not rendered');
+      return new DOMPoint(point.x, point.y).matrixTransform(matrix).toJSON();
+    },
+    { x, y },
+  );
 }

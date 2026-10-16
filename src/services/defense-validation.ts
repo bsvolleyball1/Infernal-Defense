@@ -1,3 +1,4 @@
+import { defenseRules } from '../content/defense-rules';
 import { isDefenseMonster } from '../content/enemies';
 import type { DefenseState, GameState } from '../game/types';
 
@@ -43,10 +44,7 @@ export function validateDefense(value: unknown): asserts value is DefenseState {
   for (const impact of value.impacts as unknown[]) {
     record(impact);
     point(impact);
-    check(
-      integer(impact.id, 1) && finite(impact.remaining, 0, 500) && finite(impact.damage),
-      'Invalid impact.',
-    );
+    check(integer(impact.id, 1) && finite(impact.remaining, 0, 500) && finite(impact.damage), 'Invalid impact.');
   }
   for (const visual of value.visuals as unknown[]) {
     record(visual);
@@ -73,8 +71,7 @@ export function validateDefenseEntities(state: GameState): void {
   for (const tower of state.towers)
     if (tower) {
       check(tower.level <= 6, 'Expanded dragon exceeds level six.');
-      if (tower.charges !== undefined)
-        check(integer(tower.charges, 0, 3 + d.ranks.ice[2]), 'Invalid ice charges.');
+      if (tower.charges !== undefined) check(integer(tower.charges, 0, 3 + d.ranks.ice[2]), 'Invalid ice charges.');
       if (tower.chargeTimer !== undefined) check(finite(tower.chargeTimer, 0, 1000), 'Invalid charge timer.');
       if (tower.beamIds !== undefined)
         check(
@@ -93,10 +90,12 @@ export function validateDefenseEntities(state: GameState): void {
       'invulnerable',
       'deathDelay',
       'lastHitAgo',
-      'summonClock',
       'summonPause',
     ] as const)
       if (enemy[key] !== undefined) check(finite(enemy[key]), `Invalid ${key}.`);
+    // A 5000ms travel at the 1000/60 step undershoots zero by a rounding error.
+    if (enemy.summonClock !== undefined)
+      check(finite(enemy.summonClock, -defenseRules.balanceEpsilon), 'Invalid summonClock.');
     for (const key of ['ghostTriggered', 'empowered'] as const)
       if (enemy[key] !== undefined) check(typeof enemy[key] === 'boolean', `Invalid ${key}.`);
     if (enemy.poisonSource !== undefined)

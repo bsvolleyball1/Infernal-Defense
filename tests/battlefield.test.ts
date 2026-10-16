@@ -2,23 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { getMap, map, positionAt } from '../src/content/catalog';
 import { battlefields } from '../src/content/maps';
 import { GameEngine, createInitialState } from '../src/game/engine';
-import { updateTowers } from '../src/game/combat';
+import { updateTowers } from '../src/game/legacy/combat';
 import { canPlaceTower, isClearTowerPosition } from '../src/game/geometry';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, Level } from '../src/game/types';
 
 function enemy(routeId: number, progress = 8): Enemy {
-  return { id: 12, kind: 'scout', hp: 45, max: 45, spd: .72, progress,
-    slow: 0, poison: 0, poisonD: 0, carryingEgg: null,
-    returning: false, escaped: false, rewarded: false, routeId };
+  return {
+    id: 12,
+    kind: 'scout',
+    hp: 45,
+    max: 45,
+    spd: 0.72,
+    progress,
+    slow: 0,
+    poison: 0,
+    poisonD: 0,
+    carryingEgg: null,
+    returning: false,
+    escaped: false,
+    rewarded: false,
+    routeId,
+  };
 }
 
 function storage() {
   const values = new Map<string, string>();
   const repository = new SaveRepository({
-    getItem: key => values.get(key) ?? null,
-    setItem: (key, value) => { values.set(key, value); },
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
   });
   return { repository };
 }
@@ -28,7 +43,7 @@ describe('free-placement gorge battlefield', () => {
     const kinds = ['damage', 'range', 'mana', 'food', 'gold'].sort();
     for (const level of Object.keys(battlefields) as Level[]) {
       const geometry = getMap(level);
-      expect(geometry.bonusAreas.map(area => area.kind).sort()).toEqual(kinds);
+      expect(geometry.bonusAreas.map((area) => area.kind).sort()).toEqual(kinds);
       for (const area of geometry.bonusAreas) {
         expect(isClearTowerPosition({ x: area.x, y: area.y }, geometry), `${level}: ${area.kind} zone`).toBe(true);
       }
@@ -107,7 +122,7 @@ describe('free-placement gorge battlefield', () => {
       engine.dispatch({ type: 'choose', dragon: 'fire' });
       engine.dispatch({ type: 'perch', index });
     }
-    expect(engine.snapshot().towers.every(tower => tower?.type === 'fire')).toBe(true);
+    expect(engine.snapshot().towers.every((tower) => tower?.type === 'fire')).toBe(true);
     engine.dispatch({ type: 'upgrade' });
     expect(engine.state.towers[7]?.level).toBe(2);
     engine.dispatch({ type: 'sell' });
@@ -125,8 +140,10 @@ describe('free-placement gorge battlefield', () => {
     const raw = JSON.stringify({ version: 2, savedAt: 123, state: old });
     const values = new Map([['infernalDefense.save.0', raw]]);
     const repository = new SaveRepository({
-      getItem: key => values.get(key) ?? null,
-      setItem: (key, value) => { values.set(key, value); },
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
     });
     const read = repository.readSlot(0);
     expect(read.status).toBe('valid');

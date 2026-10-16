@@ -25,7 +25,11 @@ export class AudioService {
         this.musicMaster = context.createGain();
         this.musicMaster.gain.value = 0;
         this.musicMaster.connect(context.destination);
-        for (const [hz, level] of [[110, 0.11], [164.81, 0.06], [220, 0.025]]) {
+        for (const [hz, level] of [
+          [110, 0.11],
+          [164.81, 0.06],
+          [220, 0.025],
+        ]) {
           const oscillator = context.createOscillator();
           const gain = context.createGain();
           oscillator.type = 'sine';
@@ -44,24 +48,35 @@ export class AudioService {
   }
 
   setSettings(settings: AudioSettings): void {
-    const volume = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+    const volume = (value: number) => (Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0);
     this.settings = { music: volume(settings.music), sound: volume(settings.sound), quiet: settings.quiet };
     this.syncMusic();
   }
 
   play(dragon: 'fire' | 'ice' | 'poison'): void {
     const context = this.context;
-    if (!context || context.state !== 'running' || document.hidden || this.paused || this.settings.quiet || this.settings.sound === 0) return;
+    if (
+      !context ||
+      context.state !== 'running' ||
+      document.hidden ||
+      this.paused ||
+      this.settings.quiet ||
+      this.settings.sound === 0
+    )
+      return;
     try {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = dragon === 'ice' ? 'sine' : 'triangle';
       oscillator.frequency.value = dragon === 'fire' ? 480 : dragon === 'ice' ? 780 : 300;
-      gain.gain.setValueAtTime(0.035 * this.settings.sound / 100, context.currentTime);
+      gain.gain.setValueAtTime((0.035 * this.settings.sound) / 100, context.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.08);
       oscillator.connect(gain);
       gain.connect(context.destination);
-      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      };
       oscillator.start();
       oscillator.stop(context.currentTime + 0.09);
     } catch {
@@ -71,18 +86,27 @@ export class AudioService {
 
   async suspend(): Promise<void> {
     this.paused = true;
-    try { await this.context?.suspend(); } catch { /* Browser audio policy. */ }
+    try {
+      await this.context?.suspend();
+    } catch {
+      /* Browser audio policy. */
+    }
   }
 
   async resume(): Promise<void> {
     if (typeof document !== 'undefined' && document.hidden) return;
     this.paused = false;
     // Resume never creates a context; first creation requires a user gesture.
-    try { await this.context?.resume(); this.syncMusic(); } catch { /* Await next gesture. */ }
+    try {
+      await this.context?.resume();
+      this.syncMusic();
+    } catch {
+      /* Await next gesture. */
+    }
   }
 
   private syncMusic(): void {
     if (!this.context || !this.musicMaster) return;
-    this.musicMaster.gain.setTargetAtTime(this.settings.music / 100 * 0.12, this.context.currentTime, 0.25);
+    this.musicMaster.gain.setTargetAtTime((this.settings.music / 100) * 0.12, this.context.currentTime, 0.25);
   }
 }

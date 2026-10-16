@@ -13,9 +13,9 @@ import { finishBattle } from '../src/game/rewards';
 import { upgradedEggCount } from '../src/content/defense-rules';
 import { SaveRepository } from '../src/services/storage';
 import { createJourney, recordJourneyResult } from '../src/game/journey';
-import type { GameState, MonsterKind } from '../src/game/types';
+import type { DefenseBattle, MonsterKind } from '../src/game/types';
 
-function battle(kind: MonsterKind = 'demon'): GameState {
+function battle(kind: MonsterKind = 'demon'): DefenseBattle {
   const state = createDefenseState();
   state.phase = 'battle';
   state.wave = 1;
@@ -113,9 +113,9 @@ describe('expanded lifecycle and boundary regressions', () => {
     finishBattle(state, true, []);
     const { repo } = storage();
     expect(state.towers[0]?.beamIds).toEqual([]);
-    expect(
-      repo.saveSlot(0, state, recordJourneyResult({ ...createJourney(), activeBattle: true }, state)),
-    ).toEqual({ ok: true });
+    expect(repo.saveSlot(0, state, recordJourneyResult({ ...createJourney(), activeBattle: true }, state))).toEqual({
+      ok: true,
+    });
     const read = repo.readSlot(0);
     expect(read.status).toBe('valid');
     if (read.status === 'valid') {
@@ -180,10 +180,10 @@ describe('expanded lifecycle and boundary regressions', () => {
       const state = createDefenseState();
       state.towers[0] = { type: 'ice', level: 1, cooldown: 0 };
       if (field === 'charges') state.towers[0].charges = 100;
-      if (field === 'beam') state.towers[0].beamIds = [999];
+      // Deliberately corrupt: beams belong to fire dragons, and enemy 999 does not exist.
+      if (field === 'beam') (state.towers[0] as { beamIds?: number[] }).beamIds = [999];
       if (field === 'cooldown') state.defense!.spellCooldowns.fire = -1;
-      if (field === 'impact')
-        state.defense!.impacts = [{ id: 999, x: 701, y: 0, remaining: 500, damage: 25 }];
+      if (field === 'impact') state.defense!.impacts = [{ id: 999, x: 701, y: 0, remaining: 500, damage: 25 }];
       if (field === 'mana') state.defense!.mana = 201;
       if (field === 'rank') state.defense!.ranks.fire[0] = -1;
       const { data, repo } = storage(),
@@ -257,7 +257,10 @@ describe('dragon strategies', () => {
     s.towers[0] = { type: 'poison', level: 4, cooldown: 0 };
     for (let i = 0; i < 4; i++) tickDefenseTowers(s, 250, []);
     expect(s.projectiles).toHaveLength(4);
-    expect(s.projectiles[0]).toMatchObject({ damage: 4, poisonDuration: 5000, slowDuration: 1000 });
+    expect(s.projectiles[0]).toMatchObject({
+      damage: 4,
+      effect: { kind: 'poison', duration: 5000, slow: 1000 },
+    });
   });
   it('poison has five inclusive one-second ticks after the last hit', () => {
     const s = battle(),
@@ -363,6 +366,17 @@ describe('enemy abilities and eggs', () => {
     expect(s.enemies[1].kind).toBe('imp');
     expect(s.enemiesSummoned).toBe(2);
   });
+  it('saves the summon clock left by a completed travel and still rejects a corrupt clock', () => {
+    const state = battle('necromancer');
+    const enemy = state.enemies[0];
+    for (let frame = 0; frame < 300; frame++) tickEnemyAbilities(state, enemy, 1000 / 60, []);
+    expect(enemy.summonPause).toBe(1000);
+    expect(enemy.summonClock).toBeLessThan(0);
+    const { repo } = storage();
+    expect(repo.saveSlot(0, state)).toEqual({ ok: true });
+    enemy.summonClock = -1;
+    expect(repo.saveSlot(0, state).ok).toBe(false);
+  });
   it('zombie train releases 5–10 valid children on death', () => {
     const s = battle('zombieTrain');
     applyDamage(s, s.enemies[0], 200, 'fire', []);
@@ -449,44 +463,41 @@ describe('spells, upgrades, sandbox and exact persistence', () => {
     expect(engine.state.spawnSchedule).toHaveLength(3);
     expect(JSON.stringify(engine.snapshot())).not.toContain('null,"maxMana"');
   });
-  it.each([1, 1.5, 2] as const)(
-    'snapshot and restore produce identical continuation at speed %s',
-    (speed) => {
-      const s = battle('lich');
-      s.speed = speed;
-      s.defense!.mana = 200;
-      s.defense!.ranks.fire[4] = 1;
-      s.towers[0] = { type: 'ice', level: 6, cooldown: 0 };
-      s.towers[1] = { type: 'poison', level: 4, cooldown: 120 };
-      const carrier = s.enemies[0];
-      carrier.progress = 16;
-      moveEnemy(s, carrier, 1);
-      const dropped = s.eggs[1];
-      dropped.status = 'dropped';
-      dropped.progress = 2;
-      dropped.returnTimer = 12000;
-      dropped.direct = false;
-      s.spawnSchedule = [{ kind: 'phantom', hp: 80, spd: movementSpeed(2), at: 1200 }];
-      s.enemies.push(createEnemy(s, 'ghost', 100, 1, 1));
-      s.enemiesSummoned++;
-      s.enemies[1].poison = 5000;
-      s.enemies[1].poisonD = 1000;
-      s.enemies[1].poisonDamage = 1;
-      tickDefenseTowers(s, 16, []);
-      castSpell(s, 'fire', { x: 90, y: 300 });
-      const original = new GameEngine(s),
-        { repo } = storage();
-      expect(repo.saveSlot(0, original.snapshot(), { ...createJourney(), activeBattle: true })).toEqual({
-        ok: true,
-      });
-      const read = repo.readSlot(0);
-      expect(read.status).toBe('valid');
-      if (read.status !== 'valid') return;
-      const restored = new GameEngine(read.data.state);
-      for (let i = 0; i < 400; i++) expect(restored.step(1000 / 60)).toEqual(original.step(1000 / 60));
-      expect(restored.snapshot()).toEqual(original.snapshot());
-    },
-  );
+  it.each([1, 1.5, 2] as const)('snapshot and restore produce identical continuation at speed %s', (speed) => {
+    const s = battle('lich');
+    s.speed = speed;
+    s.defense!.mana = 200;
+    s.defense!.ranks.fire[4] = 1;
+    s.towers[0] = { type: 'ice', level: 6, cooldown: 0 };
+    s.towers[1] = { type: 'poison', level: 4, cooldown: 120 };
+    const carrier = s.enemies[0];
+    carrier.progress = 16;
+    moveEnemy(s, carrier, 1);
+    const dropped = s.eggs[1];
+    dropped.status = 'dropped';
+    dropped.progress = 2;
+    dropped.returnTimer = 12000;
+    dropped.direct = false;
+    s.spawnSchedule = [{ kind: 'phantom', hp: 80, spd: movementSpeed(2), at: 1200 }];
+    s.enemies.push(createEnemy(s, 'ghost', 100, 1, 1));
+    s.enemiesSummoned++;
+    s.enemies[1].poison = 5000;
+    s.enemies[1].poisonD = 1000;
+    s.enemies[1].poisonDamage = 1;
+    tickDefenseTowers(s, 16, []);
+    castSpell(s, 'fire', { x: 90, y: 300 });
+    const original = new GameEngine(s),
+      { repo } = storage();
+    expect(repo.saveSlot(0, original.snapshot(), { ...createJourney(), activeBattle: true })).toEqual({
+      ok: true,
+    });
+    const read = repo.readSlot(0);
+    expect(read.status).toBe('valid');
+    if (read.status !== 'valid') return;
+    const restored = new GameEngine(read.data.state);
+    for (let i = 0; i < 400; i++) expect(restored.step(1000 / 60)).toEqual(original.step(1000 / 60));
+    expect(restored.snapshot()).toEqual(original.snapshot());
+  });
   it('retains completed rewards and rejects malformed RNG without replacing storage', () => {
     const s = battle();
     s.wave = 5;

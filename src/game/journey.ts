@@ -34,7 +34,9 @@ export function recordJourneyResult(journey: JourneyProgress, state: GameState):
   if (state.phase !== 'won' && state.phase !== 'lost') return journey;
   return {
     activeBattle: false,
-    completedLevels: state.phase === 'won'
-      ? [...new Set([...journey.completedLevels, state.activeLevel])] : [...journey.completedLevels],
+    completedLevels:
+      state.phase === 'won'
+        ? [...new Set([...journey.completedLevels, state.activeLevel])]
+        : [...journey.completedLevels],
   };
 }

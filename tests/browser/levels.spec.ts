@@ -3,13 +3,23 @@ import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './s
 import { createInitialState, GameEngine } from '../../src/game/engine';
 import { clickMapAt } from './map';
 
-for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }]) {
-  for (const level of [{ id: 'meadow', name: 'Willow Bend', count: 5 }, { id: 'volcanic', name: 'Obsidian Fork', count: 10 }]) {
-    test(`${level.name} supports touch, keyboard and reload at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
+for (const viewport of [
+  { width: 375, height: 812 },
+  { width: 844, height: 390 },
+]) {
+  for (const level of [
+    { id: 'meadow', name: 'Willow Bend', count: 5 },
+    { id: 'volcanic', name: 'Obsidian Fork', count: 10 },
+  ]) {
+    test(`${level.name} supports touch, keyboard and reload at ${viewport.width}x${viewport.height}`, async ({
+      browser,
+    }) => {
       const context = await browser.newContext({ viewport, hasTouch: true });
-      const page = await context.newPage(); const errors: string[] = [];
-      page.on('pageerror', e => errors.push(e.message));
-      await page.goto('./'); await page.locator('[data-open="saves"]').click();
+      const page = await context.newPage();
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+      await page.goto('./');
+      await page.locator('[data-open="saves"]').click();
       await page.locator('[data-new="0"]').click();
       await expect(page.locator('[data-level]')).toHaveCount(7);
       await page.locator(`[data-level="${level.id}"]`).click();
@@ -20,39 +30,60 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 844, height: 390 }
       await expect(page.locator('#gold')).toHaveText('60');
       await page.locator('#upgrade').click();
       await expect(page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true })).toBeVisible();
-      await page.reload(); await page.locator('[data-open="saves"]').click();
+      await page.reload();
+      await page.locator('[data-open="saves"]').click();
       await expect(page.locator('#saveList')).toContainText(level.name);
-      await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+      await page.locator('[data-load="0"]').click();
+      await page.locator('#journeyResume').click();
       await expect(page.locator('#pauseOverlay')).toBeVisible();
       await page.locator('#resumeBattle').click();
       await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
       const occupied = page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true });
-      await occupied.focus(); await page.keyboard.press('Enter'); await page.locator('#sell').click();
+      await occupied.focus();
+      await page.keyboard.press('Enter');
+      await page.locator('#sell').click();
       await expect(page.locator('#gold')).toHaveText('63');
-      await page.locator('.summon-control').click(); await page.locator('#pause').click();
+      await page.locator('.summon-control').click();
+      await page.locator('#pause').click();
       await expect(page.locator('#pauseOverlay')).toBeVisible();
-      await page.reload(); await page.locator('[data-open="saves"]').click();
-      await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
+      await page.reload();
+      await page.locator('[data-open="saves"]').click();
+      await page.locator('[data-load="0"]').click();
+      await page.locator('#journeyResume').click();
       await expect(page.locator('#pauseOverlay')).toBeVisible();
-      await page.locator('#resumeBattle').click(); await expect(page.locator('#waveState')).toHaveText('UNDER ATTACK');
-      expect(errors).toEqual([]); await context.close();
+      await page.locator('#resumeBattle').click();
+      await expect(page.locator('#waveState')).toHaveText('UNDER ATTACK');
+      expect(errors).toEqual([]);
+      await context.close();
     });
   }
 }
 
 test('switches geometry and controls between all three battlefields without a page reload', async ({ page }) => {
   await page.goto('./');
-  for (const [slot, id] of [[0, 'level1'], [1, 'meadow'], [2, 'volcanic']] as const) {
-    await page.locator('[data-open="saves"]').click(); await page.locator(`[data-new="${slot}"]`).click();
-    await page.locator(`[data-level="${id}"]`).click(); await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
+  for (const [slot, id] of [
+    [0, 'level1'],
+    [1, 'meadow'],
+    [2, 'volcanic'],
+  ] as const) {
+    await page.locator('[data-open="saves"]').click();
+    await page.locator(`[data-new="${slot}"]`).click();
+    await page.locator(`[data-level="${id}"]`).click();
+    await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
     await page.locator('[data-type="ice"]').click();
-    await clickMapAt(page, id === 'meadow' ? 115 : id === 'volcanic' ? 80 : 90, id === 'meadow' ? 183 : id === 'volcanic' ? 140 : 202);
+    await clickMapAt(
+      page,
+      id === 'meadow' ? 115 : id === 'volcanic' ? 80 : 90,
+      id === 'meadow' ? 183 : id === 'volcanic' ? 140 : 202,
+    );
     await expect(page.locator('#gold')).toHaveText('65');
     await page.locator('#returnMenu').click();
     await page.locator('#journeyExit').click();
   }
   for (const slot of [0, 1, 2] as const) {
-    await page.locator('[data-open="saves"]').click(); await page.locator(`[data-load="${slot}"]`).click(); await page.locator("#journeyResume").click();
+    await page.locator('[data-open="saves"]').click();
+    await page.locator(`[data-load="${slot}"]`).click();
+    await page.locator('#journeyResume').click();
     await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Frost, level 1, dragon 1', exact: true })).toBeVisible();
     await page.locator('#returnMenu').click();
@@ -89,22 +120,34 @@ test('offline cold launch restores forked enemies, an egg and future route assig
   const engine = new GameEngine(createInitialState('volcanic'));
   engine.dispatch({ type: 'startWave' });
   for (let i = 0; i < 120; i++) engine.step(1000 / 60);
-  const state = engine.snapshot(); state.paused = true;
-  state.enemies[1].carryingEgg = 1; state.enemies[1].returning = true;
+  const state = engine.snapshot();
+  state.paused = true;
+  state.enemies[1].carryingEgg = 1;
+  state.enemies[1].returning = true;
   state.enemies[1].progress = 6;
   state.eggs[0] = { id: 1, status: 'carried', progress: null, carrier: state.enemies[1].id, routeId: 1 };
-  await page.evaluate(s => localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: s })), state);
-  await page.close(); await context.setOffline(true);
-  const offline = await context.newPage(); await offline.goto('./');
-  await offline.locator('[data-open="saves"]').click(); await offline.locator('[data-load="0"]').click(); await offline.locator("#journeyResume").click();
+  await page.evaluate(
+    (s) =>
+      localStorage.setItem('infernalDefense.save.0', JSON.stringify({ version: 2, savedAt: Date.now(), state: s })),
+    state,
+  );
+  await page.close();
+  await context.setOffline(true);
+  const offline = await context.newPage();
+  await offline.goto('./');
+  await offline.locator('[data-open="saves"]').click();
+  await offline.locator('[data-load="0"]').click();
+  await offline.locator('#journeyResume').click();
   await expect(offline.locator('#levelHeading')).toHaveText('Obsidian Fork');
   await expect(offline.locator('#towers .tower-marker')).toHaveCount(0);
   await expect(offline.locator('[data-route]')).toHaveCount(2);
   await expect(offline.locator('#pauseOverlay')).toBeVisible();
   const restored = await offline.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(restored).toEqual(state);
-  await offline.locator('#resumeBattle').click(); await offline.waitForTimeout(250);
-  await offline.locator('#pause').click(); await offline.locator('#saveProgress').click();
+  await offline.locator('#resumeBattle').click();
+  await offline.waitForTimeout(250);
+  await offline.locator('#pause').click();
+  await offline.locator('#saveProgress').click();
   const saved = await offline.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.simulationTime).toBeGreaterThan(state.simulationTime);
   expect(saved.enemies.some((enemy: { routeId?: number }) => enemy.routeId === 1)).toBe(true);
