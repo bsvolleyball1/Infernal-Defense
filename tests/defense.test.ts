@@ -257,7 +257,10 @@ describe('dragon strategies', () => {
     s.towers[0] = { type: 'poison', level: 4, cooldown: 0 };
     for (let i = 0; i < 4; i++) tickDefenseTowers(s, 250, []);
     expect(s.projectiles).toHaveLength(4);
-    expect(s.projectiles[0]).toMatchObject({ damage: 4, poisonDuration: 5000, slowDuration: 1000 });
+    expect(s.projectiles[0]).toMatchObject({
+      damage: 4,
+      effect: { kind: 'poison', duration: 5000, slow: 1000 },
+    });
   });
   it('poison has five inclusive one-second ticks after the last hit', () => {
     const s = battle(),

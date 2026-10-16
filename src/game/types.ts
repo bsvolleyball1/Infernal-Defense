@@ -101,7 +101,14 @@ export interface Projectile {
   freezeChance?: number;
   poisonDuration?: number;
   slowDuration?: number;
+  /** Canonical payload. Older saves store the three fields above until they are read. */
+  effect?: ProjectileEffect;
 }
+
+export type ProjectileEffect =
+  | { kind: 'none' }
+  | { kind: 'freeze'; chance: number }
+  | { kind: 'poison'; duration: number; slow: number };
 
 export interface Egg {
   /** Route on which the egg is carried or dropped. */
