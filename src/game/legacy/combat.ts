@@ -45,11 +45,7 @@ function applyPoisonTick(enemy: Enemy, elapsedMs: number): void {
   }
 }
 
-function selectTarget(
-  state: GameState,
-  perch: { x: number; y: number },
-  range: number,
-): Enemy | undefined {
+function selectTarget(state: GameState, perch: { x: number; y: number }, range: number): Enemy | undefined {
   let target: Enemy | undefined;
   for (const enemy of state.enemies) {
     const [x, y] = entityPosition(state, enemy);
@@ -64,20 +60,20 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
     if (!tower) return;
     tower.cooldown = Math.max(0, tower.cooldown - elapsedMs);
     if (tower.cooldown > 0) return;
-  const context = towerContext(state, index, towerRange(tower));
-  const target = selectTarget(state, context.position, context.range);
-  if (!target) return;
-  state.projectiles.push({
-    id: state.nextEntityId++,
-    x: context.position.x,
-    y: context.position.y - battleRules.projectileOriginOffset,
-    targetId: target.id,
-    dragon: tower.type,
-    damage: towerDamage(tower) * context.damageMultiplier,
-    speed: tower.type === 'fire' ? battleRules.fireProjectileSpeed : battleRules.otherProjectileSpeed,
-    level: tower.level,
-    ...(context.damageMultiplier > 1 ? { damageMultiplier: context.damageMultiplier } : {}),
-  });
+    const context = towerContext(state, index, towerRange(tower));
+    const target = selectTarget(state, context.position, context.range);
+    if (!target) return;
+    state.projectiles.push({
+      id: state.nextEntityId++,
+      x: context.position.x,
+      y: context.position.y - battleRules.projectileOriginOffset,
+      targetId: target.id,
+      dragon: tower.type,
+      damage: towerDamage(tower) * context.damageMultiplier,
+      speed: tower.type === 'fire' ? battleRules.fireProjectileSpeed : battleRules.otherProjectileSpeed,
+      level: tower.level,
+      ...(context.damageMultiplier > 1 ? { damageMultiplier: context.damageMultiplier } : {}),
+    });
     tower.cooldown = towerAttackInterval(tower);
     events.push({ type: 'sound', dragon: tower.type });
   });

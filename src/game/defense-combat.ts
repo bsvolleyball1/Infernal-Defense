@@ -18,11 +18,21 @@ function attackContext(state: GameState, tower: Tower, index: number): TowerCont
   return towerContext(state, index, towerRange(tower) * ice);
 }
 
-export function targetsInRange(state: GameState, tower: Tower, index: number, context = attackContext(state, tower, index)): Enemy[] {
+export function targetsInRange(
+  state: GameState,
+  tower: Tower,
+  index: number,
+  context = attackContext(state, tower, index),
+): Enemy[] {
   return state.enemies
     .filter((e) => {
       const [x, y] = entityPosition(state, e);
-      return e.hp > 0 && !e.rewarded && !((e.untargetable ?? 0) > 0) && Math.hypot(x - context.position.x, y - context.position.y) < context.range;
+      return (
+        e.hp > 0 &&
+        !e.rewarded &&
+        !((e.untargetable ?? 0) > 0) &&
+        Math.hypot(x - context.position.x, y - context.position.y) < context.range
+      );
     })
     .sort((a, b) => b.progress - a.progress || a.id - b.id);
 }

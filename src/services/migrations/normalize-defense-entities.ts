@@ -16,7 +16,8 @@ export function normalizeDefenseEntities(state: GameState): boolean {
 
 function adoptProjectileEffect(shot: Projectile): boolean {
   if (shot.effect) return false;
-  if (shot.freezeChance === undefined && shot.poisonDuration === undefined && shot.slowDuration === undefined) return false;
+  if (shot.freezeChance === undefined && shot.poisonDuration === undefined && shot.slowDuration === undefined)
+    return false;
   const effect: ProjectileEffect = shot.freezeChance
     ? { kind: 'freeze', chance: shot.freezeChance }
     : shot.poisonDuration || shot.slowDuration

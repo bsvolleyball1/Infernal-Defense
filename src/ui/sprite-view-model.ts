@@ -7,7 +7,9 @@ import { towerRange } from '../game/rules';
 import { towerBonus } from '../game/tower-bonuses';
 import type { DragonType, GameState, MonsterKind, Point } from '../game/types';
 
-export function presentSelectionRange(state: GameState): { x: number; y: number; radius: number; color: string } | null {
+export function presentSelectionRange(
+  state: GameState,
+): { x: number; y: number; radius: number; color: string } | null {
   const selected = state.selected === null ? null : state.towers[state.selected];
   if (!selected || state.selected === null) return null;
   const position = towerPosition(state, state.selected);

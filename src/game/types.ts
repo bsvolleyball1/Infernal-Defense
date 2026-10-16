@@ -106,9 +106,7 @@ export interface Projectile {
 }
 
 export type ProjectileEffect =
-  | { kind: 'none' }
-  | { kind: 'freeze'; chance: number }
-  | { kind: 'poison'; duration: number; slow: number };
+  { kind: 'none' } | { kind: 'freeze'; chance: number } | { kind: 'poison'; duration: number; slow: number };
 
 export interface Egg {
   /** Route on which the egg is carried or dropped. */
