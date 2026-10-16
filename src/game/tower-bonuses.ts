@@ -3,7 +3,7 @@ import { defenseRules } from '../content/defense-rules';
 import { getMap } from '../content/catalog';
 import { towerPosition } from './geometry';
 import type { BonusAreaKind } from '../content/maps';
-import type { DefenseBattle, GameState } from './types';
+import type { DefenseBattle, GameState, Point } from './types';
 
 export interface TowerBonus {
   kind: BonusAreaKind;
@@ -34,6 +34,24 @@ export function towerBonus(state: GameState, index: number): TowerBonus | null {
     manaPerSecond: match.area.kind === 'mana' ? defenseRules.bonusManaPerSecondPerLevel * level : 0,
     foodPerSecond: match.area.kind === 'food' ? defenseRules.bonusFoodPerSecondPerLevel * level : 0,
     goldPerSecond: match.area.kind === 'gold' ? defenseRules.bonusGoldPerSecondPerLevel * level : 0,
+  };
+}
+
+export interface TowerContext {
+  position: Point;
+  range: number;
+  damageMultiplier: number;
+  bonus: TowerBonus | null;
+}
+
+/** One bonus-area scan for a tower. Attack and rendering reuse this for the whole tick. */
+export function towerContext(state: GameState, index: number, baseRange: number): TowerContext {
+  const bonus = towerBonus(state, index);
+  return {
+    position: towerPosition(state, index),
+    range: baseRange * (bonus?.rangeMultiplier ?? 1),
+    damageMultiplier: bonus?.damageMultiplier ?? 1,
+    bonus,
   };
 }
 

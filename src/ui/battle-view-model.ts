@@ -1,11 +1,26 @@
 import { dragons, getMap } from '../content/catalog';
+import { defenseRules } from '../content/defense-rules';
 import { defenseRange, towerSummary } from '../game/defense-combat';
 import { levelCap } from '../game/defense-state';
-import { defenseRules } from '../content/defense-rules';
 import { currencyOf } from '../game/ruleset';
 import { battleRules, towerRange, towerUpgradeCost } from '../game/rules';
 import { towerBonus, towerRangeMultiplier } from '../game/tower-bonuses';
 import type { DragonType, GameState } from '../game/types';
+
+export {
+  presentEggs,
+  presentEnemies,
+  presentPlacement,
+  presentPlacedTowers,
+  presentSelectionRange,
+  presentSummon,
+  presentTowerLabel,
+  type EggSprite,
+  type EnemySprite,
+  type PlacementPreview,
+  type PlacedTowerView,
+  type SummonControlView,
+} from './sprite-view-model';
 
 export interface PlacementButton {
   type: DragonType;
@@ -169,28 +184,4 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     resultGold: `${state.rewardGold} gold`,
     bankedGold: `${state.bankedGold} gold`,
   };
-}
-
-/** Accessible name for a placed dragon, including any bonus area it occupies. */
-export function presentTowerLabel(state: GameState, index: number): string {
-  const tower = state.towers[index];
-  if (!tower) return '';
-  const bonus = towerBonus(state, index);
-  const resourceRate =
-    bonus?.kind === 'mana'
-      ? bonus.manaPerSecond
-      : bonus?.kind === 'food'
-        ? bonus.foodPerSecond
-        : bonus?.kind === 'gold'
-          ? bonus.goldPerSecond
-          : 0;
-  const bonusLabel =
-    bonus?.kind === 'damage'
-      ? `, damage bonus +${Math.round((bonus.damageMultiplier - 1) * 100)}%`
-      : bonus?.kind === 'range'
-        ? `, range bonus +${Math.round((bonus.rangeMultiplier - 1) * 100)}%`
-        : bonus
-          ? `, ${bonus.kind} bonus${state.defense?.mode === 'sandbox' ? ' (journey only)' : ` +${resourceRate.toFixed(2)}/s`}`
-          : '';
-  return `${dragons[tower.type].name}, level ${tower.level}, dragon ${index + 1}${bonusLabel}`;
 }

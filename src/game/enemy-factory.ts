@@ -2,6 +2,34 @@ import { enemyRoster, enemyTraits, isDefenseMonster, movementSpeed } from '../co
 import { defenseRules } from '../content/defense-rules';
 import type { Enemy, GameState, MonsterKind } from './types';
 
+export interface DefenseEnemy extends Enemy {
+  frozen: number;
+  poisonDamage: number;
+  untargetable: number;
+  ghostTriggered: boolean;
+  invulnerable: number;
+  deathDelay: number;
+  lastHitAgo: number;
+  summonClock: number;
+  summonPause: number;
+  empowered: boolean;
+}
+
+/** Fills timers older saves omit, using the same defaults as a newly created defense enemy. */
+export function withDefenseTimers(enemy: Enemy): DefenseEnemy {
+  enemy.frozen ??= 0;
+  enemy.poisonDamage ??= 0;
+  enemy.untargetable ??= 0;
+  enemy.ghostTriggered ??= false;
+  enemy.invulnerable ??= 0;
+  enemy.deathDelay ??= 0;
+  enemy.lastHitAgo ??= 0;
+  enemy.summonClock ??= enemyTraits(enemy.kind).summoner?.travelMs ?? defenseRules.defaultSummonClockMs;
+  enemy.summonPause ??= 0;
+  enemy.empowered ??= false;
+  return enemy as DefenseEnemy;
+}
+
 export function createEnemy(
   state: GameState,
   kind: MonsterKind,

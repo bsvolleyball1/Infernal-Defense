@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { presentBattle, presentTowerLabel } from '../src/ui/battle-view-model';
+import {
+  presentBattle,
+  presentPlacement,
+  presentSelectionRange,
+  presentSummon,
+  presentTowerLabel,
+} from '../src/ui/battle-view-model';
 import { createDefenseState } from '../src/game/defense-state';
 import { battleRules } from '../src/game/rules';
 import { createInitialState } from '../src/game/state';
@@ -90,5 +96,36 @@ describe('single-owner HUD overrides', () => {
     const state = createDefenseState('level1');
     state.towers[0] = { type: 'ice', level: 2, cooldown: 0, position: { x: 90, y: 202 } };
     expect(presentTowerLabel(state, 0)).toMatch(/^Frost, level 2, dragon 1/);
+  });
+
+  it('resolves the selected dragon range without the renderer calling combat', () => {
+    const state = createInitialState();
+    expect(presentSelectionRange(state)).toBeNull();
+    state.towers[0] = { type: 'fire', level: 1, cooldown: 0 };
+    state.selected = 0;
+    const range = presentSelectionRange(state);
+    expect(range).toMatchObject({ color: expect.any(String) });
+    expect(range?.radius).toBeGreaterThan(0);
+  });
+
+  it('shows the journey summon control only while a journey is ready', () => {
+    const journey = createDefenseState('level1');
+    journey.defense.countdown = 2500;
+    const summon = presentSummon(journey);
+    expect(summon.visible).toBe(true);
+    expect(summon.remaining).toBeCloseTo(0.5);
+    expect(summon.label).toContain('Summon wave 1');
+
+    const sandbox = createDefenseState('level1', undefined, true);
+    expect(presentSummon(sandbox).visible).toBe(false);
+  });
+
+  it('hides the placement ghost when no dragon is chosen', () => {
+    const state = createInitialState();
+    expect(presentPlacement(state, { x: 120, y: 180 })).toBeNull();
+    state.chosen = 'fire';
+    expect(presentPlacement(state, { x: 120, y: 180 })).toMatchObject({ dragon: 'fire' });
+    state.paused = true;
+    expect(presentPlacement(state, { x: 120, y: 180 })).toBeNull();
   });
 });

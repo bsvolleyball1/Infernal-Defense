@@ -171,6 +171,16 @@ describe('typed UI routing and controls', () => {
     }
   });
 
-  // Enforced once phase 5 (#17) adds selectors.
-  it.todo('lets ui/ import game/ only through selectors and view-models');
+  it('lets view files and the renderer import game only as types', () => {
+    const views = tsFiles(resolve(sourceRoot, 'ui')).filter((path) => {
+      const name = path.split(/[/\\]/).pop() ?? '';
+      return name.endsWith('-view.ts') || name === 'renderer.ts';
+    });
+    expect(views.length).toBeGreaterThan(3);
+    for (const path of views) {
+      for (const dependency of dependencies(parse(path), true)) {
+        expect(dependency, path).not.toMatch(/\/game\//);
+      }
+    }
+  });
 });

@@ -1,9 +1,9 @@
-import { entityPosition, towerPosition } from '../geometry';
+import { entityPosition } from '../geometry';
 import { moveEnemy } from '../eggs';
 import { defeatEnemy, finishBattle } from '../rewards';
 import { battleRules, towerAttackInterval, towerDamage, towerRange } from '../rules';
-import type { DragonType, Enemy, GameEvent, GameState, Projectile, Tower } from '../types';
-import { towerDamageMultiplier, towerRangeMultiplier } from '../tower-bonuses';
+import type { DragonType, Enemy, GameEvent, GameState, Projectile } from '../types';
+import { towerContext } from '../tower-bonuses';
 import { advanceProjectile } from '../projectile-motion';
 
 const projectileEffects: Record<DragonType, (target: Enemy, damageMultiplier: number) => void> = {
@@ -45,13 +45,7 @@ function applyPoisonTick(enemy: Enemy, elapsedMs: number): void {
   }
 }
 
-function selectTarget(
-  state: GameState,
-  tower: Tower,
-  perch: { x: number; y: number },
-  index: number,
-): Enemy | undefined {
-  const range = towerRange(tower) * towerRangeMultiplier(state, index);
+function selectTarget(state: GameState, perch: { x: number; y: number }, range: number): Enemy | undefined {
   let target: Enemy | undefined;
   for (const enemy of state.enemies) {
     const [x, y] = entityPosition(state, enemy);
@@ -66,20 +60,19 @@ export function updateTowers(state: GameState, elapsedMs: number, events: GameEv
     if (!tower) return;
     tower.cooldown = Math.max(0, tower.cooldown - elapsedMs);
     if (tower.cooldown > 0) return;
-    const position = towerPosition(state, index);
-    const target = selectTarget(state, tower, position, index);
+    const context = towerContext(state, index, towerRange(tower));
+    const target = selectTarget(state, context.position, context.range);
     if (!target) return;
-    const bonus = towerDamageMultiplier(state, index);
     state.projectiles.push({
       id: state.nextEntityId++,
-      x: position.x,
-      y: position.y - battleRules.projectileOriginOffset,
+      x: context.position.x,
+      y: context.position.y - battleRules.projectileOriginOffset,
       targetId: target.id,
       dragon: tower.type,
-      damage: towerDamage(tower) * bonus,
+      damage: towerDamage(tower) * context.damageMultiplier,
       speed: tower.type === 'fire' ? battleRules.fireProjectileSpeed : battleRules.otherProjectileSpeed,
       level: tower.level,
-      ...(bonus > 1 ? { damageMultiplier: bonus } : {}),
+      ...(context.damageMultiplier > 1 ? { damageMultiplier: context.damageMultiplier } : {}),
     });
     tower.cooldown = towerAttackInterval(tower);
     events.push({ type: 'sound', dragon: tower.type });
