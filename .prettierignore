@@ -1,0 +1,12 @@
+dist
+node_modules
+playwright-report
+test-results
+package-lock.json
+public
+docs
+*.md
+.claude
+
+# Whitespace between inline elements is significant; this is the exact mounted DOM.
+src/ui/template.html

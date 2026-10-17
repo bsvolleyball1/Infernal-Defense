@@ -6,7 +6,7 @@ describe('monster portraits', () => {
   it('provides a distinct portrait for every playable monster', () => {
     const portraits = playableMonsters.map(monsterPortrait);
     expect(new Set(portraits).size).toBe(playableMonsters.length);
-    expect(portraits.every(portrait => portrait.endsWith('.png'))).toBe(true);
+    expect(portraits.every((portrait) => portrait.endsWith('.png'))).toBe(true);
   });
 
   it('uses matching portraits for the legacy raider types', () => {

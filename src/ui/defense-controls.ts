@@ -2,54 +2,21 @@ import { enemyRoster, futureMonsters, playableMonsters } from '../content/enemie
 import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
-import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
+import type { DragonType, GameCommand, GameState, SpellKind } from '../game/types';
+import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
 import { challengeAllowsDragon, challengeAllowsSpell } from '../content/maps';
 
-export function mountDefenseControls(): void {
-  const stats = document.createElement('span');
-  stats.id = 'manaStat';
-  stats.hidden = true;
-  stats.innerHTML = '✦ MANA <b id="mana">0 / 200</b>';
-  element('.stats').append(stats);
-  const controls = document.createElement('section');
-  controls.id = 'spellControls';
-  controls.hidden = true;
-  controls.setAttribute('role', 'group');
-  controls.setAttribute('aria-label', 'Battle spells');
-  controls.innerHTML =
-    '<div class="spell-buttons"><button data-spell="poison" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">☠</span><span class="spell-cost">150</span></button><button data-spell="ice" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">❄</span><span class="spell-cost">150</span></button><button data-spell="fire" aria-describedby="spellHelp"><span class="spell-icon" aria-hidden="true">🔥</span><span class="spell-cost">150</span></button></div><span class="visually-hidden" id="spellHelp">Area spells: tap the map, or focus it and use arrow keys then Enter. Escape cancels.</span>';
-  element('#battleSpells').append(controls);
-  const test = document.createElement('section');
-  test.id = 'testControls';
-  test.hidden = true;
-  test.innerHTML =
-    '<h3>Test wave</h3><p>Unsaved sandbox. Unlimited food and mana; no journey rewards or discoveries.</p><div class="test-roster">' +
-    playableMonsters
-      .map(
-        (kind) =>
-          `<label>${enemyRoster[kind].name}<input type="number" min="0" max="999" value="${kind === 'imp' ? 3 : 0}" data-test-count="${kind}" aria-label="${enemyRoster[kind].name} count"></label>`,
-      )
-      .join('') +
-    '</div><details><summary>Coming soon</summary><p>' +
-    futureMonsters.join(', ') +
-    '</p></details>';
-  element('.wave').before(test);
-  const button = document.createElement('button');
-  button.id = 'startTestMode';
-  button.className = 'menu-card';
-  button.innerHTML =
-    '<span class="menu-icon">⚒</span><span><strong>Test Mode</strong><small>Choose your own monster waves in an unsaved sandbox</small></span>';
-  element('[data-page="home"] .menu-grid').append(button);
-  const upgrades = document.createElement('div');
-  upgrades.id = 'permanentControls';
-  element('.upgrade-placeholder').replaceWith(upgrades);
-  const entry = document.createElement('button');
-  entry.id = 'openPermanent';
-  entry.className = 'btn secondary';
-  entry.textContent = 'Permanent upgrades';
-  element('.journey-actions').append(entry);
+/** Fills the sandbox roster from the playable monster list. */
+export function renderTestRoster(): void {
+  element('#testControls .test-roster').innerHTML = playableMonsters
+    .map(
+      (kind) =>
+        `<label>${enemyRoster[kind].name}<input type="number" min="0" max="999" value="${kind === 'imp' ? 3 : 0}" data-test-count="${kind}" aria-label="${enemyRoster[kind].name} count"></label>`,
+    )
+    .join('');
+  element('#testControls .future-monsters').textContent = futureMonsters.join(', ');
 }
 
 export function renderPermanent(state: GameState): void {
@@ -88,10 +55,10 @@ export function renderDefenseControls(state: GameState): void {
   element('#manaStat').hidden = !d;
   element('#spellControls').hidden = !d;
   element('#testControls').hidden = d?.mode !== 'sandbox';
-  element<HTMLButtonElement>('#start').hidden = d?.mode === 'journey';
   element<HTMLButtonElement>('#openPermanent').disabled = state.phase === 'battle';
   const food = element('.stats span:first-child').firstChild;
-  const prefix = d ? '🥩 FOOD ' : '✦ GOLD ';
+  const currency = currencyOf(state);
+  const prefix = `${currency.icon} ${currency.name.toUpperCase()} `;
   if (food?.nodeType === Node.TEXT_NODE && food.textContent !== prefix) food.textContent = prefix;
   const roles = d
     ? ['Red · continuous beam', 'Blue · charged attack', 'Yellow · rapid attack']
@@ -103,8 +70,6 @@ export function renderDefenseControls(state: GameState): void {
     const type = button.dataset.type as DragonType,
       price = button.querySelector('.price')!,
       description = button.querySelector('.towerdesc')!;
-    button.hidden = Boolean(challenge && !challengeAllowsDragon(getMap(state.activeLevel), type));
-    button.disabled = state.phase === 'won' || state.phase === 'lost' || state.paused || button.hidden;
     const orb = button.querySelector<HTMLElement>('.orb')!;
     let portrait = orb.querySelector<HTMLImageElement>('.dragon-portrait');
     if (!portrait) {
@@ -115,7 +80,7 @@ export function renderDefenseControls(state: GameState): void {
       orb.replaceChildren(portrait);
     }
     portrait.src = dragonPortrait(type);
-    const label = `${d ? '🥩 ' : '✦ '}${dragons[type].cost}`;
+    const label = `${currency.icon} ${dragons[type].cost}`;
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
       ? {
@@ -136,110 +101,45 @@ export function renderDefenseControls(state: GameState): void {
   if (!d) return;
   const sandbox = d.mode === 'sandbox';
   setText('#mana', sandbox ? '∞ / ∞' : `${Math.floor(d.mana)} / ${d.maxMana}`);
-  if (sandbox) {
-    setText('#gold', '∞');
-    setText('#levelHeading', 'Test Mode');
-    setText('#waveNum', state.wave);
-    setText('#start', state.phase === 'battle' ? 'Test wave in progress' : 'Summon');
-  } else if (d.countdown !== null)
-    setText(
-      '#start',
-      `Summon wave ${state.wave + 1} · +${Math.ceil(d.countdown / 1000) * 10} mana (${Math.ceil(d.countdown / 1000)}s)`,
-    );
   const names: Record<SpellKind, string> = { fire: 'Fire Rain', ice: 'Ice Freeze', poison: 'Poison Gas' };
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
-    b.hidden = Boolean(challenge && !challengeAllowsSpell(getMap(state.activeLevel), key));
-    b.disabled = b.hidden || state.paused || state.phase !== 'battle' || (!sandbox && d.mana < 150) || seconds > 0;
-    const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds} seconds cooldown` : '150 mana'}`;
+    b.hidden = Boolean(challenge && challenge.spell !== key);
+    b.disabled =
+      b.hidden ||
+      state.paused ||
+      state.phase !== 'battle' ||
+      (!sandbox && d.mana < defenseRules.spellCost) ||
+      seconds > 0;
+    const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds} seconds cooldown` : `${defenseRules.spellCost} mana`}`;
     b.setAttribute('aria-label', label);
     b.title = label;
     const status = b.querySelector<HTMLElement>('.spell-cost');
-    if (status) status.textContent = seconds ? `${seconds}s` : '150';
+    if (status) status.textContent = seconds ? `${seconds}s` : String(defenseRules.spellCost);
     b.setAttribute('aria-pressed', String(d.targeting === key));
   });
 }
 
-function mapPoint(event: MouseEvent, map: SVGSVGElement): Point {
-  const p = new DOMPoint(event.clientX, event.clientY),
-    matrix = map.getScreenCTM();
-  const target = matrix ? p.matrixTransform(matrix.inverse()) : p;
-  return { x: Math.max(0, Math.min(700, target.x)), y: Math.max(0, Math.min(430, target.y)) };
-}
-export function bindDefenseControls(read: () => GameState, dispatch: (c: GameCommand) => void): void {
-  const map = element<SVGSVGElement>('#map');
-  elements<HTMLButtonElement>('[data-spell]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const spell = b.dataset.spell as SpellKind;
-      if (spell === 'ice') dispatch({ type: 'spell', spell });
-      else {
-        dispatch({ type: 'spellTarget', spell: read().defense?.targeting === spell ? null : spell });
-        if (read().defense?.targeting) {
-          dispatch({ type: 'previewSpell', point: { x: 350, y: 215 } });
-          map.focus();
-        }
-      }
-    }),
-  );
-  map.addEventListener(
-    'click',
-    (event) => {
-      const spell = read().defense?.targeting;
-      if (spell) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        dispatch({ type: 'spell', spell, point: mapPoint(event, map) });
-      }
-    },
-    true,
-  );
-  map.addEventListener('pointermove', (event) => {
-    if (read().defense?.targeting) dispatch({ type: 'previewSpell', point: mapPoint(event, map) });
-  });
-  map.addEventListener(
-    'keydown',
-    (event) => {
-      const d = read().defense,
-        spell = d?.targeting;
-      if (!spell) return;
-      if (!['Escape', 'Enter', ' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key))
-        return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.key === 'Escape') dispatch({ type: 'spellTarget', spell: null });
-      else if (event.key === 'Enter' || event.key === ' ')
-        dispatch({ type: 'spell', spell, point: d.preview ?? { x: 350, y: 215 } });
-      else {
-        const p = d.preview ?? { x: 350, y: 215 };
-        dispatch({
-          type: 'previewSpell',
-          point: {
-            x: Math.max(
-              0,
-              Math.min(700, p.x + (event.key === 'ArrowLeft' ? -20 : event.key === 'ArrowRight' ? 20 : 0)),
-            ),
-            y: Math.max(
-              0,
-              Math.min(430, p.y + (event.key === 'ArrowUp' ? -20 : event.key === 'ArrowDown' ? 20 : 0)),
-            ),
-          },
-        });
-      }
-    },
-    true,
-  );
+/** Sends the sandbox roster counts whenever one changes. */
+export function bindTestWaveInputs(dispatch: (command: GameCommand) => void): () => void {
+  const controller = new AbortController();
   elements<HTMLInputElement>('[data-test-count]').forEach((input) =>
-    input.addEventListener('change', () => {
-      const counts = Object.fromEntries(
-        elements<HTMLInputElement>('[data-test-count]').map((i) => [
-          i.dataset.testCount,
-          Math.max(0, Math.min(999, Math.floor(Number(i.value) || 0))),
-        ]),
-      );
-      dispatch({ type: 'testWave', counts });
-    }),
+    input.addEventListener(
+      'change',
+      () => {
+        const counts = Object.fromEntries(
+          elements<HTMLInputElement>('[data-test-count]').map((i) => [
+            i.dataset.testCount,
+            Math.max(0, Math.min(999, Math.floor(Number(i.value) || 0))),
+          ]),
+        );
+        dispatch({ type: 'testWave', counts });
+      },
+      { signal: controller.signal },
+    ),
   );
+  return () => controller.abort();
 }
 export const permanentCommand = (button: HTMLElement): GameCommand => ({
   type: 'buyPermanent',

@@ -314,7 +314,9 @@
 .tower.selected,
 .spell-buttons button[aria-pressed='true'] {
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px #e0b45f66, 0 2px 8px #000b;
+  box-shadow:
+    0 0 0 2px #e0b45f66,
+    0 2px 8px #000b;
 }
 .tower .towerrow {
   justify-content: center;

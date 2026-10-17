@@ -29,8 +29,7 @@ test('permanent trees purchase all nodes, persist across levels, and stay player
   await page.locator('#openPermanent').click();
   await expect(page.locator('[data-permanent]')).toHaveCount(18);
   for (const type of ['fire', 'poison', 'ice'])
-    for (let node = 0; node < 6; node++)
-      await page.locator(`[data-permanent="${type}"][data-node="${node}"]`).click();
+    for (let node = 0; node < 6; node++) await page.locator(`[data-permanent="${type}"][data-node="${node}"]`).click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.defense.ranks).toEqual({
     fire: [1, 1, 1, 1, 1, 1],
@@ -67,7 +66,8 @@ test('failed permanent purchase leaves the complete player save and bank unchang
 test('a restored countdown waits for Resume and early summoning retains its bonus', async ({ page }) => {
   const state = createDefenseState();
   state.wave = 1;
-  state.defense!.countdown = 2500;
+  // The bonus is ceil(seconds left) × 10 mana. 4.5 s leaves 2.5 s between Resume and Summon before it drops below 30.
+  state.defense!.countdown = 4500;
   await putSave(page, state);
   await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
@@ -79,7 +79,7 @@ test('a restored countdown waits for Resume and early summoning retains its bonu
   await expect(summon.locator('.summon-progress')).toHaveAttribute('stroke-dashoffset', /[1-9]/);
   await page.locator('#saveProgress').click();
   const paused = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
-  expect(paused.defense.countdown).toBe(2500);
+  expect(paused.defense.countdown).toBe(4500);
   expect(paused.paused).toBe(true);
   await page.locator('#resumeBattle').click();
   await page.locator('.summon-control').click();
@@ -93,9 +93,7 @@ for (const viewport of [
   { width: 375, height: 812 },
   { width: 844, height: 390 },
 ]) {
-  test(`Test Mode is isolated and touch-operable at ${viewport.width}x${viewport.height}`, async ({
-    browser,
-  }) => {
+  test(`Test Mode is isolated and touch-operable at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
     const context = await browser.newContext({ viewport, hasTouch: true });
     const page = await context.newPage();
     try {
@@ -113,22 +111,12 @@ for (const viewport of [
       await page.locator('[data-test-count="witch"]').blur();
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
-      for (let i = 0; i < 2; i++) {
+      // Each upgrade closes the action popover, so the dragon is selected again before the next one.
+      for (let level = 1; level <= 5; level++) {
+        await page.getByRole('button', { name: `Frost, level ${level}, dragon 1`, exact: true }).tap();
         await page.locator('#upgrade').tap();
-        await page.locator('[data-upgrade-color="blue"]').tap();
       }
-      await expect(page.getByRole('button', { name: 'Blue 3, tier 3, dragon 1', exact: true })).toBeVisible();
-      await page.locator('#sell').tap();
-      await page.locator('[data-type="fire"]').tap();
-      await clickMapAt(page, 90, 202);
-      await page.locator('#upgrade').tap();
-      await page.locator('[data-upgrade-color="red"]').tap();
-      await page.locator('#upgrade').tap();
-      await page.locator('[data-upgrade-color="yellow"]').tap();
-      await expect(page.locator('[data-upgrade-form="pink"]')).toBeVisible();
-      await expect(page.locator('[data-upgrade-form="orange2"]')).toBeVisible();
-      await page.locator('[data-upgrade-form="pink"]').tap();
-      await expect(page.getByRole('button', { name: 'Pink, tier 3, dragon 1', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');
       await page.screenshot({
@@ -163,24 +151,19 @@ for (const spell of ['fire', 'ice', 'poison'] as const) {
     }
     await page.locator('#pause').click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
-    const before = await page.evaluate(
-      () => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state,
-    );
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
     expect(before.defense.mana).toBeLessThan(60);
     expect(before.defense.spellCooldowns[spell]).toBeGreaterThan(0);
     await page.reload();
     await page.locator('#continueJourney').click();
     await page.locator('#journeyResume').click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
-    expect(
-      await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state),
-    ).toEqual(before);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(
+      before,
+    );
   });
 }
-test('offline cold launch retains expanded carrier, charges, spell impact and RNG state', async ({
-  page,
-  context,
-}) => {
+test('offline cold launch retains expanded carrier, charges, spell impact and RNG state', async ({ page, context }) => {
   const state = createDefenseState('volcanic');
   state.phase = 'battle';
   state.paused = true;
@@ -207,8 +190,6 @@ test('offline cold launch retains expanded carrier, charges, spell impact and RN
   await cold.locator('#continueJourney').click();
   await cold.locator('#journeyResume').click();
   await expect(cold.locator('#pauseOverlay')).toBeVisible();
-  expect(
-    await cold.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state),
-  ).toEqual(state);
+  expect(await cold.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(state);
   await context.setOffline(false);
 });
