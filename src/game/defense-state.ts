@@ -46,8 +46,8 @@ export const rank = (state: GameState, dragon: DragonType, node: number): number
   state.defense?.ranks[dragon][node] ?? 0;
 export const rankTotal = (state: GameState, dragon: DragonType): number =>
   state.defense?.ranks[dragon].slice(0, 5).reduce((sum, n) => sum + n, 0) ?? 0;
-export const levelCap = (state: GameState, tower: Tower): number =>
-  state.defense ? Math.min(defenseRules.maximumDragonLevel, 3 + rank(state, tower.type, 1)) : Infinity;
+export const levelCap = (_state: GameState, _tower: Tower): number =>
+  defenseRules.maximumDragonLevel;
 export function randomValue(state: GameState): number {
   const defense = state.defense!;
   let x = defense.rng;

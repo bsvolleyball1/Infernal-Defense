@@ -8,6 +8,7 @@ import { updateTowers, updateProjectiles } from '../src/game/combat';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, GameEvent, GameState, Level } from '../src/game/types';
+import { upgradeSelected } from './helpers';
 
 function enemy(routeId: number, progress = 5): Enemy {
   return { id: routeId + 6, kind: 'scout', hp: 45, max: 45, spd: .72, progress,
@@ -45,7 +46,7 @@ describe('selectable battlefield definitions', () => {
       }
       expect(engine.state.towers.every(tower => tower?.type === 'fire')).toBe(true);
       expect(engine.dispatch({ type: 'perch', index: count })).toEqual([]);
-      engine.dispatch({ type: 'upgrade' }); expect(engine.state.towers[count - 1]?.level).toBe(2);
+      upgradeSelected(engine); expect(engine.state.towers[count - 1]?.level).toBe(2);
       engine.dispatch({ type: 'sell' }); expect(engine.state.towers[count - 1]).toBeNull();
       for (const path of routesFor(map)) {
         expect(path).toHaveLength(17);
@@ -67,7 +68,7 @@ describe('selectable battlefield definitions', () => {
       [geometry.nest.x, geometry.nest.y + 21],
       [geometry.nest.x, geometry.nest.y + 21],
     ]);
-    expect(geometry.challenge).toEqual({ dragon, spell });
+    expect(geometry.challenge).toEqual({ kind: 'only', dragon, spell });
 
     state.phase = 'battle';
     state.wave = 1;
@@ -98,6 +99,68 @@ describe('selectable battlefield definitions', () => {
     });
     expect(engine.state.defense!.mana).toBe(50);
     expect(engine.state.defense!.spellCooldowns[spell]).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['noPoisonTrial', 'poison', 'poison'],
+    ['noIceTrial', 'ice', 'ice'],
+    ['noFireTrial', 'fire', 'fire'],
+  ] as const)('%s allows the other elements and excludes the requested dragon and spell', (level, excludedDragon, excludedSpell) => {
+    const geometry = getMap(level),
+      state = createDefenseState(level);
+    expect(routesFor(geometry)).toHaveLength(2);
+    expect(geometry.challenge).toEqual({ kind: 'exclude', dragon: excludedDragon, spell: excludedSpell });
+
+    state.phase = 'battle';
+    state.wave = 1;
+    state.enemies = [enemy(0)];
+    state.enemiesSummoned = 1;
+    state.nextEntityId = 7;
+    state.defense!.mana = 200;
+    const engine = new GameEngine(state);
+    const allowedDragons = (['fire', 'ice', 'poison'] as const).filter(dragon => dragon !== excludedDragon);
+    for (const [index, dragon] of allowedDragons.entries()) {
+      engine.dispatch({ type: 'choose', dragon });
+      expect(engine.state.chosen).toBe(dragon);
+      engine.dispatch({ type: 'place', point: { x: 80, y: index === 0 ? 140 : 290 } });
+      expect(engine.state.towers.some(tower => tower?.type === dragon)).toBe(true);
+    }
+    engine.dispatch({ type: 'choose', dragon: excludedDragon });
+    expect(engine.state.chosen).toBeNull();
+
+    const allowedSpells = (['fire', 'ice', 'poison'] as const).filter(spell => spell !== excludedSpell);
+    for (const spell of allowedSpells) {
+      engine.state.defense!.mana = 200;
+      engine.state.defense!.spellCooldowns[spell] = 0;
+      engine.dispatch({
+        type: 'spell',
+        spell,
+        ...(spell === 'ice' ? {} : { point: { x: 250, y: 215 } }),
+      });
+      expect(engine.state.defense!.spellCooldowns[spell]).toBeGreaterThan(0);
+    }
+    engine.state.defense!.spellCooldowns[excludedSpell] = 0;
+    engine.dispatch({
+      type: 'spell',
+      spell: excludedSpell,
+      ...(excludedSpell === 'ice' ? {} : { point: { x: 250, y: 215 } }),
+    });
+    expect(engine.state.defense!.spellCooldowns[excludedSpell]).toBe(0);
+  });
+
+  it.each([
+    ['noPoisonTrial', 'poison', 'fire'],
+    ['noIceTrial', 'ice', 'fire'],
+    ['noFireTrial', 'fire', 'ice'],
+  ] as const)('accepts only allowed saved dragons for %s', (level, excludedDragon, allowedDragon) => {
+    const state = createDefenseState(level),
+      { repository } = storage(state);
+    expect(repository.readSlot(0).status).toBe('valid');
+    expect(repository.saveSlot(0, state).ok).toBe(true);
+    state.towers[0] = { type: allowedDragon, level: 1, cooldown: 0 };
+    expect(repository.saveSlot(0, state).ok).toBe(true);
+    state.towers[0] = { type: excludedDragon, level: 1, cooldown: 0 };
+    expect(repository.saveSlot(0, state).ok).toBe(false);
   });
 
   it.each([

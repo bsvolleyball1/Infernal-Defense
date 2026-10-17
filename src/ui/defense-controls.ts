@@ -5,6 +5,7 @@ import { upgradeCost, upgradeTrees } from '../content/upgrades';
 import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
+import { challengeAllowsDragon, challengeAllowsSpell } from '../content/maps';
 
 export function mountDefenseControls(): void {
   const stats = document.createElement('span');
@@ -93,8 +94,8 @@ export function renderDefenseControls(state: GameState): void {
   const prefix = d ? '🥩 FOOD ' : '✦ GOLD ';
   if (food?.nodeType === Node.TEXT_NODE && food.textContent !== prefix) food.textContent = prefix;
   const roles = d
-    ? ['Fire beams and area waves', 'Rechargeable ice · chance to freeze', 'Rapid shots · poison and slow']
-    : ['Fire · burst damage', 'Ice · slow & freeze', 'Venom · damage over time'];
+    ? ['Red · continuous beam', 'Blue · charged attack', 'Yellow · rapid attack']
+    : ['Red · burst damage', 'Blue · slow & freeze', 'Yellow · damage over time'];
   elements('.towerrole').forEach((role, i) => {
     if (role.textContent !== roles[i]) role.textContent = roles[i];
   });
@@ -102,7 +103,7 @@ export function renderDefenseControls(state: GameState): void {
     const type = button.dataset.type as DragonType,
       price = button.querySelector('.price')!,
       description = button.querySelector('.towerdesc')!;
-    button.hidden = Boolean(challenge && challenge.dragon !== type);
+    button.hidden = Boolean(challenge && !challengeAllowsDragon(getMap(state.activeLevel), type));
     button.disabled = state.phase === 'won' || state.phase === 'lost' || state.paused || button.hidden;
     const orb = button.querySelector<HTMLElement>('.orb')!;
     let portrait = orb.querySelector<HTMLImageElement>('.dragon-portrait');
@@ -118,7 +119,7 @@ export function renderDefenseControls(state: GameState): void {
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
       ? {
-          fire: 'Level 1: one continuous 6 DPS beam.',
+          fire: 'Tier 1: one continuous 6 DPS beam.',
           ice: 'One 15-damage charge, recharging every second.',
           poison: 'Four shots per second for 2 damage each.',
         }
@@ -149,7 +150,7 @@ export function renderDefenseControls(state: GameState): void {
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
-    b.hidden = Boolean(challenge && challenge.spell !== key);
+    b.hidden = Boolean(challenge && !challengeAllowsSpell(getMap(state.activeLevel), key));
     b.disabled = b.hidden || state.paused || state.phase !== 'battle' || (!sandbox && d.mana < 150) || seconds > 0;
     const label = `${names[key]} · ${d.targeting === key ? 'Select target' : seconds ? `${seconds} seconds cooldown` : '150 mana'}`;
     b.setAttribute('aria-label', label);

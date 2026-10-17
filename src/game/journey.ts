@@ -6,7 +6,14 @@ export interface JourneyProgress {
   completedLevels: Level[];
 }
 
-export const challengeLevels: readonly Level[] = ['fireTrial', 'iceTrial', 'poisonTrial'];
+export const challengeLevels: readonly Level[] = [
+  'fireTrial',
+  'iceTrial',
+  'poisonTrial',
+  'noPoisonTrial',
+  'noIceTrial',
+  'noFireTrial',
+];
 
 export function levelPrerequisite(level: Level): Level | null {
   const index = challengeLevels.indexOf(level);

@@ -7,9 +7,10 @@ export function mountApplication(): void {
   element('#app').innerHTML = template;
   renderLevelSelect();
   element('#map').innerHTML = battlefieldArtwork();
-  element('#map').setAttribute('aria-label', 'A switchback trail across a river gorge and a cliffside nest. Place dragons on clear ground away from the road.');
+  element('#map').setAttribute('aria-label', 'A gridded battlefield. Place one dragon in each open cell; route cells are blocked.');
   element('.side h3').textContent = 'Dragon roster';
-  element('.legend span:last-child').textContent = 'Choose a dragon, then tap clear ground away from the road';
+  element('.legend span:last-child').textContent = 'Choose a dragon, then tap an open grid cell';
+  element<HTMLElement>('.legend span:nth-child(3) .dot').style.backgroundColor = '#e2bf48';
   const pauseOverlay = document.createElement('div');
   pauseOverlay.id = 'pauseOverlay';
   pauseOverlay.className = 'pause-overlay';
@@ -29,7 +30,8 @@ export function mountApplication(): void {
   menuButton.title = 'Return to menu';
   const mapElement = element('#map');
   mapElement.before(battlefield);
-  battlefield.append(mapElement, pauseOverlay, toolbar);
+  battlefield.append(mapElement, pauseOverlay);
+  battlefield.after(toolbar);
   element('#battleStatus').append(element('.stats'), element('.nest'));
   element('#battleControls').append(element('.controls'));
   element('#battleDragons').append(element('.towerlist'));

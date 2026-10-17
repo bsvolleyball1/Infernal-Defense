@@ -1,5 +1,11 @@
 import { getMap, positionAt, routesFor } from '../content/catalog';
-import { bonusAreaAt } from '../content/maps';
+import {
+  isTowerGridCellBlocked,
+  towerGridCellAt,
+  towerGridCellCenter,
+  towerGridCellKey,
+  towerGridCellSize,
+} from '../content/maps';
 import type { Battlefield } from '../content/maps';
 import type { GameState, Point } from './types';
 
@@ -49,14 +55,53 @@ export function isClearTowerPosition(point: Point, geometry: Battlefield): boole
   );
 }
 
+export function towerGridPosition(point: Point, geometry: Battlefield): Point | null {
+  const cell = towerGridCellAt(geometry, point);
+  return cell ? towerGridCellCenter(cell) : null;
+}
+
+export function isValidTowerGridPosition(point: Point, geometry: Battlefield): boolean {
+  const cell = towerGridCellAt(geometry, point);
+  if (
+    !cell ||
+    cell.width !== towerGridCellSize ||
+    cell.height !== towerGridCellSize ||
+    isTowerGridCellBlocked(geometry, cell)
+  )
+    return false;
+  const center = towerGridCellCenter(cell);
+  return (
+    point.x === center.x &&
+    point.y === center.y &&
+    center.x >= 25 &&
+    center.x <= geometry.width - 25 &&
+    center.y >= 25 &&
+    center.y <= geometry.height - 25
+  );
+}
+
 export function canPlaceTower(state: GameState, point: Point): boolean {
   const geometry = getMap(state.activeLevel);
-  if (!isClearTowerPosition(point, geometry)) return false;
-  const targetBonus = bonusAreaAt(geometry, point);
+  const cell = towerGridCellAt(geometry, point);
+  if (
+    !cell ||
+    cell.width !== towerGridCellSize ||
+    cell.height !== towerGridCellSize ||
+    isTowerGridCellBlocked(geometry, cell)
+  )
+    return false;
+  const center = towerGridCellCenter(cell);
+  if (
+    center.x < 25 ||
+    center.x > geometry.width - 25 ||
+    center.y < 25 ||
+    center.y > geometry.height - 25
+  )
+    return false;
   return state.towers.every((tower, index) => {
     if (!tower) return true;
-    const existing = towerPosition(state, index);
-    if (targetBonus && targetBonus.index === bonusAreaAt(geometry, existing)?.index) return false;
-    return Math.hypot(point.x - existing.x, point.y - existing.y) >= 42;
+    const existingCell = towerGridCellAt(geometry, towerPosition(state, index));
+    if (!existingCell) return true;
+    return towerGridCellKey(cell) !== towerGridCellKey(existingCell);
   });
 }

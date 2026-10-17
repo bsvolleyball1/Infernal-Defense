@@ -5,10 +5,10 @@ export const upgradeTrees: Record<
   { name: string; nodes: { name: string; effect: string; cap?: number }[] }
 > = {
   fire: {
-    name: 'Fire · Damage',
+    name: 'Red · Damage',
     nodes: [
       { name: 'Total mana', effect: '+25 maximum mana' },
-      { name: 'Max level', effect: '+1 dragon level cap (maximum level 6)' },
+      { name: 'Max level', effect: 'Raises a dragon to the three-tier cap' },
       { name: 'Placement mana', effect: '+5 mana when placing a dragon' },
       { name: 'Fire Rain', effect: '+10% spell damage' },
       { name: 'Egg return', effect: 'Dropped eggs return after 30s, −5s per rank (minimum 5s)' },
@@ -16,10 +16,10 @@ export const upgradeTrees: Record<
     ],
   },
   poison: {
-    name: 'Green · Rate',
+    name: 'Yellow · Rate',
     nodes: [
       { name: 'Starting mana', effect: '+10 starting mana' },
-      { name: 'Max level', effect: '+1 dragon level cap (maximum level 6)' },
+      { name: 'Max level', effect: 'Raises a dragon to the three-tier cap' },
       { name: 'More eggs', effect: '+1 starting egg (maximum 6)' },
       { name: 'Ice duration', effect: '+1 second Ice Freeze' },
       { name: 'Food from kills', effect: '+2 food per kill' },
@@ -30,7 +30,7 @@ export const upgradeTrees: Record<
     name: 'Blue · Range',
     nodes: [
       { name: 'Starting food', effect: '+25 starting food' },
-      { name: 'Max level', effect: '+1 dragon level cap (maximum level 6)' },
+      { name: 'Max level', effect: 'Raises a dragon to the three-tier cap' },
       { name: 'More charges', effect: '+1 ice charge capacity' },
       { name: 'Mana regeneration', effect: '+10% mana regeneration' },
       { name: 'Carrier damage', effect: '+10% damage against egg carriers' },

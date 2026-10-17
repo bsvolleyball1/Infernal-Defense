@@ -1,0 +1,18 @@
+Monster,Base HP,Speed rating,Movement progress per second,Red damage multiplier,Blue damage multiplier,Yellow damage multiplier,Spell damage multiplier,Spawn/trigger condition,Special ability / balance notes,Ability range map units,Ability value,Ability duration ms,Ability interval ms,Extra HP,Extra speed rating
+Imp,10,5,0.7031,1,1,1,1,,"No special ability.",,,,,,
+Sea Serpent,10,9,1.2656,1,1,1,1,,"Fast and fragile.",,,,,,
+Demon,100,1,0.1406,1,1,1,1,,"Slow and tough.",,,,,,
+Hellhound,50,5,0.7031,0.25,1,1,1,,"75% resistance to Red/fire dragon attacks.",,,,,,
+Fury,50,9,1.2656,1,1,0.25,1,,"75% resistance to Yellow/poison dragon attacks.",,,,,,
+Devil,100,1,0.1406,1,0.25,1,1,,"75% resistance to Blue/ice dragon attacks.",,,,,,
+Ghost,10,9,1.2656,1,1,1,1,After first dragon hit,"Becomes untargetable for 3 seconds; can still be hit by spells.",,,3000,,,
+Gargoyle,60,4,0.5625,1,1,1,1,When lethal damage is received,"Survives at 0.01 HP and delays death for 2 seconds; cannot take further damage during the delay.",,,2000,,,
+Witch,80,3,0.4219,1,1,1,0,,"Immune to spells.",,,,,,
+Hag,90,2,0.2813,1,1,1,1,Continuous while alive,"Heals other living monsters within range for 3% of each monster's max HP per second.",50,0.03 max HP/s,,,,
+Troll,100,3,0.4219,1,1,1,1,After 1 second without damage,"Regenerates 4% of its max HP per second.",,0.04 max HP/s,,,,
+Necromancer,100,1,0.1406,1,1,1,1,Every 5 seconds,"Stops to summon one random discovered monster, then resumes after 1 second.",,1 discovered monster,1000,5000,,
+Zombie Train,200,1,0.1406,1,1,1,1,On death,"Releases 5–10 Imps, Demons, and Sea Serpents in a random mix.",,5–10 minions,,,,
+Lich,90,4,0.5625,1,1,1,1,First egg pickup,"Gains 100 max/current HP and increases to speed rating 7.",,,,,+100,7
+Skeleton,10,5,0.7031,0.5,0.5,0.5,1,,"50% resistance to all dragon attacks; spells deal full damage.",,,,,,
+Phantom,80,2,0.2813,1,1,1,1,On spawn,"Invulnerable for 3 seconds after spawning.",,,3000,,,
+Shade,50,2,0.2813,1,1,1,1,Always,"Travels directly toward the nest, ignoring the trail.",,,,,,

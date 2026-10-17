@@ -1,13 +1,14 @@
-import type { GameState } from '../game/types';
+import type { DragonColor, DragonForm, DragonType, GameState } from '../game/types';
 import { createInitialState } from '../game/state';
 import { dragons, getMap, map, monsters, routesFor } from '../content/catalog';
-import { battlefields } from '../content/maps';
+import { battlefields, challengeAllowsDragon } from '../content/maps';
 import type { Battlefield } from '../content/maps';
 import type { JourneyProgress } from '../game/journey';
 import { validateDefense, validateDefenseEntities } from './defense-validation';
 import { createDefenseState } from '../game/defense-state';
 import { upgradedEggCount, eggReturnDelay } from '../content/defense-rules';
-import { isClearTowerPosition } from '../game/geometry';
+import { isClearTowerPosition, isValidTowerGridPosition } from '../game/geometry';
+import { dragonColors, dragonForms, formsForColors } from '../content/dragon-forms';
 
 export interface SaveDataV2 {
   version: 2;
@@ -59,7 +60,7 @@ function own(value: RecordValue, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 function monster(value: unknown): void { choice(value, Object.keys(monsters), 'Monster kind'); }
-function dragon(value: unknown): void { choice(value, Object.keys(dragons), 'Dragon type'); }
+function dragon(value: unknown): asserts value is DragonType { choice(value, Object.keys(dragons), 'Dragon type'); }
 function progress(value: unknown, geometry = map, routeId = 0): void {
   number(value, 'Path progress', 0, routesFor(geometry)[routeId].length - 1);
 }
@@ -78,14 +79,30 @@ function tower(value: unknown, geometry: Battlefield, legacy = false): void {
   object(value, 'Tower');
   dragon(value.type);
   if (geometry.challenge)
-    check(value.type === geometry.challenge.dragon, 'Tower does not match this level challenge.');
+    check(challengeAllowsDragon(geometry, value.type), 'Tower does not match this level challenge.');
   integer(value.level, 'Tower level', 1);
+  if (own(value, 'colors') || own(value, 'form')) {
+    check(value.level as number <= 3, 'Evolved dragons cannot exceed tier three.');
+    check(own(value, 'colors') && own(value, 'form'), 'Dragon evolution requires colors and a form.');
+    array(value.colors, 'Dragon colors');
+    check(
+      value.colors.length === value.level &&
+        value.colors.every((color) => typeof color === 'string' && dragonColors.includes(color as DragonColor)),
+      'Invalid dragon colors.',
+    );
+    choice(value.form, Object.keys(dragonForms), 'Dragon form');
+    const colors = value.colors as DragonColor[];
+    const allowedForms =
+      colors.length === 1 ? colors : formsForColors(colors);
+    check(allowedForms.includes(value.form as DragonForm), 'Dragon form does not match its colors.');
+  }
   if (own(value, 'position')) {
     object(value.position, 'Tower position');
     number(value.position.x, 'Tower x', 0, geometry.width);
     number(value.position.y, 'Tower y', 0, geometry.height);
     check(
-      isClearTowerPosition({ x: value.position.x as number, y: value.position.y as number }, geometry),
+      isClearTowerPosition({ x: value.position.x as number, y: value.position.y as number }, geometry) ||
+        isValidTowerGridPosition({ x: value.position.x as number, y: value.position.y as number }, geometry),
       'Tower cannot touch the road or map edge.',
     );
   }
@@ -155,7 +172,7 @@ function validateState(value: unknown): asserts value is GameState {
   if (value.chosen !== null) {
     dragon(value.chosen);
     if (geometry.challenge)
-      check(value.chosen === geometry.challenge.dragon, 'Chosen dragon does not match this level challenge.');
+      check(challengeAllowsDragon(geometry, value.chosen), 'Chosen dragon does not match this level challenge.');
   }
   check(value.selected === null || value.towers[value.selected as number] !== null, 'Selected dragon must exist.');
   eggs(value.eggs, false, geometry, eggCount);

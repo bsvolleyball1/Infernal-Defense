@@ -1,14 +1,23 @@
 import { dragons } from '../content/catalog';
 import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
 import { startWave } from './waves';
-import type { GameCommand, GameEvent, GameState } from './types';
+import type { DragonColor, GameCommand, GameEvent, GameState } from './types';
 import { castSpell } from './spells';
 import { rank, levelCap } from './defense-state';
 import { upgradeTrees, upgradeCost } from '../content/upgrades';
 import { isDefenseMonster } from '../content/enemies';
 import { defenseRules } from '../content/defense-rules';
-import { canPlaceTower } from './geometry';
+import { canPlaceTower, towerGridPosition } from './geometry';
 import { getMap } from '../content/catalog';
+import { challengeAllowsDragon, challengeAllowsSpell } from '../content/maps';
+import {
+  colorForDragon,
+  colorsForTower,
+  dragonColors,
+  dragonForms,
+  formForTower,
+  nextForms,
+} from '../content/dragon-forms';
 
 /** Commands mutate only engine-owned state and return data-only events. */
 export function applyCommand(state: GameState, command: GameCommand): GameEvent[] {
@@ -47,7 +56,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
       if (
         state.defense &&
         [null, 'fire', 'poison'].includes(command.spell) &&
-        (!getMap(state.activeLevel).challenge || command.spell === null || getMap(state.activeLevel).challenge?.spell === command.spell)
+        (command.spell === null || challengeAllowsSpell(getMap(state.activeLevel), command.spell))
       ) {
         state.defense.targeting = command.spell;
         state.defense.preview = null;
@@ -72,8 +81,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
     case 'choose':
       if (
         !Object.prototype.hasOwnProperty.call(dragons, command.dragon) ||
-        (getMap(state.activeLevel).challenge &&
-          getMap(state.activeLevel).challenge?.dragon !== command.dragon)
+        !challengeAllowsDragon(getMap(state.activeLevel), command.dragon)
       )
         return [];
       state.chosen = command.dragon;
@@ -84,7 +92,7 @@ export function applyCommand(state: GameState, command: GameCommand): GameEvent[
     case 'place':
       return placeTower(state, command.point);
     case 'upgrade':
-      return upgradeTower(state);
+      return upgradeTower(state, command);
     case 'sell':
       return sellTower(state);
     case 'startWave':
@@ -101,12 +109,18 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
   }
   if (!state.chosen) return [{ type: 'message', text: 'Choose a dragon first' }];
   const challenge = getMap(state.activeLevel).challenge;
-  if (challenge && state.chosen !== challenge.dragon) return [];
+  if (challenge && !challengeAllowsDragon(getMap(state.activeLevel), state.chosen)) return [];
   const dragon = dragons[state.chosen];
   if (state.gold < dragon.cost && state.defense?.mode !== 'sandbox')
     return [{ type: 'message', text: state.defense ? 'Not enough food' : 'Not enough gold' }];
   if (state.defense?.mode !== 'sandbox') state.gold -= dragon.cost;
-  state.towers[index] = { type: state.chosen, level: 1, cooldown: 0 };
+  state.towers[index] = {
+    type: state.chosen,
+    level: 1,
+    cooldown: 0,
+    colors: [colorForDragon[state.chosen]],
+    form: colorForDragon[state.chosen],
+  };
   if (state.defense) {
     state.defense.mana = Math.min(
       state.defense.maxMana,
@@ -122,9 +136,10 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
 function placeTower(state: GameState, point: { x: number; y: number }): GameEvent[] {
   if (!state.chosen) return [{ type: 'message', text: 'Choose a dragon first' }];
   const challenge = getMap(state.activeLevel).challenge;
-  if (challenge && state.chosen !== challenge.dragon) return [];
-  if (!canPlaceTower(state, point))
-    return [{ type: 'message', text: 'Choose a clear area away from the road and other dragons' }];
+  if (challenge && !challengeAllowsDragon(getMap(state.activeLevel), state.chosen)) return [];
+  const position = towerGridPosition(point, getMap(state.activeLevel));
+  if (!position || !canPlaceTower(state, point))
+    return [{ type: 'message', text: 'Choose an empty, open grid cell' }];
 
   const dragon = dragons[state.chosen];
   if (state.gold < dragon.cost && state.defense?.mode !== 'sandbox')
@@ -133,7 +148,14 @@ function placeTower(state: GameState, point: { x: number; y: number }): GameEven
   if (state.defense?.mode !== 'sandbox') state.gold -= dragon.cost;
   const index = state.towers.findIndex((tower) => tower === null);
   const slot = index < 0 ? state.towers.length : index;
-  const tower = { type: state.chosen, level: 1, cooldown: 0, position: { ...point } };
+  const tower = {
+    type: state.chosen,
+    level: 1,
+    cooldown: 0,
+    colors: [colorForDragon[state.chosen]],
+    form: colorForDragon[state.chosen],
+    position,
+  };
   if (state.defense && state.chosen === 'ice') Object.assign(tower, { charges: 1, chargeTimer: 1000 });
   state.towers[slot] = tower;
   if (state.defense) {
@@ -147,21 +169,37 @@ function placeTower(state: GameState, point: { x: number; y: number }): GameEven
   return [{ type: 'save' }];
 }
 
-function upgradeTower(state: GameState): GameEvent[] {
+function upgradeTower(
+  state: GameState,
+  choice: { color?: DragonColor; form?: keyof typeof dragonForms },
+): GameEvent[] {
   const tower = state.selected === null ? null : state.towers[state.selected];
   if (
     !tower ||
     tower.level >= levelCap(state, tower) ||
+    !choice.color ||
+    !dragonColors.includes(choice.color) ||
     (state.gold < towerUpgradeCost(tower) && state.defense?.mode !== 'sandbox')
   )
     return [];
+  const nextColors = [...colorsForTower(tower), choice.color];
+  const forms = nextForms(tower, choice.color);
+  if (!forms.length || !choice.form || !forms.includes(choice.form)) return [];
   if (state.defense?.mode !== 'sandbox') state.gold -= towerUpgradeCost(tower);
   const previousInterval = towerAttackInterval(tower);
   tower.level++;
+  tower.colors = nextColors;
+  tower.form = choice.form;
+  delete tower.charges;
+  delete tower.chargeTimer;
+  delete tower.beamIds;
   const upgradedInterval = towerAttackInterval(tower);
   tower.cooldown = Math.max(0, tower.cooldown + upgradedInterval - previousInterval);
-  if (state.defense) tower.cooldown = tower.type === 'fire' && tower.level >= 5 ? 1000 : 0;
-  return [{ type: 'save' }, { type: 'message', text: 'Dragon upgraded to level ' + tower.level }];
+  if (state.defense) tower.cooldown = 0;
+  return [
+    { type: 'save' },
+    { type: 'message', text: `${dragonForms[formForTower(tower)].name} · Tier ${tower.level}` },
+  ];
 }
 
 function sellTower(state: GameState): GameEvent[] {

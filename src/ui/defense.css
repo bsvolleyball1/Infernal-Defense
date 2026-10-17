@@ -105,25 +105,31 @@
   cursor: default;
   opacity: 0.55;
 }
+.orb.venom {
+  background: #393322;
+}
 .arena {
   position: relative;
+}
+.map {
+  aspect-ratio: 700 / 430;
 }
 .battlefield {
   position: relative;
   isolation: isolate;
-  container-type: inline-size;
 }
 .battle-toolbar {
-  position: absolute;
   z-index: 4;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: grid;
-  gap: 8px;
-  padding: 30px 10px 10px;
-  background: linear-gradient(0deg, #101610ed 8%, #101610a8 70%, transparent 100%);
+  width: 100%;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  border: 1px solid #384338;
+  border-radius: 6px;
+  background: #101610ed;
   pointer-events: none;
+  container-type: inline-size;
 }
 .battle-shortcuts,
 #battleStatus {
@@ -416,10 +422,61 @@
 .actions .btn.secondary {
   margin-top: 0;
 }
+#upgradeChoices {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 9px;
+  border: 1px solid #6e805f;
+  border-radius: 6px;
+  background: #191f19ed;
+  box-shadow: 0 4px 12px #0009;
+  transform: translateX(-50%);
+}
+#upgradeChoices[hidden] {
+  display: none;
+}
+#upgradeChoices > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+.upgrade-choice-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.upgrade-choice-buttons button {
+  min-height: 36px;
+  border: 1px solid var(--choice-color);
+  border-radius: 5px;
+  background: #222a21;
+  color: var(--choice-color);
+  padding: 6px 9px;
+  font: 700 11px 'DM Sans';
+  cursor: pointer;
+}
+.upgrade-choice-buttons button:hover {
+  background: color-mix(in srgb, var(--choice-color) 18%, #222a21);
+}
+.upgrade-choice-buttons small {
+  display: block;
+  max-width: 130px;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 400;
+}
 @media (max-width: 480px) {
   .battle-toolbar {
-    padding: 18px 6px 6px;
-    gap: 5px;
+    margin-top: 4px;
+    padding: 4px 5px;
+    gap: 2px;
   }
   #battleStatus .stats {
     gap: 4px;

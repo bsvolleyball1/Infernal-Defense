@@ -1,6 +1,7 @@
 import { entityPosition, towerPosition } from '../game/geometry';
 import type { GameState } from '../game/types';
 import { element } from './dom';
+import { dragonForms, formForTower } from '../content/dragon-forms';
 
 /** Retained effect nodes: no frame-by-frame SVG reconstruction. */
 export class DefenseEffects {
@@ -33,7 +34,7 @@ export class DefenseEffects {
             y1: p.y - 18,
             x2: x,
             y2: y,
-            stroke: '#ee7959',
+            stroke: dragonForms[formForTower(t)].color,
             'stroke-width': 3,
           }))
             line.setAttribute(key, String(value));
@@ -45,9 +46,9 @@ export class DefenseEffects {
           cx: effect.x,
           cy: effect.y,
           r: effect.radius,
-          fill: effect.kind === 'poison' ? '#94c968' : '#ee7959',
+          fill: effect.color ?? (effect.kind === 'poison' ? '#94c968' : effect.kind === 'ice' ? '#81d0dc' : '#ee7959'),
           opacity: 0.15,
-          stroke: effect.kind === 'poison' ? '#94c968' : '#ee7959',
+          stroke: effect.color ?? (effect.kind === 'poison' ? '#94c968' : effect.kind === 'ice' ? '#81d0dc' : '#ee7959'),
         }))
           circle.setAttribute(key, String(value));
       }

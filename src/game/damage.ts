@@ -24,7 +24,7 @@ export function applyDamage(
     return;
   if (source === 'spell' && enemy.kind === 'witch') return;
   let resistance = 1;
-  if (source !== 'spell') {
+  if (source !== 'spell' && (enemy.nullified ?? 0) <= 0) {
     if (enemy.kind === 'skeleton') resistance = 0.5;
     if (
       (enemy.kind === 'hellhound' && source === 'fire') ||

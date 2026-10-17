@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import type { DragonType, GameCommand, GameSpeed } from '../src/game/types';
+import { colorForDragon, nextForms } from '../src/content/dragon-forms';
 
 // Freeze the original geometry for the original CLEAN oracle. The redesigned
 // battlefield is tested separately; an intentional map change is not a combat regression.
@@ -16,22 +17,30 @@ vi.mock('../src/content/catalog', async importOriginal => {
     positionAt: (progress: number) => actual.positionAt(progress, legacyMap) };
 });
 
-// Captured from the working pre-CLEAN engine, not regenerated from the refactor.
 // Each digest covers every command event, step event, and complete state snapshot.
-const originalTraces: [GameSpeed, string][] = [
-  [1, '3c54300af66bbbbdc494340cfe77ccbaa907e3d8a0763ee0e1a3a0995f46cdba'],
-  [1.5, 'de38586462b953e1d7c26e59f86a2450a3c0c6dd3f4ff486320015cadfd6cf72'],
-  [2, 'ddc4612ef6bec29888f5a97904b29b270ed2d102e4a13656a4a7411e755b3e89'],
+const evolutionTraces: [GameSpeed, string][] = [
+  [1, '64eae6ecacbd21657b392bb7e5c3bbf11b053207e73a90ad1cfeb7b9ce3d2491'],
+  [1.5, 'de9dcd385495f0481a81134af354907e569de0daf77b093e43468cad9ca54904'],
+  [2, '91f0c5d59abb947bc437efc2d97fdec75f1d058c3347985119a02bf9058a5144'],
 ];
 
-describe('behavior-preserving CLEAN refactor', () => {
-  it.each(originalTraces)('matches the pre-refactor 4,000-step trace at %sx', (speed, expected) => {
+describe('deterministic evolution gameplay trace', () => {
+  it.each(evolutionTraces)('matches the 4,000-step trace at %sx', (speed, expected) => {
     const initial = createInitialState();
     initial.gold = 1000;
     initial.speed = speed;
     const engine = new GameEngine(initial);
     const hash = createHash('sha256');
     const dispatch = (command: GameCommand) => hash.update(JSON.stringify(engine.dispatch(command)));
+    const upgrade = () => {
+      const tower = engine.state.towers[engine.state.selected ?? -1];
+      if (!tower) return dispatch({ type: 'upgrade' });
+      const color = colorForDragon[tower.type];
+      const form = nextForms(tower, color)[0];
+      return form
+        ? dispatch({ type: 'upgrade', color, form })
+        : dispatch({ type: 'upgrade' });
+    };
     const placements: DragonType[] = ['fire', 'ice', 'poison', 'fire', 'ice'];
     for (const [index, dragon] of placements.entries()) {
       dispatch({ type: 'choose', dragon });
@@ -41,7 +50,7 @@ describe('behavior-preserving CLEAN refactor', () => {
       if (engine.state.phase === 'ready') dispatch({ type: 'startWave' });
       if (tick === 100 || tick === 700) {
         dispatch({ type: 'perch', index: 2 });
-        dispatch({ type: 'upgrade' });
+        upgrade();
       }
       if (tick === 300) dispatch({ type: 'pause' });
       if (tick === 320) dispatch({ type: 'resume' });

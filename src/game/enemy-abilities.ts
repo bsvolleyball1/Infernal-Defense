@@ -10,6 +10,7 @@ import type { Enemy, GameEvent, GameState } from './types';
 export function tickEnemyAbilities(state: GameState, enemy: Enemy, dt: number, events: GameEvent[]): boolean {
   enemy.untargetable = Math.max(0, (enemy.untargetable ?? 0) - dt);
   enemy.invulnerable = Math.max(0, (enemy.invulnerable ?? 0) - dt);
+  enemy.nullified = Math.max(0, (enemy.nullified ?? 0) - dt);
   enemy.lastHitAgo = (enemy.lastHitAgo ?? 0) + dt;
   if ((enemy.deathDelay ?? 0) > 0) {
     enemy.deathDelay = Math.max(0, enemy.deathDelay! - dt);

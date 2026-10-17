@@ -90,6 +90,7 @@ export function validateDefenseEntities(state: GameState): void {
       'poisonDamage',
       'poisonDamageMultiplier',
       'untargetable',
+      'nullified',
       'invulnerable',
       'deathDelay',
       'lastHitAgo',

@@ -11,16 +11,15 @@ function repository() {
 }
 
 describe('player journeys, not per-level saves', () => {
-  it('unlocks the focused dragon trials in fire, ice, poison order', () => {
+  it('unlocks the six elemental challenge levels in order', () => {
     const progress = createJourney();
-    expect(isLevelUnlocked('fireTrial', progress)).toBe(true);
-    expect(isLevelUnlocked('iceTrial', progress)).toBe(false);
-    expect(isLevelUnlocked('poisonTrial', progress)).toBe(false);
-    progress.completedLevels.push('fireTrial');
-    expect(isLevelUnlocked('iceTrial', progress)).toBe(true);
-    expect(isLevelUnlocked('poisonTrial', progress)).toBe(false);
-    progress.completedLevels.push('iceTrial');
-    expect(isLevelUnlocked('poisonTrial', progress)).toBe(true);
+    const order = ['fireTrial', 'iceTrial', 'poisonTrial', 'noPoisonTrial', 'noIceTrial', 'noFireTrial'] as const;
+    expect(isLevelUnlocked(order[0], progress)).toBe(true);
+    for (let index = 1; index < order.length; index++) {
+      expect(isLevelUnlocked(order[index], progress)).toBe(false);
+      progress.completedLevels.push(order[index - 1]);
+      expect(isLevelUnlocked(order[index], progress)).toBe(true);
+    }
   });
 
   it('persists an empty player before selecting a level', () => {

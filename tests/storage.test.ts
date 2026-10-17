@@ -188,6 +188,8 @@ describe('version 2 snapshots', () => {
     ['wrong tower count', s => { s.towers.pop(); }],
     ['unknown tower', s => { s.towers[0]!.type = 'water' as NonNullable<GameState['chosen']>; }],
     ['fractional tower level', s => { s.towers[0]!.level = 1.5; }],
+    ['dragon form mismatches its colors', s => { Object.assign(s.towers[0]!, { colors: ['blue', 'blue'], form: 'purple' }); }],
+    ['evolved dragon exceeds tier three', s => { Object.assign(s.towers[0]!, { level: 4, colors: ['blue', 'blue', 'blue', 'blue'], form: 'blue3' }); }],
     ['negative cooldown', s => { s.towers[0]!.cooldown = -1; }],
     ['unknown bestiary', s => { s.knownMonsters = ['toString']; }],
     ['duplicate bestiary', s => { s.knownMonsters = ['scout', 'scout']; }],

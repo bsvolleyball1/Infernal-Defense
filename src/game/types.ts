@@ -1,4 +1,28 @@
 export type DragonType = 'fire' | 'ice' | 'poison';
+export type DragonColor = 'red' | 'blue' | 'yellow';
+export type DragonForm =
+  | 'red'
+  | 'blue'
+  | 'yellow'
+  | 'red2'
+  | 'purple'
+  | 'orange'
+  | 'blue2'
+  | 'green'
+  | 'yellow2'
+  | 'red3'
+  | 'bloodRed'
+  | 'pink'
+  | 'blue3'
+  | 'black'
+  | 'gray'
+  | 'yellow3'
+  | 'sun'
+  | 'turquoise'
+  | 'white'
+  | 'purple2'
+  | 'orange2'
+  | 'green2';
 export type MonsterKind = 'scout' | 'shield' | 'runner' | 'chief' | 'imp' | 'seaSerpent' | 'demon' | 'hellhound' | 'fury' | 'devil' | 'ghost' | 'gargoyle' | 'witch' | 'hag' | 'troll' | 'necromancer' | 'zombieTrain' | 'lich' | 'skeleton' | 'phantom' | 'shade';
 export type SpellKind = 'poison' | 'ice' | 'fire';
 export interface Point { x: number; y: number }
@@ -14,7 +38,7 @@ export interface DefenseState {
   targeting: 'poison' | 'fire' | null;
   preview: Point | null;
   impacts: { id: number; x: number; y: number; remaining: number; damage: number }[];
-  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number }[];
+  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number; color?: string }[];
   testWave: Partial<Record<MonsterKind, number>>;
 }
 export type Level =
@@ -24,13 +48,19 @@ export type Level =
   | 'volcanic'
   | 'fireTrial'
   | 'iceTrial'
-  | 'poisonTrial';
+  | 'poisonTrial'
+  | 'noPoisonTrial'
+  | 'noIceTrial'
+  | 'noFireTrial';
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 
 export interface Tower {
   type: DragonType;
   level: number;
+  /** Upgrade colors are unordered for determining the evolved form. */
+  colors?: DragonColor[];
+  form?: DragonForm;
   /** Coordinates are absent only on pre-free-placement saves. */
   position?: Point;
   /** Remaining simulation milliseconds before the next shot. */
@@ -60,6 +90,7 @@ export interface Enemy {
   poisonDamage?: number;
   poisonDamageMultiplier?: number;
   poisonSource?: DragonType | 'spell';
+  nullified?: number;
   untargetable?: number;
   ghostTriggered?: boolean;
   invulnerable?: number;
@@ -138,7 +169,7 @@ export type GameCommand =
   | { type: 'choose'; dragon: DragonType }
   | { type: 'perch'; index: number }
   | { type: 'place'; point: Point }
-  | { type: 'upgrade' }
+  | { type: 'upgrade'; color?: DragonColor; form?: DragonForm }
   | { type: 'sell' }
   | { type: 'startWave' }
   | { type: 'spell'; spell: SpellKind; point?: Point }

@@ -14,6 +14,7 @@ import { upgradedEggCount } from '../src/content/defense-rules';
 import { SaveRepository } from '../src/services/storage';
 import { createJourney, recordJourneyResult } from '../src/game/journey';
 import type { GameState, MonsterKind } from '../src/game/types';
+import { upgradeSelected } from './helpers';
 
 function battle(kind: MonsterKind = 'demon'): GameState {
   const state = createDefenseState();
@@ -259,6 +260,23 @@ describe('dragon strategies', () => {
     expect(s.projectiles).toHaveLength(4);
     expect(s.projectiles[0]).toMatchObject({ damage: 4, poisonDuration: 5000, slowDuration: 1000 });
   });
+  it('Bronze stuns enemies in its earthquake area', () => {
+    const s = battle();
+    s.enemies[0].progress = 1;
+    s.towers[0] = {
+      type: 'ice',
+      level: 3,
+      cooldown: 0,
+      colors: ['blue', 'blue', 'yellow'],
+      form: 'gray',
+    };
+    tickDefenseTowers(s, 1800, []);
+    expect(s.enemies[0].frozen).toBe(1500);
+    const progress = s.enemies[0].progress;
+    moveEnemy(s, s.enemies[0], 500);
+    expect(s.enemies[0].progress).toBe(progress);
+    expect(s.enemies[0].frozen).toBe(1000);
+  });
   it('poison has five inclusive one-second ticks after the last hit', () => {
     const s = battle(),
       e = s.enemies[0];
@@ -300,6 +318,17 @@ describe('enemy abilities and eggs', () => {
     const s = battle(kind);
     applyDamage(s, s.enemies[0], 10, source, []);
     expect(s.enemies[0].hp).toBe(100 - damage);
+  });
+  it('pink nullifies monster resistances until its timer expires', () => {
+    const s = battle('skeleton'),
+      e = s.enemies[0];
+    e.nullified = 500;
+    applyDamage(s, e, 10, 'fire', []);
+    expect(e.hp).toBe(90);
+    tickEnemyAbilities(s, e, 500, []);
+    expect(e.nullified).toBe(0);
+    applyDamage(s, e, 10, 'fire', []);
+    expect(e.hp).toBe(85);
   });
   it('witch ignores spells but not dragons', () => {
     const s = battle('witch');
@@ -441,8 +470,8 @@ describe('spells, upgrades, sandbox and exact persistence', () => {
     const engine = new GameEngine(s);
     engine.dispatch({ type: 'choose', dragon: 'ice' });
     engine.dispatch({ type: 'perch', index: 0 });
-    for (let i = 0; i < 8; i++) engine.dispatch({ type: 'upgrade' });
-    expect(engine.state.towers[0]?.level).toBe(6);
+    for (let i = 0; i < 8; i++) upgradeSelected(engine);
+    expect(engine.state.towers[0]?.level).toBe(3);
     expect(engine.state.gold).toBe(0);
     engine.dispatch({ type: 'testWave', counts: { imp: 2, demon: 1 } });
     engine.dispatch({ type: 'startWave' });

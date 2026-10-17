@@ -4,6 +4,7 @@ import { createInitialState, GameEngine } from '../src/game/engine';
 import { createDefenseState } from '../src/game/defense-state';
 import { moveEnemy } from '../src/game/eggs';
 import type { DragonType, Enemy, GameState, Projectile } from '../src/game/types';
+import { upgradeSelected } from './helpers';
 
 function enemy(overrides: Partial<Enemy> = {}): Enemy {
   return {
@@ -32,7 +33,7 @@ describe('original content and initial state', () => {
     expect(map.path).toHaveLength(17);
     expect(map.perches).toEqual([{ x: 90, y: 202 }, { x: 230, y: 155 }, { x: 365, y: 205 }, { x: 430, y: 78 }, { x: 594, y: 205 }, { x: 220, y: 345 }, { x: 410, y: 385 }, { x: 590, y: 345 }]);
     expect(Object.values(dragons).map(({ name, cost, damage, rate, range }) => [name, cost, damage, rate, range])).toEqual([
-      ['Ember', 60, 27, 680, 132], ['Frost', 55, 8, 820, 145], ['Thorn', 50, 7, 760, 125],
+      ['Red', 60, 27, 680, 132], ['Blue', 55, 8, 820, 145], ['Yellow', 50, 7, 760, 125],
     ]);
     expect(waves.map(groups => groups.reduce((sum, group) => sum + group.n, 0))).toEqual([10, 12, 18, 18, 19]);
     expect(waves[4][2]).toEqual({ kind: 'chief', n: 1, hp: 900, spd: 0.4 });
@@ -69,8 +70,8 @@ describe('commands and economy', () => {
     expect(engine.state).toMatchObject({ chosen: 'fire', selected: null });
     expect(engine.dispatch({ type: 'perch', index: 0 })).toContainEqual({ type: 'save' });
     expect(engine.state).toMatchObject({ gold: 60, chosen: null, selected: 0 });
-    expect(engine.state.towers[0]).toEqual({ type: 'fire', level: 1, cooldown: 0 });
-    engine.dispatch({ type: 'upgrade' });
+    expect(engine.state.towers[0]).toMatchObject({ type: 'fire', level: 1, cooldown: 0, colors: ['red'], form: 'red' });
+    upgradeSelected(engine);
     expect(engine.state.gold).toBe(15);
     expect(engine.state.towers[0]?.level).toBe(2);
     expect(engine.dispatch({ type: 'upgrade' })).toEqual([]);
@@ -82,12 +83,12 @@ describe('commands and economy', () => {
     expect(engine.state.towers[0]).toBeNull();
   });
 
-  it('floors the Frost refund and uses the current level for upgrade cost', () => {
+  it('floors the Blue refund and uses the current tier for upgrade cost', () => {
     const engine = new GameEngine({ ...createInitialState(), gold: 300 });
     engine.dispatch({ type: 'choose', dragon: 'ice' });
     engine.dispatch({ type: 'perch', index: 2 });
-    engine.dispatch({ type: 'upgrade' });
-    engine.dispatch({ type: 'upgrade' });
+    upgradeSelected(engine);
+    upgradeSelected(engine);
     expect(engine.state.gold).toBe(110);
     engine.dispatch({ type: 'sell' });
     expect(engine.state.gold).toBe(173);
@@ -95,8 +96,30 @@ describe('commands and economy', () => {
 
   it('applies the upgraded fire rate to an attack already cooling down', () => {
     const engine = battle({ selected: 0, towers: [{ type: 'fire', level: 1, cooldown: 400 }, null, null, null, null] });
-    engine.dispatch({ type: 'upgrade' });
+    upgradeSelected(engine);
     expect(engine.state.towers[0]?.cooldown).toBeCloseTo(680 / 1.13 - 280);
+  });
+
+  it('requires a valid color and resulting form and caps evolution at tier three', () => {
+    const engine = new GameEngine({ ...createInitialState(), gold: 500 });
+    engine.dispatch({ type: 'choose', dragon: 'fire' });
+    engine.dispatch({ type: 'perch', index: 0 });
+    expect(engine.dispatch({ type: 'upgrade', color: 'blue', form: 'black' })).toEqual([]);
+    expect(engine.state.towers[0]?.level).toBe(1);
+    engine.dispatch({ type: 'upgrade', color: 'blue', form: 'purple' });
+    expect(engine.state.towers[0]).toMatchObject({
+      level: 2,
+      colors: ['red', 'blue'],
+      form: 'purple',
+    });
+    engine.dispatch({ type: 'upgrade', color: 'red', form: 'purple2' });
+    expect(engine.state.towers[0]).toMatchObject({
+      level: 3,
+      colors: ['blue', 'red', 'red'],
+      form: 'purple2',
+    });
+    expect(engine.dispatch({ type: 'upgrade', color: 'yellow', form: 'white' })).toEqual([]);
+    expect(engine.state.towers[0]?.level).toBe(3);
   });
 
   it('rejects invalid perches, unaffordable actions, and unselected actions without corrupting state', () => {
@@ -116,7 +139,7 @@ describe('commands and economy', () => {
       const state = engine.snapshot();
       engine.dispatch({ type: 'choose', dragon: 'fire' });
       engine.dispatch({ type: 'perch', index: 0 });
-      engine.dispatch({ type: 'upgrade' });
+      upgradeSelected(engine);
       engine.dispatch({ type: 'sell' });
       engine.dispatch({ type: 'startWave' });
       expect(engine.step(10000)).toEqual([]);
@@ -186,7 +209,7 @@ describe('simulation clock and scheduled spawning', () => {
     engine.dispatch({ type: 'speed', speed: 2 });
     expect(engine.state).toMatchObject({ paused: true, speed: 2 });
     engine.dispatch({ type: 'resume' });
-    engine.dispatch({ type: 'upgrade' });
+    upgradeSelected(engine);
     expect(engine.state.towers[0]?.level).toBe(2);
   });
 

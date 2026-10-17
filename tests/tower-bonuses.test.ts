@@ -27,14 +27,15 @@ describe('battlefield tower bonus areas', () => {
     const state = createInitialState();
     state.phase = 'battle';
     state.wave = 1;
+    const damage = getMap(state.activeLevel).bonusAreas.find(area => area.kind === 'damage')!;
     state.towers[0] = {
       type: 'poison',
       level: 1,
       cooldown: 0,
-      position: { x: 240, y: 245 },
+      position: { x: damage.x, y: damage.y },
     };
     const target: Enemy = {
-      id: 12, kind: 'scout', hp: 100, max: 100, spd: 0.72, progress: 8,
+      id: 12, kind: 'scout', hp: 100, max: 100, spd: 0.72, progress: 7,
       slow: 0, poison: 0, poisonD: 0, carryingEgg: null, returning: false,
       escaped: false, rewarded: false,
     };

@@ -4,13 +4,14 @@ import { rank } from './defense-state';
 import { defenseRules } from '../content/defense-rules';
 import type { GameEvent, GameState, Point, SpellKind } from './types';
 import { getMap } from '../content/catalog';
+import { challengeAllowsSpell } from '../content/maps';
 
 export function castSpell(state: GameState, spell: SpellKind, point: Point | undefined): GameEvent[] {
   const d = state.defense;
   if (
     !d ||
     !['fire', 'ice', 'poison'].includes(spell) ||
-    (getMap(state.activeLevel).challenge && getMap(state.activeLevel).challenge?.spell !== spell) ||
+    !challengeAllowsSpell(getMap(state.activeLevel), spell) ||
     state.phase !== 'battle' ||
     state.paused ||
     (d.mana < defenseRules.spellCost && d.mode !== 'sandbox') ||

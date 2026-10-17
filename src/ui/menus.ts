@@ -6,6 +6,7 @@ import type { GameState } from '../game/types';
 import type { JourneyProgress } from '../game/journey';
 import { importJourney, isLevelUnlocked, levelPrerequisite } from '../game/journey';
 import { element, elements, setText } from './dom';
+import { challengeLabel } from '../content/maps';
 
 const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
 export type MenuPage = typeof menuPages[number];
@@ -29,7 +30,7 @@ export function showBattle(): void {
 export function renderLevelSelect(): void {
   element('#levelList').innerHTML = Object.entries(battlefields).map(([id, map]) => `
     <button class="level-card" data-level="${id}">
-      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : map.challenge ? `${map.challenge.dragon} dragon · ${map.challenge.spell} spell` : map.forks.length ? 'Branching routes' : 'Free dragon placement'}</div>
+      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : challengeLabel(map) ?? (map.forks.length ? 'Branching routes' : 'Free dragon placement')}</div>
       <strong>${id === 'tutorial' ? 'Tutorial' : map.name}</strong>
       <small>${map.description}</small>
       <span class="level-number">${map.forks.length ? '⑂' : '✦'}</span>

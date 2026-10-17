@@ -2,7 +2,7 @@
 export const defenseRules = {
   startingEggs: 3,
   maximumEggs: 6,
-  maximumDragonLevel: 6,
+  maximumDragonLevel: 3,
   maximumUpgradeRank: 1000,
   placementManaPerRank: 5,
   manaPerSecond: 5,

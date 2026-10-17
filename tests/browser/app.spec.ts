@@ -12,29 +12,29 @@ async function startJourney(page: Page): Promise<void> {
   await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
 }
 
-test('freeform placement supports upgrading, selling and reload', async ({ page }) => {
+test('grid placement supports upgrading, selling and reload', async ({ page }) => {
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
   await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-1/);
   await page.locator('#upgrade').click();
+  await page.locator('[data-upgrade-color="red"]').click();
   await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-2/);
   const placed = (await savedState(page)).towers[0];
-  expect(placed).toMatchObject({ type: 'fire', level: 2 });
-  expect(Math.abs(placed.position.x - 90)).toBeLessThan(1);
-  expect(Math.abs(placed.position.y - 202)).toBeLessThan(1);
+  expect(placed).toMatchObject({ type: 'fire', level: 2, colors: ['red', 'red'], form: 'red2' });
+  expect(placed.position).toEqual({ x: 75, y: 225 });
   await page.reload();
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-load="0"]').click(); await page.locator("#journeyResume").click();
   // Expanded pre-wave countdowns also require an explicit Resume after loading.
   await page.locator('#resumeBattle').click();
-  await page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Red 2, tier 2, dragon 1', exact: true }).click();
   await page.locator('#sell').click();
   expect((await savedState(page)).towers).toHaveLength(8);
   expect((await savedState(page)).towers[0]).toBeNull();
 });
 
-test('dragon and spell icon controls sit over the bottom of the map', async ({ page }) => {
+test('dragon and spell icon controls sit in a thin band below the map', async ({ page }) => {
   await startJourney(page);
   await expect(page.locator('#battleDragons .tower')).toHaveCount(3);
   await expect(page.locator('#battleSpells [data-spell]')).toHaveCount(3);
@@ -58,7 +58,7 @@ test('dragon and spell icon controls sit over the bottom of the map', async ({ p
   await expect(page.locator('#battleControls #returnMenu')).toHaveAttribute('aria-label', 'Return to menu');
   await expect(page.locator('#battleDragons [data-type="fire"]')).toHaveAttribute(
     'aria-label',
-    /Ember dragon.*60 food/,
+    /Red dragon.*60 food/,
   );
   await expect(page.locator('#battleDragons [data-type="fire"] .dragon-portrait')).toHaveAttribute('src', /fire-1/);
   const mapBox = await page.locator('#map').boundingBox();
@@ -68,8 +68,8 @@ test('dragon and spell icon controls sit over the bottom of the map', async ({ p
   const dragonsBox = await page.locator('#battleDragons').boundingBox();
   expect(mapBox).not.toBeNull();
   expect(toolbarBox).not.toBeNull();
-  expect(toolbarBox!.y + toolbarBox!.height).toBeGreaterThan(mapBox!.y + mapBox!.height - 2);
-  expect(toolbarBox!.y).toBeGreaterThan(mapBox!.y + mapBox!.height / 2);
+  expect(toolbarBox!.y).toBeGreaterThanOrEqual(mapBox!.y + mapBox!.height - 1);
+  expect(toolbarBox!.height).toBeLessThanOrEqual(125);
   expect(spellsBox).not.toBeNull();
   expect(middleBox).not.toBeNull();
   expect(dragonsBox).not.toBeNull();
@@ -85,9 +85,9 @@ test('selected dragon shows a translucent placement preview that follows the poi
   await expect(preview).toHaveAttribute('visibility', 'visible');
   await expect(preview).toHaveAttribute('opacity', '.58');
   await expect(preview.locator('.placement-icon')).toHaveAttribute('href', /fire-1/);
-  await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#c5f39a');
+  await expect(preview.locator('.placement-cell')).toHaveAttribute('stroke', '#c5f39a');
   await movePointerToMap(page, 350, 315);
-  await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#ff8671');
+  await expect(preview.locator('.placement-cell')).toHaveAttribute('stroke', '#ff8671');
   await clickMapAt(page, 90, 202);
   await expect(preview).toHaveAttribute('visibility', 'hidden');
 });
@@ -104,8 +104,9 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await clickMapAt(page, 90, 202);
   await expect(page.locator('#gold')).toHaveText('60');
   await page.locator('#upgrade').click();
+  await page.locator('[data-upgrade-color="red"]').click();
   await expect(page.locator('#gold')).toHaveText('15');
-  await expect(page.locator('#info')).toContainText('Level 2');
+  await expect(page.locator('#info')).toContainText('Tier 2');
   await page.locator('#sell').click();
   await expect(page.locator('#gold')).toHaveText('63');
   await page.locator('.summon-control').click();
@@ -228,7 +229,9 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await newer.locator('[data-open="saves"]').click(); await newer.locator('[data-load="0"]').click(); await newer.locator("#journeyResume").click();
   await expect(newer.locator('#pauseOverlay')).toBeVisible();
   await newer.locator('#resumeBattle').click();
+  await newer.getByRole('button', { name: 'Red, tier 1, dragon 1', exact: true }).click();
   await newer.locator('#upgrade').click();
+  await newer.locator('[data-upgrade-color="red"]').click();
   expect((await savedState(newer)).towers[0].level).toBe(2);
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });

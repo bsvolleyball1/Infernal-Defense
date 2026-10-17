@@ -14,6 +14,8 @@ import { towerPosition } from '../game/geometry';
 import { dragonPortrait } from './dragon-art';
 import { monsterPortrait } from './monster-art';
 import { towerBonus, towerRangeMultiplier } from '../game/tower-bonuses';
+import { towerGridCellAt, towerGridCellCenter } from '../content/maps';
+import { dragonForms, formForTower } from '../content/dragon-forms';
 
 export interface Renderer { render(state: GameState, showResults: boolean): void }
 const NS = 'http://www.w3.org/2000/svg';
@@ -50,10 +52,23 @@ export class SvgRenderer implements Renderer {
     cost.setAttribute('aria-hidden', 'true');
     actions.prepend(cost);
     element('.arena').append(actions);
+    const choices = document.createElement('div');
+    choices.id = 'upgradeChoices';
+    choices.hidden = true;
+    choices.setAttribute('role', 'group');
+    choices.setAttribute('aria-label', 'Choose dragon evolution');
+    actions.append(choices);
     element<HTMLButtonElement>('#upgrade').innerHTML = '<span aria-hidden="true">↑</span>';
     element<HTMLButtonElement>('#sell').innerHTML = '<span aria-hidden="true">$</span>';
+    elements<HTMLElement>('.legend span').slice(0, 3).forEach((legend, index) => {
+      const type = (['fire', 'ice', 'poison'] as const)[index];
+      const dot = legend.querySelector<HTMLElement>('.dot');
+      if (dot) dot.style.background = dragons[type].color;
+      const text = Array.from(legend.childNodes).find((child) => child.nodeType === Node.TEXT_NODE);
+      if (text) text.textContent = ` ${dragons[type].name}`;
+    });
     actions.addEventListener('click', (event) => {
-      if (!(event.target instanceof Element) || !event.target.closest('#upgrade, #sell')) return;
+      if (!(event.target instanceof Element) || !event.target.closest('#sell')) return;
       this.dismissedPerch = this.selectedPerch;
       if (this.selectedPerch !== null) {
         element<SVGGElement>(`#map .tower-marker[data-id="${this.selectedPerch}"]`).focus();
@@ -122,7 +137,7 @@ export class SvgRenderer implements Renderer {
       tree.innerHTML='<path d="M-2 8L1 42H10L8 8Z" fill="#514936"/><path d="M3-22L-17 15H-6L-22 34H25L10 15H20Z" fill="#3f5b43" stroke="#354b39" stroke-width="2"/><path d="M3-18L-8 4H-1L-12 20H15L7 4H13Z" fill="#506c4b" opacity=".8"/>';
       element('#effects').before(tree);
     }
-    map.setAttribute('aria-label', `${geometry.name}. ${geometry.description} Dragons can be placed on clear ground away from the road.`);
+    map.setAttribute('aria-label', `${geometry.name}. ${geometry.description} Place one dragon per open grid cell; cells crossed by a route are blocked.`);
     map.style.background = geometry.background;
     this.enemyNodes.clear(); this.eggNodes.clear(); this.shotNodes.clear();
     element('#effects').append(this.range);
@@ -158,15 +173,19 @@ export class SvgRenderer implements Renderer {
     element<HTMLElement>('#pauseOverlay').hidden = !((battle || state.defense) && state.paused);
     const selected = state.selected === null ? null : state.towers[state.selected];
     const selectedPerch = selected ? state.selected : null;
-    if (selectedPerch !== this.selectedPerch) this.dismissedPerch = null;
+    if (selectedPerch !== this.selectedPerch) {
+      this.dismissedPerch = null;
+      element<HTMLElement>('#upgradeChoices').hidden = true;
+    }
     this.selectedPerch = selectedPerch;
+    if (!selected || state.paused || ended) element<HTMLElement>('#upgradeChoices').hidden = true;
     element<HTMLButtonElement>('#upgrade').disabled = !selected || selected.level>=levelCap(state,selected) || state.gold < towerUpgradeCost(selected) && state.defense?.mode!=='sandbox' || ended || state.paused;
     element<HTMLButtonElement>('#sell').disabled = !selected || ended || state.paused;
     const upgradeLabel = selected
       ? selected.level >= levelCap(state, selected)
-        ? 'Maximum dragon level'
-        : `Upgrade · ${towerUpgradeCost(selected)} ${state.defense ? 'food' : 'gold'}`
-      : 'Upgrade dragon';
+        ? 'Maximum tier reached'
+        : `Choose evolution · ${towerUpgradeCost(selected)} ${state.defense ? 'food' : 'gold'}`
+      : 'Choose evolution';
     const upgrade = element<HTMLButtonElement>('#upgrade');
     upgrade.setAttribute('aria-label', upgradeLabel);
     upgrade.title = upgradeLabel;
@@ -179,19 +198,22 @@ export class SvgRenderer implements Renderer {
     const sell = element<HTMLButtonElement>('#sell');
     sell.setAttribute('aria-label', 'Sell dragon · 50% refund');
     sell.title = 'Sell dragon · 50% refund';
-    let info = 'Choose a dragon, then tap clear ground away from the road.';
+    let info = 'Choose a dragon, then tap an open grid cell.';
     if (selected) {
       const bonus = state.selected === null ? null : towerBonus(state, state.selected);
       const range = Math.round(towerRange(selected) * towerRangeMultiplier(state, selectedPerch ?? 0));
-      info = `${dragons[selected.type].name} · Level ${selected.level} · Range ${range}${bonus ? ` · ${bonus.kind} bonus` : ''}`;
+      const form = dragonForms[formForTower(selected)];
+      info = `${form.name} · Tier ${selected.level} · Range ${range}${bonus ? ` · ${bonus.kind} bonus` : ''}`;
     }
-    if(selected && state.defense) info=`${dragons[selected.type].name} · Level ${selected.level} / ${levelCap(state,selected)} · ${towerSummary(state,selected)} · Range ${Math.round(defenseRange(state,selected))}`;
-    else if (state.chosen) info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${state.defense ? 'food' : 'gold'} · Choose clear ground.`;
+    if(selected && state.defense) info=`${dragonForms[formForTower(selected)].name} · Tier ${selected.level} / ${levelCap(state,selected)} · ${towerSummary(state,selected)} · Range ${Math.round(defenseRange(state,selected))}`;
+    else if (state.chosen) info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${state.defense ? 'food' : 'gold'} · Choose an open grid cell.`;
     setText('#info', info);
     elements<HTMLButtonElement>('.tower').forEach(button => {
       const type = button.dataset.type as keyof typeof dragons,
         chosen = type === state.chosen,
         label = `${dragons[type].name} dragon · ${dragons[type].cost} ${state.defense ? 'food' : 'gold'}${chosen ? ' · selected for placement' : ' · choose for placement'}`;
+      const name = button.querySelector<HTMLElement>('.towername');
+      if (name) name.textContent = dragons[type].name;
       button.classList.toggle('selected', chosen);
       attr(button, 'aria-pressed', String(chosen));
       button.setAttribute('aria-label', label);
@@ -220,14 +242,43 @@ export class SvgRenderer implements Renderer {
     const popup = actions.getBoundingClientRect();
     const margin = 8;
     const centerX = tower.left + tower.width / 2;
-    const left = Math.max(popup.width / 2 + margin, Math.min(centerX, window.innerWidth - popup.width / 2 - margin));
     const gap = 8;
     const above = tower.top - gap;
-    const top = above - popup.height >= margin;
-    const position = top ? above : Math.min(tower.bottom + gap, window.innerHeight - popup.height - margin);
-    actions.dataset.placement = top ? 'above' : 'below';
-    actions.style.left = `${left}px`;
-    actions.style.top = `${Math.max(margin, position)}px`;
+    const preferredAbove = above - popup.height >= margin;
+    const verticals = preferredAbove
+      ? [
+          { top: above - popup.height, placement: 'above' },
+          { top: Math.min(tower.bottom + gap, window.innerHeight - popup.height - margin), placement: 'below' },
+        ]
+      : [
+          { top: Math.min(tower.bottom + gap, window.innerHeight - popup.height - margin), placement: 'below' },
+          { top: above - popup.height, placement: 'above' },
+        ];
+    const centers = [
+      centerX,
+      centerX - popup.width / 2 - gap - 12,
+      centerX + popup.width / 2 + gap + 12,
+    ].map((x) =>
+      Math.max(popup.width / 2 + margin, Math.min(x, window.innerWidth - popup.width / 2 - margin)),
+    );
+    const summon = element<SVGSVGElement>('#map').querySelector<SVGGElement>('.summon-control');
+    const summonRect =
+      summon?.getAttribute('visibility') === 'visible' ? summon.getBoundingClientRect() : null;
+    const placement = verticals
+      .flatMap(({ top, placement: side }) => centers.map((center) => ({ top, center, side })))
+      .find(({ top, center }) => {
+        if (!summonRect) return true;
+        const left = center - popup.width / 2;
+        return (
+          left + popup.width <= summonRect.left ||
+          left >= summonRect.right ||
+          top + popup.height <= summonRect.top ||
+          top >= summonRect.bottom
+        );
+      }) ?? { top: verticals[0].top, center: centers[0], side: verticals[0].placement };
+    actions.dataset.placement = placement.side;
+    actions.style.left = `${placement.center}px`;
+    actions.style.top = `${Math.max(margin, placement.top)}px`;
   }
 
   private dismissSelectedTowerActions(): void {
@@ -274,12 +325,13 @@ export class SvgRenderer implements Renderer {
           : bonus
             ? `, ${bonus.kind} bonus${state.defense?.mode === 'sandbox' ? ' (journey only)' : ` +${resourceRate.toFixed(2)}/s`}`
             : '';
-      const label = `${dragons[tower.type].name}, level ${tower.level}, dragon ${i + 1}${bonusLabel}`;
+      const form = dragonForms[formForTower(tower)];
+      const label = `${form.name}, tier ${tower.level}, dragon ${i + 1}${bonusLabel}`;
       attr(group, 'transform', `translate(${position.x} ${position.y})`);
       attr(group, 'aria-label', label);
       attr(group, 'aria-disabled', String(ended || state.paused));
       attr(group, 'tabindex', ended || state.paused ? -1 : 0);
-      attr(group.querySelector('.tower-aura')!, 'fill', dragons[tower.type].color);
+      attr(group.querySelector('.tower-aura')!, 'fill', form.color);
       attr(group.querySelector('.tower-icon')!, 'href', dragonPortrait(tower.type, tower.level));
       group.style.filter =
         i === state.selected && i !== this.dismissedPerch ? 'drop-shadow(0 0 7px #ffdd82)' : '';
@@ -298,18 +350,30 @@ export class SvgRenderer implements Renderer {
       this.placementNode.classList.add('placement-preview');
       this.placementNode.setAttribute('aria-hidden', 'true');
       this.placementNode.setAttribute('pointer-events', 'none');
-      this.placementNode.innerHTML = '<circle class="placement-ring" r="23" fill="none" stroke-width="2" stroke-dasharray="4 3"/><image class="placement-icon" x="-18" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>';
+      this.placementNode.innerHTML = '<rect class="placement-cell" fill="none" stroke-width="2" stroke-dasharray="4 3"/><image class="placement-icon" x="-18" y="-18" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>';
       layer.append(this.placementNode);
     }
     if (!state.chosen || !this.placementPoint || state.paused || state.phase === 'won' || state.phase === 'lost') {
       this.placementNode.setAttribute('visibility', 'hidden');
       return;
     }
+    const geometry = getMap(state.activeLevel);
+    const cell = towerGridCellAt(geometry, this.placementPoint);
+    if (!cell) {
+      this.placementNode.setAttribute('visibility', 'hidden');
+      return;
+    }
+    const center = towerGridCellCenter(cell);
     const valid = canPlaceTower(state, this.placementPoint);
-    attr(this.placementNode, 'transform', `translate(${this.placementPoint.x} ${this.placementPoint.y})`);
+    attr(this.placementNode, 'transform', `translate(${center.x} ${center.y})`);
     attr(this.placementNode, 'visibility', 'visible');
     attr(this.placementNode, 'opacity', '.58');
-    attr(this.placementNode.querySelector('.placement-ring')!, 'stroke', valid ? '#c5f39a' : '#ff8671');
+    const previewCell = this.placementNode.querySelector('.placement-cell')!;
+    attr(previewCell, 'x', -cell.width / 2);
+    attr(previewCell, 'y', -cell.height / 2);
+    attr(previewCell, 'width', cell.width);
+    attr(previewCell, 'height', cell.height);
+    attr(previewCell, 'stroke', valid ? '#c5f39a' : '#ff8671');
     attr(this.placementNode.querySelector('.placement-icon')!, 'href', dragonPortrait(state.chosen));
   }
 
@@ -332,6 +396,9 @@ export class SvgRenderer implements Renderer {
     button.setAttribute('aria-disabled', String(state.paused || !visible));
     if (!visible) return;
 
+    const mapRect = element<SVGSVGElement>('#map').getBoundingClientRect();
+    const mapScale = Math.min(mapRect.width / 700, mapRect.height / 430);
+    if (mapScale > 0) attr(button.querySelector('.summon-hit')!, 'r', Math.max(54, 24 / mapScale));
     const entranceY = getMap(state.activeLevel).path[0][1];
     attr(button, 'transform', `translate(29 ${entranceY})`);
     const remaining =

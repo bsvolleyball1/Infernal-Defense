@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, map, positionAt } from '../src/content/catalog';
-import { battlefields } from '../src/content/maps';
+import { battlefields, bonusAreaAt } from '../src/content/maps';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { updateTowers } from '../src/game/combat';
-import { canPlaceTower, isClearTowerPosition } from '../src/game/geometry';
+import { canPlaceTower, isValidTowerGridPosition, towerGridPosition } from '../src/game/geometry';
+import {
+  isTowerGridCellBlocked,
+  towerGridCellAt,
+  towerGridCellCenter,
+  towerGridCellKey,
+  towerGridCellSize,
+} from '../src/content/maps';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, Level } from '../src/game/types';
+import { upgradeSelected } from './helpers';
 
 function enemy(routeId: number, progress = 8): Enemy {
   return { id: 12, kind: 'scout', hp: 45, max: 45, spd: .72, progress,
@@ -23,25 +31,57 @@ function storage() {
   return { repository };
 }
 
-describe('free-placement gorge battlefield', () => {
+describe('grid-based battlefield placement', () => {
   it('shows five valid bonus areas on every battlefield and reserves each for one dragon', () => {
     const kinds = ['damage', 'range', 'mana', 'food', 'gold'].sort();
     for (const level of Object.keys(battlefields) as Level[]) {
       const geometry = getMap(level);
       expect(geometry.bonusAreas.map(area => area.kind).sort()).toEqual(kinds);
       for (const area of geometry.bonusAreas) {
-        expect(isClearTowerPosition({ x: area.x, y: area.y }, geometry), `${level}: ${area.kind} zone`).toBe(true);
+        expect(isValidTowerGridPosition({ x: area.x, y: area.y }, geometry), `${level}: ${area.kind} zone`).toBe(true);
       }
+      const damage = geometry.bonusAreas.find(area => area.kind === 'damage')!;
+      expect(bonusAreaAt(geometry, { x: damage.x + 1, y: damage.y })?.area.kind).toBe('damage');
+      expect(bonusAreaAt(geometry, { x: damage.x + 25, y: damage.y })).toBeNull();
       expect(battlefieldArtwork(level)).toContain('class="bonus-area');
+      expect(battlefieldArtwork(level)).toContain('id="towerGrid"');
+    }
+
+    const state = createInitialState();
+    state.activeLevel = 'meadow';
+    state.towers[0] = { type: 'fire', level: 1, cooldown: 0, position: { x: 510, y: 223 } };
+    const secondTower = { x: 515, y: 249 };
+    expect(canPlaceTower(state, secondTower)).toBe(false);
+  });
+
+  it('blocks every cell crossed by every route, and snaps valid placements to cell centers', () => {
+    for (const level of Object.keys(battlefields) as Level[]) {
+      const geometry = getMap(level);
+      for (let y = 0; y < geometry.height; y += towerGridCellSize) {
+        for (let x = 0; x < geometry.width; x += towerGridCellSize) {
+          const cell = towerGridCellAt(geometry, { x, y })!;
+          const center = towerGridCellCenter(cell);
+          if (isTowerGridCellBlocked(geometry, cell)) {
+            const state = createInitialState();
+            state.activeLevel = level;
+            expect(canPlaceTower(state, center), `${level}: blocked ${towerGridCellKey(cell)}`).toBe(false);
+          }
+        }
+      }
     }
 
     const geometry = getMap('meadow');
     const state = createInitialState();
     state.activeLevel = 'meadow';
-    state.towers[0] = { type: 'fire', level: 1, cooldown: 0, position: { x: 510, y: 223 } };
-    const secondTower = { x: 510, y: 267 };
-    expect(isClearTowerPosition(secondTower, geometry)).toBe(true);
-    expect(canPlaceTower(state, secondTower)).toBe(false);
+    const snapped = towerGridPosition({ x: 25, y: 25 }, geometry);
+    expect(snapped).toEqual({ x: 25, y: 25 });
+    expect(canPlaceTower(state, { x: 25, y: 25 })).toBe(true);
+    expect(canPlaceTower(state, { x: 25, y: 415 })).toBe(false);
+
+    const gorge = getMap('level1');
+    const shadePathCell = towerGridCellAt(gorge, { x: 425, y: 175 })!;
+    expect(isTowerGridCellBlocked(gorge, shadePathCell)).toBe(false);
+    expect(canPlaceTower({ ...state, activeLevel: 'level1' }, towerGridCellCenter(shadePathCell))).toBe(true);
   });
 
   it('draws the same route the engine traverses, with a nest at the endpoint', () => {
@@ -51,18 +91,19 @@ describe('free-placement gorge battlefield', () => {
     expect(battlefieldArtwork()).toContain('id="gorgeWater"');
   });
 
-  it('draws no fixed roosts and allows arbitrary, unlimited placement away from the road', () => {
+  it('draws no fixed roosts and allows one dragon in each open grid cell', () => {
     const artwork = battlefieldArtwork();
     expect(artwork).not.toContain('class="perch"');
     const state = createInitialState();
     state.gold = 100000;
     const engine = new GameEngine(state);
     const placed: { x: number; y: number }[] = [];
-    for (let y = 20; y <= map.height - 20 && placed.length <= map.perches.length; y += 30) {
-      for (let x = 20; x <= map.width - 20 && placed.length <= map.perches.length; x += 30) {
+    for (let y = 25; y <= map.height - 25 && placed.length <= map.perches.length; y += 50) {
+      for (let x = 25; x <= map.width - 25 && placed.length <= map.perches.length; x += 50) {
         const point = { x, y };
         engine.dispatch({ type: 'choose', dragon: 'fire' });
-        if (engine.dispatch({ type: 'place', point }).some((event) => event.type === 'save')) placed.push(point);
+        if (engine.dispatch({ type: 'place', point }).some((event) => event.type === 'save'))
+          placed.push(towerGridPosition(point, map)!);
       }
     }
     expect(placed.length).toBeGreaterThan(map.perches.length);
@@ -72,31 +113,32 @@ describe('free-placement gorge battlefield', () => {
     engine.dispatch({ type: 'choose', dragon: 'fire' });
     expect(engine.dispatch({ type: 'place', point: { x: 350, y: 315 } })).toContainEqual({
       type: 'message',
-      text: 'Choose a clear area away from the road and other dragons',
+      text: 'Choose an empty, open grid cell',
     });
     expect(engine.state.towers.filter(Boolean)).toHaveLength(placed.length);
   });
 
-  it('uses arbitrary tower coordinates for range, combat, and exact save restoration', () => {
+  it('uses snapped tower coordinates for combat and exact save restoration', () => {
     const state = createInitialState();
+    state.activeLevel = 'meadow';
     state.phase = 'battle';
     state.wave = 1;
     state.gold = 500;
     state.nextEntityId = 13;
-    state.enemies = [enemy(0)];
+    state.enemies = [enemy(0, 7)];
     state.enemiesSummoned = 1;
     const engine = new GameEngine(state);
     engine.dispatch({ type: 'choose', dragon: 'fire' });
-    engine.dispatch({ type: 'place', point: { x: 230, y: 155 } });
-    expect(engine.state.towers[0]?.position).toEqual({ x: 230, y: 155 });
+    engine.dispatch({ type: 'place', point: { x: 330, y: 230 } });
+    expect(engine.state.towers[0]?.position).toEqual({ x: 325, y: 225 });
     updateTowers(engine.state, 1000 / 60, []);
-    expect(engine.state.projectiles[0]).toMatchObject({ x: 230, y: 137, targetId: 12 });
+    expect(engine.state.projectiles[0]).toMatchObject({ x: 325, y: 207, targetId: 12 });
     const { repository } = storage();
     expect(repository.saveSlot(0, engine.snapshot())).toEqual({ ok: true });
     const read = repository.readSlot(0);
     expect(read.status).toBe('valid');
     if (read.status !== 'valid') throw new Error('Free-placement save did not load');
-    expect(read.data.state.towers[0]?.position).toEqual({ x: 230, y: 155 });
+    expect(read.data.state.towers[0]?.position).toEqual({ x: 325, y: 225 });
   });
 
   it('keeps existing roost-coordinate commands compatible with older battles', () => {
@@ -108,7 +150,7 @@ describe('free-placement gorge battlefield', () => {
       engine.dispatch({ type: 'perch', index });
     }
     expect(engine.snapshot().towers.every(tower => tower?.type === 'fire')).toBe(true);
-    engine.dispatch({ type: 'upgrade' });
+    upgradeSelected(engine);
     expect(engine.state.towers[7]?.level).toBe(2);
     engine.dispatch({ type: 'sell' });
     expect(engine.state.towers[7]).toBeNull();

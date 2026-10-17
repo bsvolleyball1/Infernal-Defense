@@ -113,8 +113,22 @@ for (const viewport of [
       await page.locator('[data-test-count="witch"]').blur();
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
-      for (let i = 0; i < 5; i++) await page.locator('#upgrade').tap();
-      await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
+      for (let i = 0; i < 2; i++) {
+        await page.locator('#upgrade').tap();
+        await page.locator('[data-upgrade-color="blue"]').tap();
+      }
+      await expect(page.getByRole('button', { name: 'Blue 3, tier 3, dragon 1', exact: true })).toBeVisible();
+      await page.locator('#sell').tap();
+      await page.locator('[data-type="fire"]').tap();
+      await clickMapAt(page, 90, 202);
+      await page.locator('#upgrade').tap();
+      await page.locator('[data-upgrade-color="red"]').tap();
+      await page.locator('#upgrade').tap();
+      await page.locator('[data-upgrade-color="yellow"]').tap();
+      await expect(page.locator('[data-upgrade-form="pink"]')).toBeVisible();
+      await expect(page.locator('[data-upgrade-form="orange2"]')).toBeVisible();
+      await page.locator('[data-upgrade-form="pink"]').tap();
+      await expect(page.getByRole('button', { name: 'Pink, tier 3, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');
       await page.screenshot({
