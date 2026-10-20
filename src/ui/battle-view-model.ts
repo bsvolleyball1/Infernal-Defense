@@ -1,3 +1,6 @@
+import { challengeAllowsDragon } from '../content/maps';
+import { dragonForms, colorForDragon } from '../content/dragon-forms';
+import { evolutionOwner } from './evolution-view-model';
 import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { defenseRange, towerSummary } from '../game/defense-combat';
@@ -33,6 +36,7 @@ export interface PlacementButton {
 
 export interface BattleViewModel {
   gold: string;
+  evolutionOwner: string;
   wave: string;
   lives: string;
   hpText: string;
@@ -81,20 +85,23 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
       ? 'Maximum dragon level'
       : `Upgrade · ${towerUpgradeCost(selected)} ${money.name}`
     : 'Upgrade dragon';
-  let info = 'Choose a dragon, then tap clear ground away from the road.';
+  let info =
+    state.defense?.ruleset === 'defense-2'
+      ? 'Choose a dragon, then tap an empty, open grid cell.'
+      : 'Choose a dragon, then tap clear ground away from the road.';
   if (selected && selectedPerch !== null) {
     const bonus = towerBonus(state, selectedPerch);
     const range = Math.round(towerRange(selected) * towerRangeMultiplier(state, selectedPerch));
     info = `${dragons[selected.type].name} · Level ${selected.level} · Range ${range}${bonus ? ` · ${bonus.kind} bonus` : ''}`;
   }
   if (selected && state.defense)
-    info = `${dragons[selected.type].name} · Level ${selected.level} / ${levelCap(state, selected)} · ${towerSummary(state, selected)} · Range ${Math.round(defenseRange(state, selected))}`;
+    info = `${selected.evolution ? dragonForms[selected.evolution.form].name : dragons[selected.type].name} · ${selected.evolution ? 'Tier' : 'Level'} ${selected.level} / ${levelCap(state, selected)} · ${towerSummary(state, selected)} · Range ${Math.round(defenseRange(state, selected))}`;
   else if (state.chosen)
-    info = `${dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${money.name} · Choose clear ground.`;
+    info = `${state.defense?.ruleset === 'defense-2' ? dragonForms[colorForDragon[state.chosen]].name : dragons[state.chosen].name} · ${dragons[state.chosen].cost} ${money.name} · ${state.defense?.ruleset === 'defense-2' ? 'Choose an open cell.' : 'Choose clear ground.'}`;
 
   const sandbox = state.defense?.mode === 'sandbox';
   const countdown = state.defense?.countdown ?? null;
-  const challenge = getMap(state.activeLevel).challenge;
+  const evolved = state.defense?.ruleset === 'defense-2';
   const seconds = countdown === null ? 0 : Math.ceil(countdown / 1000);
   const startLabel = sandbox
     ? battle
@@ -111,6 +118,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
             : `Begin wave ${state.wave + 1}`;
 
   return {
+    evolutionOwner: evolutionOwner(state),
     gold: sandbox ? '∞' : String(Math.floor(state.gold)),
     wave: sandbox ? String(state.wave) : `${state.wave} / ${battleRules.waveCount}`,
     lives: String(lives),
@@ -147,7 +155,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
             : 'Place your dragons, then begin the wave.',
     levelHeading: sandbox
       ? 'Test Mode'
-      : `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel).name}`,
+      : `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel, state.defense?.ruleset).name}`,
     speed: `${state.speed}×`,
     pauseGlyph: state.paused ? '▶' : 'Ⅱ',
     pauseAria: state.paused ? 'Resume' : 'Pause',
@@ -166,11 +174,11 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     info,
     placement: (Object.keys(dragons) as DragonType[]).map((type) => {
       const chosen = type === state.chosen;
-      const hidden = Boolean(challenge && challenge.dragon !== type);
+      const hidden = !challengeAllowsDragon(getMap(state.activeLevel), type);
       return {
         type,
         selected: chosen,
-        label: `${dragons[type].name} dragon · ${dragons[type].cost} ${money.name}${chosen ? ' · selected for placement' : ' · choose for placement'}`,
+        label: `${evolved ? dragonForms[colorForDragon[type]].name : dragons[type].name} dragon · ${dragons[type].cost} ${money.name}${chosen ? ' · selected for placement' : ' · choose for placement'}`,
         disabled: ended || state.paused || hidden,
         hidden,
       };

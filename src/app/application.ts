@@ -1,3 +1,5 @@
+import { newBattleProfile } from '../content/battle-profiles';
+import { createDefenseState } from '../game/defense-state';
 import { mountApplication } from '../ui/mount';
 import { bindBattleControls } from '../ui/controls';
 import { bindBattlefieldInput } from '../ui/battlefield-input';
@@ -133,7 +135,11 @@ export function startApplication(): void {
       renderOptions: () => renderOptions(settings.settings),
       renderUpgrades: (state) => {
         setText('#bankedGold', `${state.bankedGold} gold`);
-        renderPermanent(state);
+        renderPermanent(
+          state.defense && !session.journey.activeBattle
+            ? createDefenseState(state.activeLevel, state, false, newBattleProfile)
+            : state,
+        );
       },
     },
   });
@@ -169,6 +175,7 @@ export function startApplication(): void {
     },
   });
   bindBattleControls({
+    afterEvolve: () => renderer.afterTowerAction(),
     dispatch: dispatchGameCommand,
     readState: () => engine.state,
     isVisible: () => navigation.battleVisible,

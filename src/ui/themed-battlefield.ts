@@ -39,7 +39,7 @@ function volcanicTerrain(): string {
 }
 
 /** New map scenery shares one route/entity layer, not simulation logic. */
-export function themedBattlefield(map: Battlefield, scenery = ''): string {
+export function themedBattlefield(map: Battlefield, scenery = '', grid = false): string {
   const volcanic = map.theme === 'volcanic';
   const routes = routesFor(map).map((path) => path.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(' '));
   const paths = (stroke: string, width: number, ids = false) =>
@@ -55,5 +55,5 @@ export function themedBattlefield(map: Battlefield, scenery = ''): string {
     ${paths(volcanic ? '#b69a90' : '#e0d0a0', 28)}
     <g transform="translate(18 ${map.path[0][1]})" fill="#f2e5bc"><path d="M0-10L13 0 0 10V4H-9V-4H0Z"/></g>
     ${volcanic ? '<g fill="#f3ce96"><path d="M210 171l9-16 4 11 11-3-10 17 0-12Z"/><path d="M210 259l9 16 4-11 11 3-10-17 0 12Z"/></g>' : ''}
-    ${battlefieldLayers(map, scenery)}`;
+    ${battlefieldLayers(map, scenery, grid)}`;
 }

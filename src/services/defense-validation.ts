@@ -1,3 +1,4 @@
+import { dragonForms } from '../content/dragon-forms';
 import { defenseRules } from '../content/defense-rules';
 import { isDefenseMonster } from '../content/enemies';
 import type { DefenseState, GameState } from '../game/types';
@@ -19,7 +20,7 @@ function point(value: unknown): void {
 
 export function validateDefense(value: unknown): asserts value is DefenseState {
   record(value);
-  check(value.ruleset === 'defense-1', 'Unknown combat ruleset.');
+  check(['defense-1', 'defense-2'].includes(value.ruleset as string), 'Unknown combat ruleset.');
   check(value.mode === 'journey' || value.mode === 'sandbox', 'Invalid mode.');
   record(value.ranks);
   for (const type of ['fire', 'ice', 'poison']) {
@@ -49,6 +50,8 @@ export function validateDefense(value: unknown): asserts value is DefenseState {
   for (const visual of value.visuals as unknown[]) {
     record(visual);
     point(visual);
+    if (visual.color !== undefined)
+      check(typeof visual.color === 'string' && /^#[0-9a-f]{6}$/i.test(visual.color), 'Invalid visual color.');
     check(
       integer(visual.id, 1) &&
         ['fire', 'ice', 'poison'].includes(visual.kind as string) &&
@@ -70,8 +73,21 @@ export function validateDefenseEntities(state: GameState): void {
   check(state.eggs.length >= 3 && state.eggs.length <= 8, 'Invalid upgraded egg count.');
   for (const tower of state.towers)
     if (tower) {
-      check(tower.level <= 6, 'Expanded dragon exceeds level six.');
-      if (tower.charges !== undefined) check(integer(tower.charges, 0, 3 + d.ranks.ice[2]), 'Invalid ice charges.');
+      check(tower.level <= (d.ruleset === 'defense-2' ? 3 : 6), 'Dragon exceeds this battle tier cap.');
+      if (tower.charges !== undefined)
+        check(
+          integer(
+            tower.charges,
+            0,
+            (tower.evolution ? (dragonForms[tower.evolution.form].count ?? 1) : 3) + d.ranks.ice[2],
+          ),
+          'Invalid ice charges.',
+        );
+      if (tower.evolution)
+        check(
+          (tower.charges === undefined) === (tower.chargeTimer === undefined),
+          'Charges and recharge timer must be saved together.',
+        );
       if (tower.chargeTimer !== undefined) check(finite(tower.chargeTimer, 0, 1000), 'Invalid charge timer.');
       if (tower.beamIds !== undefined)
         check(
@@ -87,6 +103,7 @@ export function validateDefenseEntities(state: GameState): void {
       'poisonDamage',
       'poisonDamageMultiplier',
       'untargetable',
+      'nullified',
       'invulnerable',
       'deathDelay',
       'lastHitAgo',
@@ -102,6 +119,22 @@ export function validateDefenseEntities(state: GameState): void {
       check(['fire', 'ice', 'poison', 'spell'].includes(enemy.poisonSource), 'Invalid poison source.');
   }
   for (const shot of state.projectiles) {
+    if (shot.effect !== undefined) {
+      record(shot.effect);
+      check(['none', 'freeze', 'poison'].includes(shot.effect.kind), 'Invalid projectile effect.');
+      if (shot.effect.kind === 'freeze') check(finite(shot.effect.chance, 0, 1), 'Invalid freeze payload.');
+      if (shot.effect.kind === 'poison') {
+        check(finite(shot.effect.duration, 0, 5000) && finite(shot.effect.slow), 'Invalid poison payload.');
+        if (shot.effect.tickDamage !== undefined)
+          check(finite(shot.effect.tickDamage), 'Invalid poison damage payload.');
+      }
+    }
+    if (shot.retarget !== undefined) {
+      record(shot.retarget);
+      point(shot.retarget.origin);
+      check(finite(shot.retarget.range, 0, 10000), 'Invalid retarget range.');
+    }
+    if (shot.color !== undefined) check(/^#[0-9a-f]{6}$/i.test(shot.color), 'Invalid projectile color.');
     if (shot.damageMultiplier !== undefined)
       check(finite(shot.damageMultiplier, 1, 10), 'Invalid projectile damage multiplier.');
     if (shot.freezeChance !== undefined) check(finite(shot.freezeChance, 0, 1), 'Invalid freeze chance.');

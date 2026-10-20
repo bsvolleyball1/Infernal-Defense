@@ -1,7 +1,11 @@
+import { validateEvolution } from './evolution-validation';
+import { challengeAllowsDragon } from '../content/maps';
+import { towerGridCellAt, towerGridCellKey } from '../content/tower-grid';
+import type { DefenseProfile } from '../domain/model';
 import { dragons, monsters } from '../content/catalog';
 import { battlefields, getMap, gorge as map, routesFor } from '../content/maps';
 import type { Battlefield } from '../content/maps';
-import { isClearTowerPosition } from '../game/geometry';
+import { isClearTowerPosition, isValidTowerGridPosition } from '../game/geometry';
 import type { JourneyProgress } from '../game/journey';
 import type { GameState } from '../game/types';
 import { validateDefense, validateDefenseEntities } from './defense-validation';
@@ -40,18 +44,26 @@ export function kinds(value: unknown, unique = true): asserts value is string[] 
   if (unique) check(new Set(value).size === value.length, 'Bestiary contains duplicate kinds.');
 }
 
-export function tower(value: unknown, geometry: Battlefield, legacy = false): void {
+export function tower(value: unknown, geometry: Battlefield, legacy = false, profile?: DefenseProfile): void {
   if (value === null) return;
   object(value, 'Tower');
   dragon(value.type);
-  if (geometry.challenge) check(value.type === geometry.challenge.dragon, 'Tower does not match this level challenge.');
+  check(
+    challengeAllowsDragon(geometry, value.type as GameState['chosen'] & string),
+    'Tower does not match this level challenge.',
+  );
   integer(value.level, 'Tower level', 1);
+  validateEvolution(value, geometry, profile === 'defense-2');
+  if (profile === 'defense-2') check(own(value, 'position'), 'Grid towers require a position.');
   if (own(value, 'position')) {
     object(value.position, 'Tower position');
     number(value.position.x, 'Tower x', 0, geometry.width);
     number(value.position.y, 'Tower y', 0, geometry.height);
     check(
-      isClearTowerPosition({ x: value.position.x as number, y: value.position.y as number }, geometry),
+      (profile === 'defense-2' ? isValidTowerGridPosition : isClearTowerPosition)(
+        { x: value.position.x as number, y: value.position.y as number },
+        geometry,
+      ),
       'Tower cannot touch the road or map edge.',
     );
   }
@@ -65,10 +77,22 @@ export function towers(
   geometry: Battlefield,
   legacy = false,
   count = map.perches.length,
+  profile?: DefenseProfile,
 ): asserts value is unknown[] {
   array(value, 'Towers');
   check(value.length >= count || (legacy && value.length === 5), 'Tower slots must match the battlefield.');
-  for (const item of value) tower(item, geometry, legacy);
+  const occupied = new Set<string>();
+  for (const item of value) {
+    tower(item, geometry, legacy, profile);
+    if (profile === 'defense-2' && item !== null) {
+      const position = (item as { position: { x: number; y: number } }).position;
+      const cell = towerGridCellAt(geometry, position);
+      check(cell !== null, 'Invalid grid cell.');
+      const key = towerGridCellKey(cell!);
+      check(!occupied.has(key), 'Two towers occupy one grid cell.');
+      occupied.add(key);
+    }
+  }
 }
 
 export function egg(value: unknown, legacy = false, geometry = map, count = 5): asserts value is RecordValue {
@@ -122,14 +146,17 @@ export function validateState(value: unknown): asserts value is GameState {
   number(value.rewardGold, 'Reward gold');
   boolean(value.rewardsApplied, 'Rewards applied');
   choice(value.activeLevel, Object.keys(battlefields), 'Level');
-  const geometry = getMap(value.activeLevel as GameState['activeLevel']);
+  const profile = (value.defense as GameState['defense'])?.ruleset;
+  const geometry = getMap(value.activeLevel as GameState['activeLevel'], profile);
   kinds(value.knownMonsters);
-  towers(value.towers, geometry, false, geometry.perches.length);
+  towers(value.towers, geometry, false, geometry.perches.length, profile);
   if (value.selected !== null) integer(value.selected, 'Selected dragon', 0, value.towers.length - 1);
   if (value.chosen !== null) {
     dragon(value.chosen);
-    if (geometry.challenge)
-      check(value.chosen === geometry.challenge.dragon, 'Chosen dragon does not match this level challenge.');
+    check(
+      challengeAllowsDragon(geometry, value.chosen as GameState['chosen'] & string),
+      'Chosen dragon does not match this level challenge.',
+    );
   }
   check(value.selected === null || value.towers[value.selected as number] !== null, 'Selected dragon must exist.');
   eggs(value.eggs, false, geometry, eggCount);

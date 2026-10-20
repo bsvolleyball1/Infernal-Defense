@@ -1,10 +1,16 @@
+import { defenseProfiles, newBattleProfile } from '../content/battle-profiles';
 import { createInitialState } from './state';
 import { defenseRules, maximumMana, upgradedEggCount } from '../content/defense-rules';
 import { nodeIndex } from '../content/upgrades';
 import type { UpgradeNodeId } from '../content/upgrades';
-import type { DefenseBattle, DefenseState, DragonType, GameState, Level, Tower } from './types';
+import type { DefenseBattle, DefenseProfile, DefenseState, DragonType, GameState, Level, Tower } from './types';
 
-export function createDefenseState(level: Level = 'level1', previous?: GameState, sandbox = false): DefenseBattle {
+export function createDefenseState(
+  level: Level = 'level1',
+  previous?: GameState,
+  sandbox = false,
+  profile: DefenseProfile = previous?.defense?.ruleset ?? 'defense-1',
+): DefenseBattle {
   const initial = createInitialState(level, previous?.bankedGold ?? 0);
   const ranks: DefenseState['ranks'] = previous?.defense
     ? structuredClone(previous.defense.ranks)
@@ -16,7 +22,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
   const startingMana = ranks.poison[nodeIndex('poison', 'startingMana')];
   const startingFood = ranks.ice[nodeIndex('ice', 'startingFood')];
   const defense: DefenseState = {
-    ruleset: 'defense-1',
+    ruleset: profile,
     mode: sandbox ? 'sandbox' : 'journey',
     ranks,
     mana: Math.min(
@@ -48,7 +54,7 @@ export function createDefenseState(level: Level = 'level1', previous?: GameState
 }
 
 export function nextBattle(previous: GameState, level: Level): DefenseBattle {
-  return createDefenseState(level, previous);
+  return createDefenseState(level, previous, false, newBattleProfile);
 }
 
 export function rankOf(state: GameState, dragon: DragonType, id: UpgradeNodeId): number {
@@ -62,9 +68,11 @@ export const rankTotal = (state: GameState, dragon: DragonType): number => {
 };
 
 export const levelCap = (state: GameState, tower: Tower): number =>
-  state.defense
-    ? Math.min(defenseRules.maximumDragonLevel, defenseRules.baseDragonLevel + rankOf(state, tower.type, 'maxLevel'))
-    : Infinity;
+  state.defense?.ruleset === 'defense-2'
+    ? defenseProfiles[state.defense.ruleset].maximumTier
+    : state.defense
+      ? Math.min(defenseRules.maximumDragonLevel, defenseRules.baseDragonLevel + rankOf(state, tower.type, 'maxLevel'))
+      : Infinity;
 
 export function randomValue(state: DefenseBattle): number {
   const defense = state.defense;

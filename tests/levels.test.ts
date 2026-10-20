@@ -135,7 +135,8 @@ describe('selectable battlefield definitions', () => {
     const state = createDefenseState(level),
       { repository } = storage(state);
     expect(repository.readSlot(0).status).toBe('valid');
-    state.towers[0] = { type: dragon, level: 1, cooldown: 0 };
+    state.towers[0] =
+      dragon === 'fire' ? { type: dragon, level: 1, cooldown: 0 } : { type: dragon, level: 1, cooldown: 0 };
     expect(repository.saveSlot(0, state).ok).toBe(false);
   });
 

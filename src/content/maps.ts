@@ -1,4 +1,4 @@
-import type { DragonType, Level, SpellKind } from '../domain/model';
+import type { DefenseProfile, DragonType, Level, SpellKind } from '../domain/model';
 
 export type Point = [number, number];
 export type BonusAreaKind = 'damage' | 'range' | 'mana' | 'food' | 'gold';
@@ -21,7 +21,7 @@ export interface Battlefield {
   perches: { x: number; y: number }[];
   bonusAreas: BonusArea[];
   nest: { x: number; y: number };
-  challenge?: { dragon: DragonType; spell: SpellKind };
+  challenge?: { dragon: DragonType; spell: SpellKind; kind?: 'only' | 'exclude' };
 }
 
 export const gorge: Battlefield = {
@@ -206,6 +206,35 @@ const challengeLevel = (
   challenge: { dragon, spell },
 });
 
+export function challengeAllowsDragon(geometry: Battlefield, dragon: DragonType): boolean {
+  const challenge = geometry.challenge;
+  return !challenge || (challenge.kind !== 'exclude' ? dragon === challenge.dragon : dragon !== challenge.dragon);
+}
+
+export function challengeAllowsSpell(geometry: Battlefield, spell: SpellKind): boolean {
+  const challenge = geometry.challenge;
+  return !challenge || (challenge.kind !== 'exclude' ? spell === challenge.spell : spell !== challenge.spell);
+}
+
+export function challengeLabel(geometry: Battlefield): string | null {
+  const challenge = geometry.challenge;
+  if (!challenge) return null;
+  const dragonNames: Record<DragonType, string> = { fire: 'Ember', ice: 'Frost', poison: 'Thorn' };
+  const spellNames: Record<SpellKind, string> = {
+    fire: 'Fire Rain',
+    ice: 'Ice Freeze',
+    poison: 'Poison Gas',
+  };
+  return challenge.kind !== 'exclude'
+    ? `${dragonNames[challenge.dragon]} dragon · ${spellNames[challenge.spell]} spell`
+    : `No ${dragonNames[challenge.dragon]} dragon · no ${spellNames[challenge.spell]} spell`;
+}
+
+const excludedChallenge = (...args: Parameters<typeof challengeLevel>): Battlefield => {
+  const map = challengeLevel(...args);
+  return { ...map, challenge: { ...map.challenge!, kind: 'exclude' } };
+};
+
 export const battlefields: Record<Level, Battlefield> = {
   tutorial: gorge,
   level1: gorge,
@@ -232,10 +261,47 @@ export const battlefields: Record<Level, Battlefield> = {
     'poison',
     'poison',
   ),
+  noPoisonTrial: excludedChallenge(
+    'Blightless Fork',
+    'Two paths converge at one nest. Defend without the Thorn dragon or Poison Gas spell.',
+    '#354333',
+    'poison',
+    'poison',
+  ),
+  noIceTrial: excludedChallenge(
+    'Frostless Fork',
+    'Two paths converge at one nest. Defend without the Frost dragon or Ice Freeze spell.',
+    '#34454a',
+    'ice',
+    'ice',
+  ),
+  noFireTrial: excludedChallenge(
+    'Emberless Fork',
+    'Two paths converge at one nest. Defend without the Ember dragon or Fire Rain spell.',
+    '#49332f',
+    'fire',
+    'fire',
+  ),
 };
 
-export function getMap(level: Level): Battlefield {
-  return battlefields[level];
+const gridBattlefields = Object.fromEntries(
+  Object.entries(battlefields).map(([level, map]) => [
+    level,
+    {
+      ...map,
+      bonusAreas: [
+        { kind: 'damage', x: 225, y: 25, radius: 24 },
+        { kind: 'range', x: 475, y: 25, radius: 24 },
+        { kind: 'mana', x: 25, y: 75, radius: 24 },
+        { kind: 'food', x: 675, y: 75, radius: 24 },
+        { kind: 'gold', x: 25, y: 25, radius: 24 },
+      ],
+    },
+  ]),
+) as Record<Level, Battlefield>;
+
+export function getMap(level: Level, profile?: DefenseProfile): Battlefield {
+  return (profile === 'defense-2' ? gridBattlefields : battlefields)[level];
 }
 
 export function routesFor(geometry: Battlefield): [number, number][][] {

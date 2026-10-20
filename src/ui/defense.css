@@ -111,18 +111,18 @@
 .battlefield {
   position: relative;
   isolation: isolate;
-  container-type: inline-size;
 }
 .battle-toolbar {
-  position: absolute;
   z-index: 4;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  container-type: inline-size;
   display: grid;
-  gap: 8px;
-  padding: 30px 10px 10px;
-  background: linear-gradient(0deg, #101610ed 8%, #101610a8 70%, transparent 100%);
+  gap: 3px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  border: 1px solid #384338;
+  border-radius: 6px;
+  background: #101610ed;
   pointer-events: none;
 }
 .battle-shortcuts,
@@ -420,8 +420,8 @@
 }
 @media (max-width: 480px) {
   .battle-toolbar {
-    padding: 18px 6px 6px;
-    gap: 5px;
+    padding: 4px 5px;
+    gap: 2px;
   }
   #battleStatus .stats {
     gap: 4px;
@@ -487,4 +487,155 @@
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Thin cell edges retain the hand-drawn scenery; blocked road cells remain subdued. */
+.tower-grid-cell {
+  fill: #dce1bc;
+  fill-opacity: 0.035;
+  stroke: #dce1bc;
+  stroke-opacity: 0.2;
+  stroke-width: 0.6;
+}
+.tower-grid-cell.blocked {
+  fill-opacity: 0;
+  stroke-opacity: 0.06;
+}
+.actions {
+  z-index: 10;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
+.actions .btn {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+}
+.actions:has(#upgradeChoices:not([hidden])) {
+  display: grid;
+  grid-template-columns: 1fr 44px 44px;
+  width: min(310px, calc(100vw - 16px));
+}
+#upgradeChoices {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 6px;
+  border-top: 1px solid #6e805f;
+}
+#upgradeChoices[hidden] {
+  display: none;
+}
+#upgradeChoices > strong {
+  display: block;
+  margin-bottom: 7px;
+  font: 700 13px 'DM Sans';
+  color: #e5c583;
+}
+.upgrade-choice-buttons {
+  display: flex;
+  gap: 5px;
+}
+.upgrade-choice-buttons button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: 1px solid var(--choice-color);
+  border-radius: 5px;
+  background: #222a21;
+  color: var(--choice-color);
+  font: 700 12px 'DM Sans';
+  cursor: pointer;
+}
+.upgrade-choice-buttons button:hover {
+  background: color-mix(in srgb, var(--choice-color) 15%, #222a21);
+}
+.upgrade-choice-buttons small {
+  display: block;
+  margin-top: 4px;
+  color: #c0c7b1;
+  font-size: 10px;
+  font-weight: 400;
+}
+[data-upgrade-cancel] {
+  margin-top: 5px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: #c0c7b1;
+  font: 12px 'DM Sans';
+  cursor: pointer;
+}
+
+/* The toolbar participates in layout so it cannot cover valid cells. */
+.battlefield {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.battlefield > .map {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 700 / 430;
+}
+.battle-toolbar {
+  flex: 0 0 auto;
+}
+
+#battleSpells .spell-buttons {
+  flex-wrap: nowrap;
+}
+#battleSpells,
+#battleDragons {
+  flex: 0 0 auto;
+}
+@media (orientation: landscape) and (max-height: 600px) and (min-width: 600px) {
+  .shell main {
+    height: calc(100dvh - 66px);
+    min-height: 300px;
+  }
+  .battle-toolbar .tower,
+  .battle-toolbar .spell-buttons button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+@container (max-width: 560px) {
+  #battleMiddle {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  #battleStatus,
+  #battleControls {
+    flex: 1 0 100%;
+  }
+  #battleStatus {
+    justify-content: space-between;
+  }
+  #battleControls .controls {
+    justify-content: center;
+  }
+}
+@container (max-width: 360px) {
+  .battle-shortcuts {
+    gap: 4px;
+  }
+  #battleSpells,
+  #battleDragons,
+  #spellControls,
+  .spell-buttons,
+  .towerlist {
+    gap: 3px;
+  }
+}
+.upgrade-choice-buttons button {
+  color: var(--ink);
+  border-top-width: 4px;
 }

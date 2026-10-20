@@ -24,7 +24,7 @@ export function startWave(state: GameState): GameEvent[] {
   );
   let at = state.simulationTime;
   state.spawnSchedule = [];
-  const routeCount = routesFor(getMap(state.activeLevel)).length;
+  const routeCount = routesFor(getMap(state.activeLevel, state.defense?.ruleset)).length;
   let groups = waves[state.wave - 1];
   if (d) {
     if (d.countdown !== null)

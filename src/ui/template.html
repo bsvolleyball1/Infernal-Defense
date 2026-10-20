@@ -139,12 +139,12 @@
         </button>
       </div></div></div></div></div>
       <div class="legend">
-        <span><i class="dot" style="background: #ed7855"></i> fire</span><span><i class="dot" style="background: #8cd7e0"></i> frost</span><span><i class="dot" style="background: #8ec367"></i> poison</span><span style="margin-left: auto; color: #87907d">Choose a dragon, then tap clear ground away from the road</span>
+        <span><i class="dot" style="background: #ed7855"></i> fire</span><span><i class="dot" style="background: #8cd7e0"></i> frost</span><span><i class="dot" style="background: #8ec367"></i> poison</span><span style="margin-left: auto; color: #87907d">Choose a dragon, then tap an open cell</span>
       </div>
     <div class="actions" role="group" aria-label="Selected dragon actions"><span id="actionCost" aria-hidden="true"></span>
         <div class="selected-info" id="info" hidden="">Choose a dragon, then tap an empty perch to place it.</div>
-        <button class="btn" id="upgrade" disabled=""><span aria-hidden="true">↑</span></button><button class="btn secondary" id="sell" disabled=""><span aria-hidden="true">$</span></button>
-      </div></section>
+        <button class="btn" id="upgrade" aria-controls="upgradeChoices" aria-expanded="false" disabled=""><span aria-hidden="true">↑</span></button><button class="btn secondary" id="sell" disabled=""><span aria-hidden="true">$</span></button>
+      <div id="upgradeChoices" role="group" aria-labelledby="evolutionHeading" hidden=""></div></div></section>
     <aside class="side">
       <h3>Dragon roster</h3>
       

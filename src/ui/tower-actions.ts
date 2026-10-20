@@ -74,7 +74,17 @@ export class TowerActionsPopover {
     const centerX = tower.left + tower.width / 2;
     const left = Math.max(popup.width / 2 + margin, Math.min(centerX, window.innerWidth - popup.width / 2 - margin));
     const above = tower.top - gap;
-    const fitsAbove = above - popup.height >= margin;
+    // Keep the entrance control tappable when a nearby tower is selected.
+    const summon = document
+      .querySelector<SVGGraphicsElement>('#map .summon-control[visibility="visible"]')
+      ?.getBoundingClientRect();
+    const coversSummon =
+      summon &&
+      left - popup.width / 2 < summon.right &&
+      left + popup.width / 2 > summon.left &&
+      above - popup.height < summon.bottom &&
+      above > summon.top;
+    const fitsAbove = above - popup.height >= margin && !coversSummon;
     const top = fitsAbove ? above : Math.min(tower.bottom + gap, window.innerHeight - popup.height - margin);
     actions.dataset.placement = fitsAbove ? 'above' : 'below';
     actions.style.left = `${left}px`;

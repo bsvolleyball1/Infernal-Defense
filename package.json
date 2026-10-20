@@ -15,7 +15,9 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "balance": "node scripts/generate-balance.mjs",
+    "verify:upgrade": "node scripts/verify-installed-update.mjs"
   },
   "dependencies": {
     "@fontsource/dm-mono": "^5.3.0",

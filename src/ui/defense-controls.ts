@@ -1,3 +1,5 @@
+import { challengeAllowsSpell } from '../content/maps';
+import { colorForDragon, dragonForms } from '../content/dragon-forms';
 import { enemyRoster, futureMonsters, playableMonsters } from '../content/enemies';
 import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
@@ -28,14 +30,15 @@ export function renderPermanent(state: GameState): void {
   host.innerHTML = (['fire', 'poison', 'ice'] as const)
     .map(
       (type) =>
-        `<section class="upgrade-tree"><h3>${upgradeTrees[type].name}</h3><p>${type === 'fire' ? 'Each non-attack rank also adds 1% fire damage.' : type === 'poison' ? 'Each non-attack rank also adds 1% attack rate.' : 'Each non-attack rank also adds 1% ice range.'}</p>${upgradeTrees[
+        `<section class="upgrade-tree"><h3>${state.defense?.ruleset === 'defense-2' ? `${dragonForms[colorForDragon[type]].name} · ${type === 'fire' ? 'Damage' : type === 'ice' ? 'Range' : 'Rate'}` : upgradeTrees[type].name}</h3><p>${type === 'fire' ? 'Each non-attack rank also adds 1% fire damage.' : type === 'poison' ? 'Each non-attack rank also adds 1% attack rate.' : 'Each non-attack rank also adds 1% ice range.'}</p>${upgradeTrees[
           type
         ].nodes
           .map((node, i) => {
             const rank = state.defense!.ranks[type][i],
               cost = upgradeCost(rank),
-              capped = rank >= (node.cap ?? defenseRules.maximumUpgradeRank);
-            return `<div class="upgrade-row"><div><strong>${node.name} · Rank ${rank}</strong><small>${node.effect}</small></div><button data-permanent="${type}" data-node="${i}" ${capped || state.bankedGold < cost || state.phase === 'battle' ? 'disabled' : ''}>${capped ? 'Maximum rank' : `Upgrade · ${cost} gold`}</button></div>`;
+              retired = state.defense?.ruleset === 'defense-2' && node.id === 'maxLevel',
+              capped = retired || rank >= (node.cap ?? defenseRules.maximumUpgradeRank);
+            return `<div class="upgrade-row"><div><strong>${node.name} · Rank ${rank}</strong><small>${retired ? 'New dragons evolve through three tiers. Existing ranks still grant their passive bonus.' : node.effect}</small></div><button data-permanent="${type}" data-node="${i}" ${capped || state.bankedGold < cost || state.phase === 'battle' ? 'disabled' : ''}>${retired ? 'Three tiers' : capped ? 'Maximum rank' : `Upgrade · ${cost} gold`}</button></div>`;
           })
           .join('')}</section>`,
     )
@@ -44,7 +47,7 @@ export function renderPermanent(state: GameState): void {
 
 export function renderDefenseControls(state: GameState): void {
   const d = state.defense;
-  const challenge = getMap(state.activeLevel).challenge;
+  const evolved = d?.ruleset === 'defense-2';
   const stats = element<HTMLElement>('.stats');
   stats.dataset.mode = d ? 'defense' : 'classic';
   stats.children.item(0)?.setAttribute('aria-label', d ? 'Food' : 'Gold');
@@ -59,9 +62,11 @@ export function renderDefenseControls(state: GameState): void {
   const currency = currencyOf(state);
   const prefix = `${currency.icon} ${currency.name.toUpperCase()} `;
   if (food?.nodeType === Node.TEXT_NODE && food.textContent !== prefix) food.textContent = prefix;
-  const roles = d
-    ? ['Fire beams and area waves', 'Rechargeable ice · chance to freeze', 'Rapid shots · poison and slow']
-    : ['Fire · burst damage', 'Ice · slow & freeze', 'Venom · damage over time'];
+  const roles = evolved
+    ? ['Red · continuous beam', 'Blue · charged attack', 'Yellow · rapid attack']
+    : d
+      ? ['Fire beams and area waves', 'Rechargeable ice · chance to freeze', 'Rapid shots · poison and slow']
+      : ['Fire · burst damage', 'Ice · slow & freeze', 'Venom · damage over time'];
   elements('.towerrole').forEach((role, i) => {
     if (role.textContent !== roles[i]) role.textContent = roles[i];
   });
@@ -78,7 +83,9 @@ export function renderDefenseControls(state: GameState): void {
       portrait.setAttribute('aria-hidden', 'true');
       orb.replaceChildren(portrait);
     }
-    portrait.src = dragonPortrait(type);
+    portrait.src = dragonPortrait(type, 1, evolved);
+    const name = button.querySelector('.towername');
+    if (name) name.textContent = evolved ? dragonForms[colorForDragon[type]].name : dragons[type].name;
     const label = `${currency.icon} ${dragons[type].cost}`;
     if (price.textContent !== label) price.textContent = label;
     const descriptions = d
@@ -96,7 +103,7 @@ export function renderDefenseControls(state: GameState): void {
   });
   const map = element<SVGSVGElement>('#map');
   map.style.cursor = d?.targeting ? 'crosshair' : '';
-  map.setAttribute('tabindex', d?.targeting ? '0' : '-1');
+  map.setAttribute('tabindex', d?.targeting || (evolved && state.chosen) ? '0' : '-1');
   if (!d) return;
   const sandbox = d.mode === 'sandbox';
   setText('#mana', sandbox ? '∞ / ∞' : `${Math.floor(d.mana)} / ${d.maxMana}`);
@@ -104,7 +111,7 @@ export function renderDefenseControls(state: GameState): void {
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
-    b.hidden = Boolean(challenge && challenge.spell !== key);
+    b.hidden = !challengeAllowsSpell(getMap(state.activeLevel), key);
     b.disabled =
       b.hidden ||
       state.paused ||

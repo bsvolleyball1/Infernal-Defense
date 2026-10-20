@@ -13,6 +13,7 @@ export function tickEnemyAbilities(state: DefenseBattle, enemy: Enemy, dt: numbe
   const subject = withDefenseTimers(enemy);
   subject.untargetable = Math.max(0, subject.untargetable - dt);
   subject.invulnerable = Math.max(0, subject.invulnerable - dt);
+  if (subject.nullified !== undefined) subject.nullified = Math.max(0, subject.nullified - dt);
   subject.lastHitAgo += dt;
   if (subject.deathDelay > 0) {
     subject.deathDelay = Math.max(0, subject.deathDelay - dt);

@@ -82,12 +82,13 @@ test('two completed levels and rewards carry into a third level in the same play
   await page.locator('#continueJourney').click();
   await page.locator('#journeyResume').click();
   await page.locator('#resumeBattle').click();
+  await expect(page.locator('#gameOver')).toBeVisible();
   await expect(page.locator('#resultTitle')).toHaveText('Valley defended');
   expect((await saved(page)).journey).toEqual({ activeBattle: false, completedLevels: ['level1', 'meadow'] });
   expect((await saved(page)).state.bankedGold).toBe(112);
   await page.locator('#resultContinue').click();
   await page.locator('#upgradeToLevels').click();
-  await expect(page.locator('#journeyCleared')).toHaveText('2 / 7 levels cleared');
+  await expect(page.locator('#journeyCleared')).toHaveText('2 / 10 levels cleared');
   await page.locator('[data-level="volcanic"]').click();
   const next = await saved(page);
   expect(next.journey).toEqual({ activeBattle: true, completedLevels: ['level1', 'meadow'] });

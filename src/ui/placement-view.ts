@@ -34,6 +34,6 @@ export class PlacementView {
     attr(this.node, 'visibility', 'visible');
     attr(this.node, 'opacity', '.58');
     attr(this.node.querySelector('.placement-ring')!, 'stroke', preview.valid ? '#c5f39a' : '#ff8671');
-    setPortrait(this.node.querySelector('.placement-icon')!, dragonPortrait(preview.dragon));
+    setPortrait(this.node.querySelector('.placement-icon')!, dragonPortrait(preview.dragon, 1, preview.evolved));
   }
 }

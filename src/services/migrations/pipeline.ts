@@ -1,3 +1,4 @@
+import { adoptSourceEvolution } from './adopt-source-evolution';
 import { expandFiveTowerSlots } from './expand-five-towers';
 import { migrateV1ToV2 } from './v1-to-v2';
 import { normalizeDefenseEntities } from './normalize-defense-entities';
@@ -13,8 +14,9 @@ export function readMigratedSave(value: RecordValue): { data: SaveDataV2; migrat
     return { data, migrated: true };
   }
   const expanded = expandFiveTowerSlots(value);
+  const adopted = adoptSourceEvolution(expanded.value);
   validateSave(expanded.value);
   const data = expanded.value as SaveDataV2;
   const normalized = normalizeDefenseEntities(data.state);
-  return { data, migrated: expanded.expanded || normalized };
+  return { data, migrated: adopted || expanded.expanded || normalized };
 }

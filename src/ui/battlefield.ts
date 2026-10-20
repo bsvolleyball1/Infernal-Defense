@@ -1,5 +1,5 @@
 import { getMap } from '../content/catalog';
-import type { Level } from '../game/types';
+import type { DefenseProfile, Level } from '../game/types';
 import type { Battlefield } from '../content/maps';
 import { themedBattlefield } from './themed-battlefield';
 import { battlefieldLayers } from './battlefield-layers';
@@ -9,13 +9,15 @@ import { battlefieldLayers } from './battlefield-layers';
 const tutorialTree =
   '<g id="tutorialTree" aria-hidden="true" transform="translate(286 330)"><path d="M-2 8L1 42H10L8 8Z" fill="#514936"/><path d="M3-22L-17 15H-6L-22 34H25L10 15H20Z" fill="#3f5b43" stroke="#354b39" stroke-width="2"/><path d="M3-18L-8 4H-1L-12 20H15L7 4H13Z" fill="#506c4b" opacity=".8"/></g>';
 
-export function battlefieldArtwork(level: Level = 'level1'): string {
-  const geometry = getMap(level);
+export function battlefieldArtwork(level: Level = 'level1', profile?: DefenseProfile): string {
+  const geometry = getMap(level, profile);
   const scenery = level === 'tutorial' ? tutorialTree : '';
-  return geometry.theme === 'gorge' ? gorgeArtwork(geometry, scenery) : themedBattlefield(geometry, scenery);
+  return geometry.theme === 'gorge'
+    ? gorgeArtwork(geometry, scenery, profile === 'defense-2')
+    : themedBattlefield(geometry, scenery, profile === 'defense-2');
 }
 
-function gorgeArtwork(map: Battlefield, scenery: string): string {
+function gorgeArtwork(map: Battlefield, scenery: string, grid: boolean): string {
   const route = map.path.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
 
   return `
@@ -47,5 +49,5 @@ function gorgeArtwork(map: Battlefield, scenery: string): string {
   <path d="${route}" fill="none" stroke="#e1cea4" stroke-width="2" stroke-dasharray="2 15" opacity=".55"/>
   <g transform="translate(334 290) rotate(58)"><rect x="-46" y="-21" width="92" height="42" rx="3" fill="#3a3930"/><path d="M-42-17H42V17H-42Z" fill="#a18b63"/><path d="M-34-18V18M-22-18V18M-10-18V18M2-18V18M14-18V18M26-18V18M38-18V18" stroke="#695c45" stroke-width="3"/><path d="M-49-23H49M-49 23H49" stroke="#dfcba0" stroke-width="4"/></g>
   <g transform="translate(17 300)" fill="#293f3b"><path d="M0-22L-5-15V15L0 22H8V-22Z"/><path d="M16-10L28 0 16 10V5H7V-5H16Z" fill="#e7d7ad"/></g>
-  ${battlefieldLayers(map, scenery)}`;
+  ${battlefieldLayers(map, scenery, grid)}`;
 }

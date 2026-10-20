@@ -1,3 +1,4 @@
+import { bindEvolutionControls } from './evolution-controls';
 import type { GameCommand, GameSpeed, GameState } from '../game/types';
 import { element } from './dom';
 
@@ -8,6 +9,7 @@ export interface BattleControlActions {
   resume: () => void;
   returnHome: () => void;
   save: () => void;
+  afterEvolve?: () => void;
 }
 
 export function nextGameSpeed(speed: GameSpeed): GameSpeed {
@@ -23,13 +25,23 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
     element(selector).addEventListener('click', callback, { signal });
   };
   onClick('#start', () => actions.dispatch({ type: 'startWave' }));
-  onClick('#upgrade', () => actions.dispatch({ type: 'upgrade' }));
+  const choices = bindEvolutionControls(actions, signal);
+  onClick('#upgrade', () => {
+    if (actions.readState().defense?.ruleset === 'defense-2') choices.open();
+    else actions.dispatch({ type: 'upgrade' });
+  });
   onClick('#sell', () => actions.dispatch({ type: 'sell' }));
   onClick('#speed', () => actions.dispatch({ type: 'speed', speed: nextGameSpeed(actions.readState().speed) }));
   onClick('#pause', () => actions.dispatch({ type: actions.readState().paused ? 'resume' : 'pause' }));
   onClick('#resumeBattle', actions.resume);
-  onClick('#pauseMenu', actions.returnHome);
-  onClick('#returnMenu', actions.returnHome);
+  onClick('#pauseMenu', () => {
+    choices.cancel();
+    actions.returnHome();
+  });
+  onClick('#returnMenu', () => {
+    choices.cancel();
+    actions.returnHome();
+  });
   onClick('#saveProgress', actions.save);
   window.addEventListener('keydown', (event) => handleKeyboard(event, actions), { signal });
   return () => {

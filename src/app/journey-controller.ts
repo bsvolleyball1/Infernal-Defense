@@ -1,3 +1,4 @@
+import { newBattleProfile } from '../content/battle-profiles';
 import { createDefenseState } from '../game/defense-state';
 import { createJourney, importJourney } from '../game/journey';
 import type { GameCommand, GameState, SimulationEngine } from '../game/types';
@@ -39,7 +40,8 @@ export class JourneyController {
     }
     if (existing.status === 'valid' && !this.hooks.confirm(copy.confirmNewJourney(index))) return;
     repository.readSlot(index, true);
-    if (session.commit(index, createDefenseState(), createJourney())) this.hooks.navigation.navigate('levels');
+    if (session.commit(index, createDefenseState('level1', undefined, false, newBattleProfile), createJourney()))
+      this.hooks.navigation.navigate('levels');
   }
 
   load(index: number): void {
@@ -79,7 +81,12 @@ export class JourneyController {
   buyPermanent(command: GameCommand): void {
     const { session, engine } = this.hooks;
     if (session.slot === null || session.journey.activeBattle) return;
-    const candidate = this.hooks.previewEngine(engine.snapshot());
+    const current = engine.snapshot();
+    const preview =
+      current.defense?.ruleset === 'defense-1'
+        ? createDefenseState(current.activeLevel, current, false, newBattleProfile)
+        : current;
+    const candidate = this.hooks.previewEngine(preview);
     if (!candidate.dispatch(command).length) return;
     const state =
       candidate.state.phase === 'ready'
@@ -96,7 +103,7 @@ export class JourneyController {
     if (!session.save()) return;
     session.slot = null;
     session.journey = createJourney();
-    engine.restore(createDefenseState('tutorial', undefined, true));
+    engine.restore(createDefenseState('tutorial', undefined, true, newBattleProfile));
     this.hooks.onTestModeStarted();
     this.hooks.navigation.showBattleScreen();
   }

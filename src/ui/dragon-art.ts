@@ -1,3 +1,6 @@
+import yellow1 from '../assets/dragons/yellow-1.png';
+import yellow2 from '../assets/dragons/yellow-2.png';
+import yellow3 from '../assets/dragons/yellow-3.png';
 import fire1 from '../assets/dragons/fire-1.png';
 import fire2 from '../assets/dragons/fire-2.png';
 import fire3 from '../assets/dragons/fire-3.png';
@@ -15,7 +18,7 @@ const portraits: Record<DragonType, readonly [string, string, string]> = {
   poison: [poison1, poison2, poison3],
 };
 
-export function dragonPortrait(type: DragonType, level = 1): string {
+export function dragonPortrait(type: DragonType, level = 1, evolved = false): string {
   const tier = Math.max(1, Math.min(3, Math.floor(level)));
-  return portraits[type][tier - 1];
+  return (evolved && type === 'poison' ? [yellow1, yellow2, yellow3] : portraits[type])[tier - 1];
 }

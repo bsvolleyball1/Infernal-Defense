@@ -21,7 +21,7 @@ for (const viewport of [
       await page.goto('./');
       await page.locator('[data-open="saves"]').click();
       await page.locator('[data-new="0"]').click();
-      await expect(page.locator('[data-level]')).toHaveCount(7);
+      await expect(page.locator('[data-level]')).toHaveCount(10);
       await page.locator(`[data-level="${level.id}"]`).click();
       await expect(page.locator('#levelHeading')).toHaveText(level.name);
       await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
@@ -29,7 +29,8 @@ for (const viewport of [
       await clickMapAt(page, level.id === 'meadow' ? 115 : 80, level.id === 'meadow' ? 183 : 140);
       await expect(page.locator('#gold')).toHaveText('60');
       await page.locator('#upgrade').click();
-      await expect(page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true })).toBeVisible();
+      await page.locator('[data-upgrade-color="red"]').click();
+      await expect(page.getByRole('button', { name: 'Red 2, tier 2, dragon 1', exact: true })).toBeVisible();
       await page.reload();
       await page.locator('[data-open="saves"]').click();
       await expect(page.locator('#saveList')).toContainText(level.name);
@@ -38,7 +39,7 @@ for (const viewport of [
       await expect(page.locator('#pauseOverlay')).toBeVisible();
       await page.locator('#resumeBattle').click();
       await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
-      const occupied = page.getByRole('button', { name: 'Ember, level 2, dragon 1', exact: true });
+      const occupied = page.getByRole('button', { name: 'Red 2, tier 2, dragon 1', exact: true });
       await occupied.focus();
       await page.keyboard.press('Enter');
       await page.locator('#sell').click();
@@ -85,7 +86,7 @@ test('switches geometry and controls between all three battlefields without a pa
     await page.locator(`[data-load="${slot}"]`).click();
     await page.locator('#journeyResume').click();
     await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Frost, level 1, dragon 1', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Blue, tier 1, dragon 1', exact: true })).toBeVisible();
     await page.locator('#returnMenu').click();
     await page.locator('#journeyExit').click();
   }
@@ -95,7 +96,7 @@ test('elemental fork trials unlock in order and show only their dragon and spell
   await page.goto('./');
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-new="0"]').click();
-  await expect(page.locator('[data-level]')).toHaveCount(7);
+  await expect(page.locator('[data-level]')).toHaveCount(10);
   await expect(page.locator('[data-level="fireTrial"]')).toBeEnabled();
   await expect(page.locator('[data-level="iceTrial"]')).toBeDisabled();
   await expect(page.locator('[data-level="poisonTrial"]')).toBeDisabled();

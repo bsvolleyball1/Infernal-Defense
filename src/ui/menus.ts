@@ -1,5 +1,5 @@
 import { getMap, monsters } from '../content/catalog';
-import { battlefields } from '../content/maps';
+import { battlefields, challengeLabel } from '../content/maps';
 import { enemyRoster, isDefenseMonster } from '../content/enemies';
 import type { Settings, SlotResult } from '../services/storage';
 import type { GameState } from '../game/types';
@@ -15,6 +15,7 @@ export function isMenuPage(value: unknown): value is MenuPage {
 }
 
 export function showMenu(page: MenuPage): void {
+  element<HTMLElement>('#upgradeChoices').hidden = true;
   element('#menuScreen').style.display = 'block';
   element('#gameScreen').style.display = 'none';
   elements('.menu-page').forEach((section) => section.classList.toggle('active', section.dataset.page === page));
@@ -31,7 +32,7 @@ export function renderLevelSelect(): void {
     .map(
       ([id, map]) => `
     <button class="level-card" data-level="${id}">
-      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : map.challenge ? `${map.challenge.dragon} dragon · ${map.challenge.spell} spell` : map.forks.length ? 'Branching routes' : 'Free dragon placement'}</div>
+      <div class="level-tag">${id === 'tutorial' ? 'Training grounds' : (challengeLabel(map) ?? (map.forks.length ? 'Branching routes' : 'Grid dragon placement'))}</div>
       <strong>${id === 'tutorial' ? 'Tutorial' : map.name}</strong>
       <small>${map.description}</small>
       <span class="level-number">${map.forks.length ? '⑂' : '✦'}</span>
@@ -47,13 +48,15 @@ export function renderJourney(slot: number, state: GameState, journey: JourneyPr
   setText(
     '#journeyLevelNotice',
     journey.activeBattle
-      ? `${getMap(state.activeLevel).name} is in progress. Continue it, or end this attempt before choosing another level.`
+      ? `${getMap(state.activeLevel, state.defense?.ruleset).name} is in progress. Continue it, or end this attempt before choosing another level.`
       : 'Choose your next level. Your banked gold and cleared levels stay with this player save.',
   );
   const resume = element<HTMLButtonElement>('#journeyResume');
   const terminal = state.phase === 'won' || state.phase === 'lost';
   resume.hidden = !journey.activeBattle && !terminal;
-  resume.textContent = journey.activeBattle ? `Continue ${getMap(state.activeLevel).name}` : 'View last result';
+  resume.textContent = journey.activeBattle
+    ? `Continue ${getMap(state.activeLevel, state.defense?.ruleset).name}`
+    : 'View last result';
   element('#abandonBattle').hidden = !journey.activeBattle;
   const upgrades = document.querySelector<HTMLButtonElement>('#openPermanent');
   if (upgrades) upgrades.disabled = journey.activeBattle;
@@ -109,7 +112,7 @@ function createSaveCard(index: number, read: SlotResult): HTMLElement {
     const state = read.data.state;
     const journey = read.data.journey ?? importJourney(state);
     const current = journey.activeBattle
-      ? `${getMap(state.activeLevel).name} · Wave ${state.wave}/5`
+      ? `${getMap(state.activeLevel, state.defense?.ruleset).name} · Wave ${state.wave}/5`
       : 'Choose a level';
     meta.textContent = `${journey.completedLevels.length} levels cleared · ${state.bankedGold} gold banked · ${current} · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
   } else {

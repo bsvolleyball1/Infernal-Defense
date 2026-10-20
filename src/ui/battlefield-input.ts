@@ -35,7 +35,7 @@ function toMap(event: MouseEvent, map: SVGSVGElement): Point | null {
 }
 
 function aimPoint(state: GameState): Point {
-  const geometry = getMap(state.activeLevel);
+  const geometry = getMap(state.activeLevel, state.defense?.ruleset);
   return { x: geometry.width / 2, y: geometry.height / 2 };
 }
 
@@ -71,7 +71,12 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
         return;
       }
       if (!target) return;
-      if (target.closest('.summon-control')) return summon();
+      if (target.closest('.summon-control')) {
+        if (readState().chosen && readState().defense?.ruleset === 'defense-2')
+          dispatch({ type: 'place', point: toMap(event, map) ?? { x: -1, y: -1 } });
+        else summon();
+        return;
+      }
       const tower = target.closest<SVGGElement>('.tower-marker');
       if (tower) dispatch({ type: 'perch', index: Number(tower.dataset.id) });
       else if (readState().chosen) dispatch({ type: 'place', point: toMap(event, map) ?? { x: -1, y: -1 } });
@@ -85,7 +90,7 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
       const target = event.target instanceof Element ? event.target : null;
       const activates = event.key === 'Enter' || event.key === ' ';
       if (activates && target?.closest('.tower-marker')) view.reopenTowerActions();
-      if (aimWithKeyboard(event)) return;
+      if (aimWithKeyboard(event) || placeWithKeyboard(event)) return;
       if (!target || !activates) return;
       if (target.closest('.summon-control')) {
         event.preventDefault();
@@ -99,6 +104,26 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
     },
     { capture: true, signal },
   );
+
+  function placeWithKeyboard(event: KeyboardEvent): boolean {
+    const state = readState();
+    if (!state.chosen || state.defense?.ruleset !== 'defense-2' || !targetingKeys.includes(event.key)) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const current = pointer ?? { x: 25, y: 25 };
+    if (event.key === 'Escape') dispatch({ type: 'cancelPlacement' });
+    else if (event.key === 'Enter' || event.key === ' ') dispatch({ type: 'place', point: current });
+    else {
+      const nudge = nudges[event.key];
+      const geometry = getMap(state.activeLevel, state.defense.ruleset);
+      pointer = {
+        x: Math.max(25, Math.min(geometry.width - 25, current.x + Math.sign(nudge.x) * 50)),
+        y: Math.max(25, Math.min(Math.floor(geometry.height / 50) * 50 - 25, current.y + Math.sign(nudge.y) * 50)),
+      };
+    }
+    previewPlacement();
+    return true;
+  }
 
   /** Arrow keys move the spell aim, Enter casts and Escape cancels. Returns true when consumed. */
   function aimWithKeyboard(event: KeyboardEvent): boolean {
@@ -142,6 +167,10 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
       'click',
       () => {
         dispatch({ type: 'choose', dragon: button.dataset.type as DragonType });
+        if (readState().defense?.ruleset === 'defense-2') {
+          pointer ??= { x: 25, y: 25 };
+          map.focus();
+        }
         previewPlacement();
       },
       { signal },
@@ -166,7 +195,12 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
   element('.actions').addEventListener(
     'click',
     (event) => {
-      if (event.target instanceof Element && event.target.closest('#upgrade, #sell')) view.afterTowerAction();
+      if (
+        event.target instanceof Element &&
+        (event.target.closest('#sell') ||
+          (event.target.closest('#upgrade') && readState().defense?.ruleset !== 'defense-2'))
+      )
+        view.afterTowerAction();
     },
     { signal },
   );

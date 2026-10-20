@@ -1,12 +1,20 @@
-import type { DragonType, Level, MonsterKind, SpellKind } from '../domain/model';
+import type {
+  DefenseProfile,
+  DragonColor,
+  DragonForm,
+  DragonType,
+  Level,
+  MonsterKind,
+  SpellKind,
+} from '../domain/model';
 
-export type { DragonType, Level, MonsterKind, SpellKind };
+export type { DefenseProfile, DragonColor, DragonForm, DragonType, Level, MonsterKind, SpellKind };
 export interface Point {
   x: number;
   y: number;
 }
 export interface DefenseState {
-  ruleset: 'defense-1';
+  ruleset: DefenseProfile;
   mode: 'journey' | 'sandbox';
   ranks: Record<DragonType, number[]>;
   mana: number;
@@ -17,13 +25,14 @@ export interface DefenseState {
   targeting: 'poison' | 'fire' | null;
   preview: Point | null;
   impacts: { id: number; x: number; y: number; remaining: number; damage: number }[];
-  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number }[];
+  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number; color?: string }[];
   testWave: Partial<Record<MonsterKind, number>>;
 }
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
 export type GameSpeed = 1 | 1.5 | 2;
 
 interface TowerCore {
+  evolution?: undefined;
   level: number;
   /** Coordinates are absent only on pre-free-placement saves. */
   position?: Point;
@@ -54,7 +63,17 @@ export interface PoisonTower extends TowerCore {
   beamIds?: undefined;
 }
 
-export type Tower = FireTower | IceTower | PoisonTower;
+export type EvolutionTower = Omit<TowerCore, 'evolution'> &
+  ({ type: 'fire' } | { type: 'ice' } | { type: 'poison' }) & {
+    evolution: { colors: DragonColor[]; form: DragonForm };
+    charges?: number;
+    chargeTimer?: number;
+    beamIds?: number[];
+  };
+export type Tower = FireTower | IceTower | PoisonTower | EvolutionTower;
+export function isEvolvedTower(tower: Tower): tower is EvolutionTower {
+  return tower.evolution !== undefined;
+}
 
 export interface Enemy {
   /** Omitted for legacy single-route battles. */
@@ -76,6 +95,7 @@ export interface Enemy {
   poisonDamage?: number;
   poisonDamageMultiplier?: number;
   poisonSource?: DragonType | 'spell';
+  nullified?: number;
   untargetable?: number;
   ghostTriggered?: boolean;
   invulnerable?: number;
@@ -91,6 +111,8 @@ export interface Projectile {
   x: number;
   y: number;
   targetId: number;
+  color?: string;
+  retarget?: { origin: Point; range: number };
   dragon: DragonType;
   damage: number;
   /** Extra tower bonus applied to damage-over-time effects when the shot lands. */
@@ -106,7 +128,9 @@ export interface Projectile {
 }
 
 export type ProjectileEffect =
-  { kind: 'none' } | { kind: 'freeze'; chance: number } | { kind: 'poison'; duration: number; slow: number };
+  | { kind: 'none' }
+  | { kind: 'freeze'; chance: number }
+  | { kind: 'poison'; duration: number; slow: number; tickDamage?: number };
 
 export interface Egg {
   /** Route on which the egg is carried or dropped. */
@@ -175,9 +199,11 @@ export function isDefenseBattle(state: GameState): state is DefenseBattle {
 
 export type GameCommand =
   | { type: 'choose'; dragon: DragonType }
+  | { type: 'cancelPlacement' }
   | { type: 'perch'; index: number }
   | { type: 'place'; point: Point }
   | { type: 'upgrade' }
+  | { type: 'evolve'; color: DragonColor; form: DragonForm }
   | { type: 'sell' }
   | { type: 'startWave' }
   | { type: 'spell'; spell: SpellKind; point?: Point }

@@ -1,5 +1,6 @@
+import { syncEvolutionChoices } from './evolution-controls';
 import { dragons, getMap } from '../content/catalog';
-import type { GameState, Level, Point, Projectile } from '../game/types';
+import type { GameState, Point, Projectile } from '../game/types';
 import { battlefieldArtwork } from './battlefield';
 import {
   presentBattle,
@@ -42,7 +43,7 @@ export class SvgRenderer implements Renderer {
   private readonly placement = new PlacementView();
   private readonly summon = new SummonView();
   private readonly range = node('circle');
-  private activeLevel: Level | null = null;
+  private activeLevel: string | null = null;
   private state: GameState | null = null;
   private readonly popover = new TowerActionsPopover();
   private readonly defenseEffects = new DefenseEffects();
@@ -96,6 +97,8 @@ export class SvgRenderer implements Renderer {
     this.results.render(view);
     this.defenseEffects.render(state);
     this.popover.position();
+    syncEvolutionChoices(view.evolutionOwner, this.popover.isOpenFor(state.selected));
+    this.popover.position();
   }
 
   renderPlacement(point: Point | null, state: GameState): void {
@@ -118,14 +121,15 @@ export class SvgRenderer implements Renderer {
 
   /** Redraws terrain only when the level changes; entity nodes are rebuilt with it. */
   private ensureBattlefield(state: GameState): void {
-    if (this.activeLevel === state.activeLevel) return;
-    this.activeLevel = state.activeLevel;
-    const geometry = getMap(state.activeLevel);
+    const mapKey = `${state.activeLevel}:${state.defense?.ruleset ?? 'legacy'}`;
+    if (this.activeLevel === mapKey) return;
+    this.activeLevel = mapKey;
+    const geometry = getMap(state.activeLevel, state.defense?.ruleset);
     const map = element<SVGSVGElement>('#map');
-    map.innerHTML = battlefieldArtwork(state.activeLevel);
+    map.innerHTML = battlefieldArtwork(state.activeLevel, state.defense?.ruleset);
     map.setAttribute(
       'aria-label',
-      `${geometry.name}. ${geometry.description} Dragons can be placed on clear ground away from the road.`,
+      `${geometry.name}. ${geometry.description} ${state.defense?.ruleset === 'defense-2' ? 'Choose an empty, open grid cell.' : 'Dragons can be placed on clear ground away from the road.'}`,
     );
     map.style.background = geometry.background;
     for (const layer of [this.enemies, this.eggs, this.shots, this.towers]) layer.clear();
@@ -146,7 +150,7 @@ export class SvgRenderer implements Renderer {
     attr(group, 'aria-disabled', String(tower.inactive));
     attr(group, 'tabindex', tower.inactive ? -1 : 0);
     attr(group.querySelector('.tower-aura')!, 'fill', tower.color);
-    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level));
+    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level, tower.evolved));
     const state = this.current();
     group.style.filter =
       tower.index === state.selected && !this.popover.isDismissed(tower.index) ? 'drop-shadow(0 0 7px #ffdd82)' : '';
@@ -155,7 +159,7 @@ export class SvgRenderer implements Renderer {
   private createShot(shot: Projectile): SVGElement {
     const circle = node('circle');
     attr(circle, 'r', shot.dragon === 'fire' ? 4 : 3.5);
-    attr(circle, 'fill', dragons[shot.dragon].color);
+    attr(circle, 'fill', shot.color ?? dragons[shot.dragon].color);
     attr(circle, 'stroke', '#f3e7c9');
     attr(circle, 'stroke-width', 1);
     return circle;

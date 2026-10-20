@@ -1,3 +1,5 @@
+import { dragonForms } from '../content/dragon-forms';
+import { tickEvolvedTower, formInterval, formTargetable } from './evolution-combat';
 import { byDistanceFrom, entityPosition, towerPosition } from './geometry';
 import { advanceProjectile } from './projectile-motion';
 import { towerRange } from './rules';
@@ -42,6 +44,10 @@ export function tickDefenseTowers(state: DefenseBattle, dt: number, events: Game
     const context = attackContext(state, tower, index);
     const targets = targetsInRange(state, tower, index, context);
     tower.cooldown = Math.max(0, tower.cooldown - dt);
+    if (tower.evolution) {
+      tickEvolvedTower(state, tower, index, targets, dt, events, context);
+      return;
+    }
     if (tower.type === 'fire') {
       tickFireTower(state, tower, targets, dt, events, context);
       return;
@@ -165,6 +171,17 @@ function liveTarget(state: DefenseBattle, shot: Projectile): Enemy | undefined {
     (e) => e.id === shot.targetId && e.hp > 0 && !e.rewarded && !((e.untargetable ?? 0) > 0),
   );
   if (target || shot.dragon !== 'ice' || shot.towerIndex === undefined) return target;
+  if (shot.retarget) {
+    const { origin, range } = shot.retarget;
+    const replacement = state.enemies
+      .filter((enemy) => {
+        const [x, y] = entityPosition(state, enemy);
+        return formTargetable(enemy) && Math.hypot(x - origin.x, y - origin.y) < range;
+      })
+      .sort(byDistanceFrom(state, origin))[0];
+    if (replacement) shot.targetId = replacement.id;
+    return replacement;
+  }
   const tower = state.towers[shot.towerIndex];
   const replacement = tower
     ? targetsInRange(state, tower, shot.towerIndex).sort(
@@ -192,10 +209,11 @@ function applyShotEffects(state: DefenseBattle, shot: Projectile, target: Enemy)
     target.poison = effect.duration;
     target.poisonD = defenseRules.poisonTickMs;
     target.poisonDamage =
+      effect.tickDamage ??
       target.max *
-      defenseRules.poisonShotHealthFraction *
-      damageMultiplier(state, shot.dragon) *
-      (shot.damageMultiplier ?? 1);
+        defenseRules.poisonShotHealthFraction *
+        damageMultiplier(state, shot.dragon) *
+        (shot.damageMultiplier ?? 1);
     target.poisonSource = shot.dragon;
     target.slow = Math.max(target.slow, effect.slow);
   }
@@ -222,6 +240,15 @@ export function towerSummary(state: GameState, tower: Tower): string {
   const context = attackContext(state, tower, state.towers.indexOf(tower));
   const damage = damageMultiplier(state, tower.type) * context.damageMultiplier,
     index = attackIndex(tower.level);
+  if (tower.evolution && state.defense) {
+    const profile = dragonForms[tower.evolution.form];
+    const amount = (profile.damage * damage).toFixed(1);
+    if (['beam', 'focus', 'mapBeam'].includes(profile.ability))
+      return `${profile.description} · ${amount} DPS per target`;
+    if (profile.ability === 'charged')
+      return `${tower.charges ?? (profile.count ?? 1) + rankOf(state, 'ice', 'moreCharges')} / ${(profile.count ?? 1) + rankOf(state, 'ice', 'moreCharges')} charges · ${amount} damage · one charge/s`;
+    return `${profile.description} · ${amount} damage · ${(1000 / formInterval(state as DefenseBattle, tower)).toFixed(2)} attacks/s`;
+  }
   if (tower.type === 'fire') {
     const profile = fireLevels[index];
     return `${profile.area ? 'Area waves' : `${profile.beams} beam(s)`} · ${(profile.dps * damage).toFixed(1)} DPS`;

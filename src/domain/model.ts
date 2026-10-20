@@ -1,4 +1,28 @@
 export type DragonType = 'fire' | 'ice' | 'poison';
+export type DragonColor = 'red' | 'blue' | 'yellow';
+export type DragonForm =
+  | 'red'
+  | 'blue'
+  | 'yellow'
+  | 'red2'
+  | 'purple'
+  | 'orange'
+  | 'blue2'
+  | 'green'
+  | 'yellow2'
+  | 'red3'
+  | 'bloodRed'
+  | 'pink'
+  | 'blue3'
+  | 'black'
+  | 'gray'
+  | 'yellow3'
+  | 'sun'
+  | 'turquoise'
+  | 'white'
+  | 'purple2'
+  | 'orange2'
+  | 'green2';
 export type MonsterKind =
   | 'scout'
   | 'shield'
@@ -22,4 +46,16 @@ export type MonsterKind =
   | 'phantom'
   | 'shade';
 export type SpellKind = 'poison' | 'ice' | 'fire';
-export type Level = 'level1' | 'tutorial' | 'meadow' | 'volcanic' | 'fireTrial' | 'iceTrial' | 'poisonTrial';
+export type Level =
+  | 'level1'
+  | 'tutorial'
+  | 'meadow'
+  | 'volcanic'
+  | 'fireTrial'
+  | 'iceTrial'
+  | 'poisonTrial'
+  | 'noPoisonTrial'
+  | 'noIceTrial'
+  | 'noFireTrial';
+
+export type DefenseProfile = 'defense-1' | 'defense-2';

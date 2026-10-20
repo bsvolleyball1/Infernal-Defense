@@ -1,3 +1,5 @@
+import { createEvolutionTower, evolveTower } from './evolution';
+import { challengeAllowsDragon, challengeAllowsSpell } from '../content/maps';
 import { dragons } from '../content/catalog';
 import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
 import { startWave } from './waves';
@@ -7,7 +9,7 @@ import { levelCap, rankOf } from './defense-state';
 import { upgradeTrees, upgradeCost } from '../content/upgrades';
 import { isDefenseMonster } from '../content/enemies';
 import { defenseRules } from '../content/defense-rules';
-import { canPlaceTower, clampToBattlefield } from './geometry';
+import { canPlaceTower, clampToBattlefield, towerGridPosition } from './geometry';
 import { getMap } from '../content/catalog';
 import { currencyOf } from './ruleset';
 
@@ -40,6 +42,9 @@ function applyBattleCommand(state: GameState, command: BattleCommand): GameEvent
       return previewSpell(state, command.point);
     case 'testWave':
       return setTestWave(state, command.counts);
+    case 'cancelPlacement':
+      state.chosen = null;
+      return [];
     case 'choose':
       return chooseDragon(state, command.dragon);
     case 'perch':
@@ -47,7 +52,9 @@ function applyBattleCommand(state: GameState, command: BattleCommand): GameEvent
     case 'place':
       return placeTower(state, command.point);
     case 'upgrade':
-      return upgradeTower(state);
+      return state.defense?.ruleset === 'defense-2' ? [] : upgradeTower(state);
+    case 'evolve':
+      return evolveTower(state, command.color, command.form);
     case 'sell':
       return sellTower(state);
     case 'startWave':
@@ -62,8 +69,7 @@ function applyBattleCommand(state: GameState, command: BattleCommand): GameEvent
 /** Only area spells take a target; a challenge level allows only its own spell. */
 function setSpellTarget(state: GameState, spell: 'poison' | 'fire' | null): GameEvent[] {
   if (!state.defense || ![null, 'fire', 'poison'].includes(spell)) return [];
-  const challenge = getMap(state.activeLevel).challenge;
-  if (challenge && spell !== null && challenge.spell !== spell) return [];
+  if (spell !== null && !challengeAllowsSpell(getMap(state.activeLevel), spell)) return [];
   state.defense.targeting = spell;
   state.defense.preview = null;
   return [];
@@ -71,7 +77,7 @@ function setSpellTarget(state: GameState, spell: 'poison' | 'fire' | null): Game
 
 function previewSpell(state: GameState, point: Point): GameEvent[] {
   if (state.defense?.targeting && Number.isFinite(point.x) && Number.isFinite(point.y))
-    state.defense.preview = clampToBattlefield(point, getMap(state.activeLevel));
+    state.defense.preview = clampToBattlefield(point, getMap(state.activeLevel, state.defense?.ruleset));
   return [];
 }
 
@@ -84,8 +90,15 @@ function setTestWave(state: GameState, counts: Partial<Record<MonsterKind, numbe
 }
 
 function chooseDragon(state: GameState, dragon: DragonType): GameEvent[] {
-  const challenge = getMap(state.activeLevel).challenge;
-  if (!Object.prototype.hasOwnProperty.call(dragons, dragon) || (challenge && challenge.dragon !== dragon)) return [];
+  if (
+    !Object.prototype.hasOwnProperty.call(dragons, dragon) ||
+    !challengeAllowsDragon(getMap(state.activeLevel), dragon)
+  )
+    return [];
+  if (state.defense?.ruleset === 'defense-2') {
+    state.defense.targeting = null;
+    state.defense.preview = null;
+  }
   state.chosen = dragon;
   state.selected = null;
   return [];
@@ -99,6 +112,7 @@ function battleInputBlocked(state: GameState): boolean {
 function buyPermanent(state: GameState, command: Extract<GameCommand, { type: 'buyPermanent' }>): GameEvent[] {
   const d = state.defense,
     node = upgradeTrees[command.dragon]?.nodes[command.node];
+  if (d?.ruleset === 'defense-2' && node?.id === 'maxLevel') return [];
   if (!d || d.mode === 'sandbox' || state.phase === 'battle' || !node || !Number.isInteger(command.node)) return [];
   const current = d.ranks[command.dragon][command.node],
     cost = upgradeCost(current);
@@ -122,22 +136,33 @@ function selectPerch(state: GameState, index: number): GameEvent[] {
     state.chosen = null;
     return [];
   }
-  return purchaseTower(state, index);
+  return state.defense?.ruleset === 'defense-2' ? [] : purchaseTower(state, index);
 }
 
 function placeTower(state: GameState, point: Point): GameEvent[] {
   const free = state.towers.findIndex((tower) => tower === null);
-  return purchaseTower(state, free < 0 ? state.towers.length : free, point);
+  const position =
+    state.defense?.ruleset === 'defense-2'
+      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset))
+      : point;
+  return position ? purchaseTower(state, free < 0 ? state.towers.length : free, position) : [];
 }
 
 /** Buys the chosen dragon into a slot; free placement also checks the ground at `position`. */
 function purchaseTower(state: GameState, slot: number, position?: Point): GameEvent[] {
   const type = state.chosen;
   if (!type) return [{ type: 'message', text: 'Choose a dragon first' }];
-  const challenge = getMap(state.activeLevel).challenge;
-  if (challenge && type !== challenge.dragon) return [];
+  if (!challengeAllowsDragon(getMap(state.activeLevel), type)) return [];
   if (position && !canPlaceTower(state, position))
-    return [{ type: 'message', text: 'Choose a clear area away from the road and other dragons' }];
+    return [
+      {
+        type: 'message',
+        text:
+          state.defense?.ruleset === 'defense-2'
+            ? 'Choose an empty, open grid cell'
+            : 'Choose a clear area away from the road and other dragons',
+      },
+    ];
   const cost = dragons[type].cost;
   if (state.gold < cost && !isSandbox(state))
     return [{ type: 'message', text: `Not enough ${currencyOf(state).name}` }];
@@ -154,8 +179,10 @@ function purchaseTower(state: GameState, slot: number, position?: Point): GameEv
 }
 
 function newTower(state: GameState, type: DragonType, position?: Point): Tower {
+  if (state.defense?.ruleset === 'defense-2' && position) return createEvolutionTower(type, position);
   const placed = position ? { position: { ...position } } : {};
-  if (type !== 'ice') return { type, level: 1, cooldown: 0, ...placed };
+  if (type === 'fire') return { type, level: 1, cooldown: 0, ...placed };
+  if (type === 'poison') return { type, level: 1, cooldown: 0, ...placed };
   const charged = state.defense ? { charges: 1, chargeTimer: defenseRules.iceChargeIntervalMs } : {};
   return { type, level: 1, cooldown: 0, ...placed, ...charged };
 }

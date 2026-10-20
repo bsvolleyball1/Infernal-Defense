@@ -1,3 +1,10 @@
+import {
+  towerGridCellAt,
+  towerGridCellCenter,
+  towerGridCellKey,
+  towerGridCellSize,
+  isTowerGridCellBlocked,
+} from '../content/tower-grid';
 import { getMap, routesFor } from '../content/catalog';
 import { positionAt } from '../content/path';
 import { enemyTraits } from '../content/enemies';
@@ -6,7 +13,7 @@ import type { Battlefield } from '../content/maps';
 import type { Enemy, GameState, Point } from './types';
 
 export function routeFor(state: GameState, routeId = 0): [number, number][] {
-  return routesFor(getMap(state.activeLevel))[routeId];
+  return routesFor(getMap(state.activeLevel, state.defense?.ruleset))[routeId];
 }
 
 export function entityPosition(
@@ -50,7 +57,7 @@ export function sharesTrail(
 export function towerPosition(state: GameState, index: number): Point {
   const position = state.towers[index]?.position;
   if (position) return position;
-  const legacy = getMap(state.activeLevel).perches[index];
+  const legacy = getMap(state.activeLevel, state.defense?.ruleset).perches[index];
   return legacy ? { x: legacy.x, y: legacy.y } : { x: 0, y: 0 };
 }
 
@@ -69,8 +76,43 @@ export function isClearTowerPosition(point: Point, geometry: Battlefield): boole
   );
 }
 
+export function towerGridPosition(point: Point, geometry: Battlefield): Point | null {
+  const cell = towerGridCellAt(geometry, point);
+  return cell ? towerGridCellCenter(cell) : null;
+}
+
+export function isValidTowerGridPosition(point: Point, geometry: Battlefield): boolean {
+  const cell = towerGridCellAt(geometry, point);
+  if (
+    !cell ||
+    cell.width !== towerGridCellSize ||
+    cell.height !== towerGridCellSize ||
+    isTowerGridCellBlocked(geometry, cell)
+  )
+    return false;
+  const center = towerGridCellCenter(cell);
+  return (
+    point.x === center.x &&
+    point.y === center.y &&
+    center.x >= 25 &&
+    center.x <= geometry.width - 25 &&
+    center.y >= 25 &&
+    center.y <= geometry.height - 25
+  );
+}
+
 export function canPlaceTower(state: GameState, point: Point): boolean {
-  const geometry = getMap(state.activeLevel);
+  const geometry = getMap(state.activeLevel, state.defense?.ruleset);
+  if (state.defense?.ruleset === 'defense-2') {
+    const position = towerGridPosition(point, geometry);
+    if (!position || !isValidTowerGridPosition(position, geometry)) return false;
+    const cell = towerGridCellAt(geometry, position)!;
+    return state.towers.every((tower, index) => {
+      if (!tower) return true;
+      const other = towerGridCellAt(geometry, towerPosition(state, index));
+      return !other || towerGridCellKey(cell) !== towerGridCellKey(other);
+    });
+  }
   if (!isClearTowerPosition(point, geometry)) return false;
   const targetBonus = bonusAreaAt(geometry, point);
   return state.towers.every((tower, index) => {

@@ -1,3 +1,5 @@
+import { dragonForms } from '../content/dragon-forms';
+import { towerGridPosition } from '../game/geometry';
 import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { enemyRoster, isDefenseMonster } from '../content/enemies';
@@ -17,7 +19,7 @@ export function presentSelectionRange(
     x: position.x,
     y: position.y,
     radius: state.defense ? defenseRange(state, selected) : towerRange(selected),
-    color: dragons[selected.type].color,
+    color: selected.evolution ? dragonForms[selected.evolution.form].color : dragons[selected.type].color,
   };
 }
 
@@ -42,7 +44,7 @@ export function presentTowerLabel(state: GameState, index: number): string {
         : bonus
           ? `, ${bonus.kind} bonus${state.defense?.mode === 'sandbox' ? ' (journey only)' : ` +${resourceRate.toFixed(2)}/s`}`
           : '';
-  return `${dragons[tower.type].name}, level ${tower.level}, dragon ${index + 1}${bonusLabel}`;
+  return `${tower.evolution ? dragonForms[tower.evolution.form].name : dragons[tower.type].name}, ${tower.evolution ? 'tier' : 'level'} ${tower.level}, dragon ${index + 1}${bonusLabel}`;
 }
 
 export interface PlacedTowerView {
@@ -54,6 +56,7 @@ export interface PlacedTowerView {
   color: string;
   type: DragonType;
   level: number;
+  evolved: boolean;
 }
 
 /** One placed dragon, with its map position already resolved. */
@@ -69,7 +72,8 @@ export function presentPlacedTowers(state: GameState): PlacedTowerView[] {
         y: position.y,
         label: presentTowerLabel(state, index),
         inactive,
-        color: dragons[tower.type].color,
+        color: tower.evolution ? dragonForms[tower.evolution.form].color : dragons[tower.type].color,
+        evolved: Boolean(tower.evolution),
         type: tower.type,
         level: tower.level,
       },
@@ -82,12 +86,24 @@ export interface PlacementPreview {
   y: number;
   valid: boolean;
   dragon: DragonType;
+  evolved: boolean;
 }
 
 /** The ghost dragon under the pointer, or nothing when placement is closed. */
 export function presentPlacement(state: GameState, point: Point | null): PlacementPreview | null {
   if (!state.chosen || !point || state.paused || state.phase === 'won' || state.phase === 'lost') return null;
-  return { x: point.x, y: point.y, valid: canPlaceTower(state, point), dragon: state.chosen };
+  const position =
+    state.defense?.ruleset === 'defense-2'
+      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset))
+      : point;
+  return position
+    ? {
+        ...position,
+        valid: canPlaceTower(state, point),
+        dragon: state.chosen,
+        evolved: state.defense?.ruleset === 'defense-2',
+      }
+    : null;
 }
 
 export interface SummonControlView {
@@ -111,7 +127,7 @@ export function presentSummon(state: GameState): SummonControlView {
     visible,
     interactive: visible && !state.paused,
     x: 29,
-    y: getMap(state.activeLevel).path[0][1],
+    y: getMap(state.activeLevel, state.defense?.ruleset).path[0][1],
     remaining,
     label:
       countdown === null
@@ -163,7 +179,7 @@ export interface EggSprite {
 
 /** Eggs in the nest, on the road, or riding a carrier. Escaped eggs are omitted. */
 export function presentEggs(state: GameState): EggSprite[] {
-  const map = getMap(state.activeLevel);
+  const map = getMap(state.activeLevel, state.defense?.ruleset);
   return state.eggs.flatMap((egg) => {
     if (egg.status === 'escaped') return [];
     let x = map.nest.x - 16 + (egg.id - 1) * 8;

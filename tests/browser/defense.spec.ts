@@ -19,9 +19,12 @@ async function putSave(page: Page, state: GameState, active = true): Promise<voi
   await page.reload();
   await page.locator('#continueJourney').click();
 }
-test('permanent trees purchase all nodes, persist across levels, and stay player-local', async ({ page }) => {
+test('permanent trees purchase applicable nodes and preserve old ranks, persist across levels, and stay player-local', async ({
+  page,
+}) => {
   const state = createDefenseState();
   state.bankedGold = 12000;
+  for (const type of ['fire', 'poison', 'ice'] as const) state.defense.ranks[type][1] = 3;
   state.phase = 'battle';
   state.wave = 5;
   finishBattle(state, true, []);
@@ -29,12 +32,16 @@ test('permanent trees purchase all nodes, persist across levels, and stay player
   await page.locator('#openPermanent').click();
   await expect(page.locator('[data-permanent]')).toHaveCount(18);
   for (const type of ['fire', 'poison', 'ice'])
-    for (let node = 0; node < 6; node++) await page.locator(`[data-permanent="${type}"][data-node="${node}"]`).click();
+    for (let node = 0; node < 6; node++) {
+      const button = page.locator(`[data-permanent="${type}"][data-node="${node}"]`);
+      if (node === 1) await expect(button).toBeDisabled();
+      else await button.click();
+    }
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.defense.ranks).toEqual({
-    fire: [1, 1, 1, 1, 1, 1],
-    ice: [1, 1, 1, 1, 1, 1],
-    poison: [1, 1, 1, 1, 1, 1],
+    fire: [1, 3, 1, 1, 1, 1],
+    ice: [1, 3, 1, 1, 1, 1],
+    poison: [1, 3, 1, 1, 1, 1],
   });
   await page.locator('#upgradeToLevels').click();
   await page.locator('[data-level="meadow"]').click();
@@ -112,11 +119,14 @@ for (const viewport of [
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
       // Each upgrade closes the action popover, so the dragon is selected again before the next one.
-      for (let level = 1; level <= 5; level++) {
-        await page.getByRole('button', { name: `Frost, level ${level}, dragon 1`, exact: true }).tap();
+      for (let level = 1; level <= 2; level++) {
+        await page
+          .getByRole('button', { name: `${level === 1 ? 'Blue' : 'Blue 2'}, tier ${level}, dragon 1`, exact: true })
+          .tap();
         await page.locator('#upgrade').tap();
+        await page.locator('[data-upgrade-color="blue"]').tap();
       }
-      await expect(page.getByRole('button', { name: 'Frost, level 6, dragon 1', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Blue 3, tier 3, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();
       await expect(page.locator('#enemies')).toContainText('Witch');
       await page.screenshot({

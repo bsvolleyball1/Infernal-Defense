@@ -36,7 +36,8 @@ export function createInitialState(level: Level = 'level1', bankedGold = 0): Leg
 function copyTower(tower: Tower): Tower {
   const copy = { ...tower };
   if (tower.position) copy.position = { ...tower.position };
-  if (copy.type === 'fire' && copy.beamIds) copy.beamIds = [...copy.beamIds];
+  if (copy.beamIds) copy.beamIds = [...copy.beamIds];
+  if (copy.evolution) copy.evolution = { ...copy.evolution, colors: [...copy.evolution.colors] };
   return copy;
 }
 
@@ -48,7 +49,13 @@ export function copyState(state: GameState): GameState {
     ...(state.defense ? { defense: structuredClone(state.defense) } : {}),
     towers: state.towers.map((tower) => (tower ? copyTower(tower) : null)),
     enemies: state.enemies.map((enemy) => ({ ...enemy })),
-    projectiles: state.projectiles.map((projectile) => ({ ...projectile })),
+    projectiles: state.projectiles.map((projectile) => ({
+      ...projectile,
+      ...(projectile.effect ? { effect: { ...projectile.effect } } : {}),
+      ...(projectile.retarget
+        ? { retarget: { ...projectile.retarget, origin: { ...projectile.retarget.origin } } }
+        : {}),
+    })),
     eggs: state.eggs.map((egg) => ({ ...egg })),
     spawnSchedule: state.spawnSchedule.map((spawn) => ({ ...spawn })),
   };
