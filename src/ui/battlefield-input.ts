@@ -71,7 +71,12 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
         return;
       }
       if (!target) return;
-      if (target.closest('.summon-control')) return summon();
+      if (target.closest('.summon-control')) {
+        const chosen = readState().chosen;
+        if (chosen) dispatch({ type: 'place', point: toMap(event, map) ?? { x: -1, y: -1 } });
+        else summon();
+        return;
+      }
       const tower = target.closest<SVGGElement>('.tower-marker');
       if (tower) dispatch({ type: 'perch', index: Number(tower.dataset.id) });
       else if (readState().chosen) dispatch({ type: 'place', point: toMap(event, map) ?? { x: -1, y: -1 } });

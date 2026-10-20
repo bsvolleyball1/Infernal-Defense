@@ -1,7 +1,13 @@
 import { getMap, routesFor } from '../content/catalog';
 import { positionAt } from '../content/path';
 import { enemyTraits } from '../content/enemies';
-import { bonusAreaAt } from '../content/maps';
+import {
+  isTowerGridCellBlocked,
+  towerGridCellAt,
+  towerGridCellCenter,
+  towerGridCellKey,
+  towerGridCellSize,
+} from '../content/maps';
 import type { Battlefield } from '../content/maps';
 import type { Enemy, GameState, Point } from './types';
 

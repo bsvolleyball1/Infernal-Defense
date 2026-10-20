@@ -45,7 +45,8 @@ export function renderPermanent(state: GameState): void {
 
 export function renderDefenseControls(state: GameState): void {
   const d = state.defense;
-  const challenge = getMap(state.activeLevel).challenge;
+  const geometry = getMap(state.activeLevel);
+  const challenge = geometry.challenge;
   const stats = element<HTMLElement>('.stats');
   stats.dataset.mode = d ? 'defense' : 'classic';
   stats.children.item(0)?.setAttribute('aria-label', d ? 'Food' : 'Gold');
@@ -105,7 +106,7 @@ export function renderDefenseControls(state: GameState): void {
   elements<HTMLButtonElement>('[data-spell]').forEach((b) => {
     const key = b.dataset.spell as SpellKind,
       seconds = Math.ceil(d.spellCooldowns[key] / 1000);
-    b.hidden = Boolean(challenge && challenge.spell !== key);
+    b.hidden = !challengeAllowsSpell(geometry, key);
     b.disabled =
       b.hidden ||
       state.paused ||

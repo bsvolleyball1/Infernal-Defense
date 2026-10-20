@@ -1,6 +1,6 @@
-import type { DragonType, Level, MonsterKind, SpellKind } from '../domain/model';
+import type { DragonColor, DragonForm, DragonType, Level, MonsterKind, SpellKind } from '../domain/model';
 
-export type { DragonType, Level, MonsterKind, SpellKind };
+export type { DragonColor, DragonForm, DragonType, Level, MonsterKind, SpellKind };
 export interface Point {
   x: number;
   y: number;

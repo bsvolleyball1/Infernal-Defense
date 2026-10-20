@@ -1,5 +1,6 @@
-import type { GameCommand, GameSpeed, GameState } from '../game/types';
+import type { DragonColor, DragonForm, GameCommand, GameSpeed, GameState } from '../game/types';
 import { element } from './dom';
+import { dragonColors, dragonForms, nextForms } from '../content/dragon-forms';
 
 export interface BattleControlActions {
   dispatch: (command: GameCommand) => void;

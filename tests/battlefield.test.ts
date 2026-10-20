@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, map, positionAt } from '../src/content/catalog';
-import { battlefields, bonusAreaAt } from '../src/content/maps';
+import {
+  battlefields,
+  bonusAreaAt,
+  isTowerGridCellBlocked,
+  towerGridCellAt,
+  towerGridCellCenter,
+  towerGridCellKey,
+  towerGridCellSize,
+} from '../src/content/maps';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { updateTowers } from '../src/game/legacy/combat';
-import { canPlaceTower, isClearTowerPosition } from '../src/game/geometry';
+import { canPlaceTower, isValidTowerGridPosition, towerGridPosition } from '../src/game/geometry';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, Level } from '../src/game/types';
-import { upgradeSelected } from './helpers';
 
 function enemy(routeId: number, progress = 8): Enemy {
   return {

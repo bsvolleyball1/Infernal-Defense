@@ -5,6 +5,7 @@ import { defenseRange } from '../game/defense-combat';
 import { canPlaceTower, entityPosition, towerPosition } from '../game/geometry';
 import { towerRange } from '../game/rules';
 import { towerBonus } from '../game/tower-bonuses';
+import { towerGridCellAt, towerGridCellCenter } from '../content/maps';
 import type { DragonType, GameState, MonsterKind, Point } from '../game/types';
 
 export function presentSelectionRange(
@@ -87,7 +88,10 @@ export interface PlacementPreview {
 /** The ghost dragon under the pointer, or nothing when placement is closed. */
 export function presentPlacement(state: GameState, point: Point | null): PlacementPreview | null {
   if (!state.chosen || !point || state.paused || state.phase === 'won' || state.phase === 'lost') return null;
-  return { x: point.x, y: point.y, valid: canPlaceTower(state, point), dragon: state.chosen };
+  const cell = towerGridCellAt(getMap(state.activeLevel), point);
+  if (!cell) return null;
+  const center = towerGridCellCenter(cell);
+  return { x: center.x, y: center.y, valid: canPlaceTower(state, point), dragon: state.chosen };
 }
 
 export interface SummonControlView {

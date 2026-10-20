@@ -27,7 +27,8 @@ export function applyDamage(
   const traits = enemyTraits(subject.kind);
   if (source === 'spell' && traits.spellImmune) return;
   let resistance = 1;
-  if (source !== 'spell' && traits.resist) resistance = traits.resist[source] ?? traits.resist.all ?? 1;
+  if (source !== 'spell' && (subject.nullified ?? 0) <= 0 && traits.resist)
+    resistance = traits.resist[source] ?? traits.resist.all ?? 1;
   const damage =
     amount *
     resistance *

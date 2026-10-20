@@ -14,6 +14,7 @@ import { upgradedEggCount } from '../src/content/defense-rules';
 import { SaveRepository } from '../src/services/storage';
 import { createJourney, recordJourneyResult } from '../src/game/journey';
 import type { DefenseBattle, MonsterKind } from '../src/game/types';
+import { upgradeSelected } from './helpers';
 
 function battle(kind: MonsterKind = 'demon'): DefenseBattle {
   const state = createDefenseState();

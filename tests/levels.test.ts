@@ -8,7 +8,6 @@ import { updateTowers, updateProjectiles } from '../src/game/legacy/combat';
 import { SaveRepository } from '../src/services/storage';
 import { battlefieldArtwork } from '../src/ui/battlefield';
 import type { Enemy, GameEvent, GameState, Level } from '../src/game/types';
-import { upgradeSelected } from './helpers';
 
 function enemy(routeId: number, progress = 5): Enemy {
   return {

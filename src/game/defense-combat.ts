@@ -8,6 +8,7 @@ import type { DefenseBattle, Enemy, GameEvent, GameState, Projectile, Projectile
 import { attackIndex, fireLevels, iceLevels, poisonLevels } from '../content/dragon-attacks';
 import { towerContext } from './tower-bonuses';
 import type { TowerContext } from './tower-bonuses';
+import { dragonForms, formForTower } from '../content/dragon-forms';
 
 export function defenseRange(state: GameState, tower: Tower, index = state.towers.indexOf(tower)): number {
   return attackContext(state, tower, index).range;
@@ -43,7 +44,7 @@ export function tickDefenseTowers(state: DefenseBattle, dt: number, events: Game
     const targets = targetsInRange(state, tower, index, context);
     tower.cooldown = Math.max(0, tower.cooldown - dt);
     if (tower.form || tower.colors) {
-      tickEvolvedTower(state, tower, index, targets, dt, events);
+      tickEvolvedTower(state, tower, index, targets, dt, events, context);
       return;
     }
     if (tower.type === 'fire') {
@@ -55,6 +56,157 @@ export function tickDefenseTowers(state: DefenseBattle, dt: number, events: Game
         ? tickIceTower(state, tower, index, targets, dt, context)
         : tickPoisonTower(state, tower, index, targets, context);
     if (fired) events.push({ type: 'sound', dragon: tower.type });
+  });
+}
+
+function tickEvolvedTower(
+  state: DefenseBattle,
+  tower: Tower,
+  index: number,
+  targets: Enemy[],
+  dt: number,
+  events: GameEvent[],
+  context: TowerContext,
+): void {
+  const profile = dragonForms[formForTower(tower)];
+  const damage = profile.damage * damageMultiplier(state, tower.type) * context.damageMultiplier;
+  if (profile.ability === 'beam' || profile.ability === 'focus' || profile.ability === 'mapBeam') {
+    const affected =
+      profile.ability === 'mapBeam'
+        ? state.enemies.filter((enemy) => enemy.hp > 0 && !enemy.rewarded && !(enemy.untargetable! > 0))
+        : targets.slice(0, profile.ability === 'focus' ? 1 : profile.count ?? 1);
+    tower.beamIds = affected.map((enemy) => enemy.id);
+    for (const enemy of affected) applyDamage(state, enemy, (damage * dt) / 1000, tower.type, events);
+    return;
+  }
+  if (profile.ability === 'charged') {
+    const capacity = profile.count ?? 1;
+    if (tower.charges === undefined) {
+      tower.charges = capacity;
+      tower.chargeTimer = defenseRules.iceChargeIntervalMs;
+    }
+    if (tower.charges < capacity) {
+      tower.chargeTimer = (tower.chargeTimer ?? defenseRules.iceChargeIntervalMs) - dt;
+      while (tower.chargeTimer <= defenseRules.balanceEpsilon && tower.charges < capacity) {
+        tower.charges++;
+        tower.chargeTimer += defenseRules.iceChargeIntervalMs;
+      }
+    }
+    if (tower.charges >= capacity) tower.chargeTimer = defenseRules.iceChargeIntervalMs;
+    if (!targets.length || !tower.charges) return;
+    for (const enemy of targets.slice(0, tower.charges))
+      fireFormProjectile(state, tower, index, enemy, damage, context);
+    tower.charges = 0;
+    tower.chargeTimer = defenseRules.iceChargeIntervalMs;
+    events.push({ type: 'sound', dragon: tower.type });
+    return;
+  }
+  if (profile.ability === 'rapid' || profile.ability === 'acid' || profile.ability === 'sniper') {
+    if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
+    fireFormProjectile(
+      state,
+      tower,
+      index,
+      targets[0],
+      damage,
+      context,
+      profile.ability === 'acid' ? profile.duration : undefined,
+    );
+    tower.cooldown =
+      profile.interval / (1 + rankTotal(state, tower.type) * defenseRules.nonAttackRankBonus);
+    events.push({ type: 'sound', dragon: tower.type });
+    return;
+  }
+  if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
+  const target = targets[0];
+  const [centerX, centerY] = entityPosition(state, target);
+  const area =
+    profile.ability === 'cone'
+      ? targets.filter((enemy) =>
+          inBreathCone(state, enemy, target, context, profile.radius ?? 45),
+        )
+      : profile.ability === 'explosion' ||
+          profile.ability === 'radius' ||
+          profile.ability === 'tar' ||
+          profile.ability === 'earthquake'
+        ? state.enemies.filter((enemy) => {
+            const [x, y] = entityPosition(state, enemy);
+            return (
+              enemy.hp > 0 &&
+              Math.hypot(x - centerX, y - centerY) <= (profile.radius ?? 48)
+            );
+          })
+        : [target];
+  for (const enemy of area) {
+    if (profile.ability === 'nullify')
+      enemy.nullified = Math.max(enemy.nullified ?? 0, profile.duration ?? 4000);
+    applyDamage(state, enemy, damage, tower.type, events);
+    if (profile.ability === 'tar')
+      enemy.slow = Math.max(enemy.slow, profile.duration ?? 2000);
+    if (profile.ability === 'earthquake')
+      enemy.frozen = Math.max(enemy.frozen ?? 0, profile.duration ?? 1500);
+  }
+  const centered =
+    profile.ability === 'explosion' ||
+    profile.ability === 'radius' ||
+    profile.ability === 'tar' ||
+    profile.ability === 'earthquake';
+  state.defense.visuals.push({
+    id: state.nextEntityId++,
+    kind: tower.type,
+    x: centered ? centerX : context.position.x,
+    y: centered ? centerY : context.position.y,
+    radius: profile.radius ?? 38,
+    remaining: defenseRules.fireWaveVisualMs,
+    color: profile.color,
+  });
+  tower.cooldown = profile.interval;
+  events.push({ type: 'sound', dragon: tower.type });
+}
+
+function inBreathCone(
+  state: GameState,
+  candidate: Enemy,
+  target: Enemy,
+  context: TowerContext,
+  width: number,
+): boolean {
+  const [targetX, targetY] = entityPosition(state, target);
+  const [candidateX, candidateY] = entityPosition(state, candidate);
+  const dx = targetX - context.position.x;
+  const dy = targetY - context.position.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const cx = candidateX - context.position.x;
+  const cy = candidateY - context.position.y;
+  const along = (cx * dx + cy * dy) / distance;
+  const across = Math.abs(cx * dy - cy * dx) / distance;
+  return along >= 0 && along <= context.range && across <= Math.min(width, along * 0.55);
+}
+
+function fireFormProjectile(
+  state: DefenseBattle,
+  tower: Tower,
+  index: number,
+  target: Enemy,
+  damage: number,
+  context: TowerContext,
+  poisonDuration?: number,
+): void {
+  const effect: ProjectileEffect = poisonDuration
+    ? { kind: 'poison', duration: poisonDuration, slow: 0 }
+    : { kind: 'none' };
+  state.projectiles.push({
+    id: state.nextEntityId++,
+    x: context.position.x,
+    y: context.position.y - defenseRules.projectileOriginOffset,
+    targetId: target.id,
+    dragon: tower.type,
+    damage,
+    ...(context.damageMultiplier > 1 ? { damageMultiplier: context.damageMultiplier } : {}),
+    speed: defenseRules.projectileSpeed,
+    level: tower.level,
+    towerIndex: index,
+    effect,
   });
 }
 

@@ -1,4 +1,11 @@
-import type { DragonColor, DragonForm, DragonType, Tower } from '../game/types';
+import type { DragonColor, DragonForm, DragonType } from '../domain/model';
+
+interface EvolvableDragon {
+  type: DragonType;
+  level: number;
+  colors?: DragonColor[];
+  form?: DragonForm;
+}
 
 export type DragonAbility =
   | 'beam'
@@ -99,17 +106,17 @@ export function formsForColors(colors: DragonColor[]): DragonForm[] {
   return [];
 }
 
-export function colorsForTower(tower: Tower): DragonColor[] {
+export function colorsForTower(tower: EvolvableDragon): DragonColor[] {
   if (tower.colors) return normalizedColors(tower.colors);
   return Array.from({ length: Math.min(3, tower.level) }, () => colorForDragon[tower.type]);
 }
 
-export function formForTower(tower: Tower): DragonForm {
+export function formForTower(tower: EvolvableDragon): DragonForm {
   if (tower.form) return tower.form;
   if (tower.level <= 1) return colorForDragon[tower.type];
   return formsForColors(colorsForTower(tower))[0] ?? colorForDragon[tower.type];
 }
 
-export function nextForms(tower: Tower, color: DragonColor): DragonForm[] {
+export function nextForms(tower: EvolvableDragon, color: DragonColor): DragonForm[] {
   return formsForColors([...colorsForTower(tower), color]);
 }
