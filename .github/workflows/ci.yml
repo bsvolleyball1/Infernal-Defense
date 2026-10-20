@@ -2,9 +2,9 @@ name: Verify
 
 on:
   pull_request:
-    branches: [main, Dev---Davin]
+    branches: [main, DevD]
   push:
-    branches: [main, Dev---Davin]
+    branches: [main, DevD]
 
 permissions:
   contents: read
