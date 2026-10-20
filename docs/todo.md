@@ -1,5 +1,9 @@
 # Dev 1.0 review and integration TODO
 
+## October 20 feature integration
+
+The upgrade-branch features are implemented on the DevD integration track. [Implementation plan](BRANCH_SALVAGE_PLAN.md) tracks the completed local phases and the separate main release; [implementation and verification](UPGRADE_FEATURES.md) records behavior, compatibility, and acceptance evidence. The historical review below remains a record of the earlier port.
+
 ## October 6 integration status
 
 The review below is historical: it describes `6053e80`, not current remote heads. All five approved groups from later GitHub `main` revision `b01e5b5` are now implemented in the modular architecture. [Main gameplay port](UPSTREAM_PORT.md) is the current integration record; [Verification](VERIFICATION.md) records acceptance checks and remaining physical-device work.

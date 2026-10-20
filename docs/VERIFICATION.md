@@ -1,5 +1,9 @@
 # PWA refactor verification
 
+## October 20 upgrade feature integration
+
+The current integration adds versioned grid/evolution battles while retaining historical saves. [Feature implementation and acceptance evidence](UPGRADE_FEATURES.md) records 482 unit tests, 52 production-browser tests, full-wave runs on all ten levels, and the installed old-to-new build update check. The remaining sections below describe earlier milestones.
+
 Verified locally on October 6, 2026, on `Dev---Davin`, using Node.js 24 and the locked npm dependencies. The current browser suite used CI's two-worker setting with retries disabled.
 
 ## Automated results
