@@ -10,6 +10,7 @@ export interface BattleControlActions {
   returnHome: () => void;
   save: () => void;
   afterEvolve?: () => void;
+  afterChoicesChange?: () => void;
 }
 
 export function nextGameSpeed(speed: GameSpeed): GameSpeed {

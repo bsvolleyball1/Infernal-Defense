@@ -16,6 +16,7 @@ export function bindEvolutionControls(
     readState(): GameState;
     dispatch(command: GameCommand): void;
     afterEvolve?(): void;
+    afterChoicesChange?(): void;
   },
   signal: AbortSignal,
 ): { open(): void; cancel(): void } {
@@ -25,6 +26,7 @@ export function bindEvolutionControls(
     panel.hidden = true;
     delete panel.dataset.owner;
     upgrade.setAttribute('aria-expanded', 'false');
+    actions.afterChoicesChange?.();
   };
   const open = () => {
     if (!panel.hidden) {
@@ -45,6 +47,7 @@ export function bindEvolutionControls(
       .join('')}</div><button type="button" data-upgrade-cancel>Cancel</button>`;
     panel.hidden = false;
     upgrade.setAttribute('aria-expanded', 'true');
+    actions.afterChoicesChange?.();
     panel.querySelector<HTMLButtonElement>('[data-upgrade-color]')?.focus();
   };
   const commit = (color: DragonColor, form: DragonForm) => {
@@ -81,6 +84,7 @@ export function bindEvolutionControls(
               `<button type="button" data-upgrade-form="${form.form}" data-color="${color}" style="--choice-color:${form.color}"><strong>${form.name}</strong><small>${form.description}</small></button>`,
           )
           .join('')}</div><button type="button" data-upgrade-cancel>Cancel</button>`;
+        actions.afterChoicesChange?.();
         panel.querySelector<HTMLButtonElement>('[data-upgrade-form]')?.focus();
       } else if (target.dataset.upgradeForm)
         commit(target.dataset.color as DragonColor, target.dataset.upgradeForm as DragonForm);

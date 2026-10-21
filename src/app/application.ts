@@ -193,6 +193,7 @@ export function startApplication(): void {
   });
   bindBattleControls({
     afterEvolve: () => renderer.afterTowerAction(),
+    afterChoicesChange: renderBattle,
     dispatch: dispatchGameCommand,
     readState: () => engine.state,
     isVisible: () => navigation.battleVisible && !presentation?.blocked,
