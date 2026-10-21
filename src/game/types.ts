@@ -5,16 +5,18 @@ import type {
   DragonType,
   Level,
   MonsterKind,
+  MobileMapLayout,
   SpellKind,
 } from '../domain/model';
 
-export type { DefenseProfile, DragonColor, DragonForm, DragonType, Level, MonsterKind, SpellKind };
+export type { DefenseProfile, DragonColor, DragonForm, DragonType, Level, MonsterKind, SpellKind, MobileMapLayout };
 export interface Point {
   x: number;
   y: number;
 }
 export interface DefenseState {
   ruleset: DefenseProfile;
+  mobileLayout?: MobileMapLayout;
   mode: 'journey' | 'sandbox';
   ranks: Record<DragonType, number[]>;
   mana: number;

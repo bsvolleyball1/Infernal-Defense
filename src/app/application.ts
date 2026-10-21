@@ -14,13 +14,16 @@ import {
   showMenu,
 } from '../ui/menus';
 import { GameEngine } from '../game/engine';
-import { bindTestWaveInputs, renderDefenseControls, renderPermanent } from '../ui/defense-controls';
+import { bindTestWaveInputs, readTestWaveCounts, renderDefenseControls, renderPermanent } from '../ui/defense-controls';
+import { initPresentation } from '../services/presentation';
+import { deviceMapLayout } from '../ui/mobile-map-layout';
 import type { GameCommand, GameEvent, SimulationEngine } from '../game/types';
 import { SaveRepository } from '../services/storage';
 import { AudioService } from '../services/audio';
 import { initPwa } from '../services/pwa';
 import type { PwaController } from '../services/pwa';
 import { element, elements, setText } from '../ui/dom';
+import { formatGold } from '../ui/currency-format';
 import { SvgRenderer, type Renderer } from '../ui/renderer';
 import { BestiaryStore } from './bestiary-store';
 import { bindMenuControls } from './bindings';
@@ -105,6 +108,7 @@ export function startApplication(): void {
   }
 
   function dispatchGameCommand(command: GameCommand): void {
+    if (presentation?.blocked) return;
     void audio.unlock();
     persistEvents(command, engine.dispatch(command));
     renderBattle();
@@ -112,6 +116,7 @@ export function startApplication(): void {
   }
 
   const navigation: NavigationController = new NavigationController({
+    mapLayout: deviceMapLayout,
     session,
     engine,
     renderBattle,
@@ -124,6 +129,7 @@ export function startApplication(): void {
     setSaveIntro: (text) => setText('#saveIntro', text),
     onBattleShown: () => {
       showResults = true;
+      if (presentation?.blocked) pauseForOrientation();
     },
     views: {
       showMenu,
@@ -134,7 +140,7 @@ export function startApplication(): void {
       renderBestiary: () => renderBestiary(bestiary.list),
       renderOptions: () => renderOptions(settings.settings),
       renderUpgrades: (state) => {
-        setText('#bankedGold', `${state.bankedGold} gold`);
+        setText('#bankedGold', `${formatGold(state.bankedGold)} gold`);
         renderPermanent(
           state.defense && !session.journey.activeBattle
             ? createDefenseState(state.activeLevel, state, false, newBattleProfile)
@@ -143,7 +149,18 @@ export function startApplication(): void {
       },
     },
   });
+
+  function pauseForOrientation(): void {
+    if (!navigation.battleVisible) return;
+    engine.dispatch({ type: 'pause' });
+    element('#gameScreen').setAttribute('data-pause-open', '');
+    session.save();
+    void audio.suspend();
+    renderBattle();
+  }
+  const presentation = initPresentation(pauseForOrientation);
   const journeys = new JourneyController({
+    mapLayout: deviceMapLayout,
     session,
     engine,
     repository,
@@ -154,7 +171,7 @@ export function startApplication(): void {
     previewEngine: (state) => new GameEngine(state),
     onPermanentPurchased: () => {
       renderPermanent(engine.state);
-      setText('#bankedGold', `${engine.state.bankedGold} gold`);
+      setText('#bankedGold', `${formatGold(engine.state.bankedGold)} gold`);
     },
     onTestModeStarted: () => {
       elements<HTMLInputElement>('[data-test-count]').forEach((input) => {
@@ -178,10 +195,12 @@ export function startApplication(): void {
     afterEvolve: () => renderer.afterTowerAction(),
     dispatch: dispatchGameCommand,
     readState: () => engine.state,
-    isVisible: () => navigation.battleVisible,
+    isVisible: () => navigation.battleVisible && !presentation?.blocked,
     resume: () => {
       void audio.resume();
       dispatchGameCommand({ type: 'resume' });
+      if (engine.state.defense?.mode === 'sandbox')
+        dispatchGameCommand({ type: 'testWave', counts: readTestWaveCounts() });
     },
     returnHome: () => navigation.returnHome(),
     save: () => {
@@ -204,7 +223,8 @@ export function startApplication(): void {
   });
   startRuntime({
     engine,
-    isVisible: () => navigation.battleVisible,
+    isVisible: () =>
+      navigation.battleVisible && !presentation?.blocked && !element('#gameScreen').hasAttribute('data-pause-open'),
     onEvents: (events) => persistEvents(null, events),
     onRender: () => {
       renderBattle();

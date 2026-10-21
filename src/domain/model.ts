@@ -59,3 +59,11 @@ export type Level =
   | 'noFireTrial';
 
 export type DefenseProfile = 'defense-1' | 'defense-2';
+
+/** Authored mobile-map dimensions are saved so an active battle never changes under its towers. */
+export interface MobileMapLayout {
+  version: 1;
+  width: number;
+  height: number;
+  insets: { top: number; right: number; bottom: number; left: number };
+}

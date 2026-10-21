@@ -13,7 +13,7 @@ import type { Battlefield } from '../content/maps';
 import type { Enemy, GameState, Point } from './types';
 
 export function routeFor(state: GameState, routeId = 0): [number, number][] {
-  return routesFor(getMap(state.activeLevel, state.defense?.ruleset))[routeId];
+  return routesFor(getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout))[routeId];
 }
 
 export function entityPosition(
@@ -57,7 +57,7 @@ export function sharesTrail(
 export function towerPosition(state: GameState, index: number): Point {
   const position = state.towers[index]?.position;
   if (position) return position;
-  const legacy = getMap(state.activeLevel, state.defense?.ruleset).perches[index];
+  const legacy = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).perches[index];
   return legacy ? { x: legacy.x, y: legacy.y } : { x: 0, y: 0 };
 }
 
@@ -102,7 +102,7 @@ export function isValidTowerGridPosition(point: Point, geometry: Battlefield): b
 }
 
 export function canPlaceTower(state: GameState, point: Point): boolean {
-  const geometry = getMap(state.activeLevel, state.defense?.ruleset);
+  const geometry = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
   if (state.defense?.ruleset === 'defense-2') {
     const position = towerGridPosition(point, geometry);
     if (!position || !isValidTowerGridPosition(position, geometry)) return false;

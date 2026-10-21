@@ -28,7 +28,8 @@ for (const viewport of [
         const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')!;
         return (await fetch(link.href)).json();
       });
-      expect(manifest.display).toBe('standalone');
+      expect(manifest.display).toBe('fullscreen');
+      expect(manifest.orientation).toBe('landscape-primary');
       expect(manifest.start_url).toBe('/Infernal-Defense/');
       expect(manifest.icons.some((icon: { sizes: string }) => icon.sizes === '512x512')).toBe(true);
     } finally {

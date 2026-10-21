@@ -94,7 +94,7 @@ export function presentPlacement(state: GameState, point: Point | null): Placeme
   if (!state.chosen || !point || state.paused || state.phase === 'won' || state.phase === 'lost') return null;
   const position =
     state.defense?.ruleset === 'defense-2'
-      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset))
+      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset, state.defense.mobileLayout))
       : point;
   return position
     ? {
@@ -127,7 +127,7 @@ export function presentSummon(state: GameState): SummonControlView {
     visible,
     interactive: visible && !state.paused,
     x: 29,
-    y: getMap(state.activeLevel, state.defense?.ruleset).path[0][1],
+    y: getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).path[0][1],
     remaining,
     label:
       countdown === null
@@ -179,7 +179,7 @@ export interface EggSprite {
 
 /** Eggs in the nest, on the road, or riding a carrier. Escaped eggs are omitted. */
 export function presentEggs(state: GameState): EggSprite[] {
-  const map = getMap(state.activeLevel, state.defense?.ruleset);
+  const map = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
   return state.eggs.flatMap((egg) => {
     if (egg.status === 'escaped') return [];
     let x = map.nest.x - 16 + (egg.id - 1) * 8;

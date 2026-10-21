@@ -1,9 +1,11 @@
+import { openPause } from './pause';
 import { test, expect, type Page } from '@playwright/test';
 import { createDefenseState } from '../../src/game/defense-state';
 import { GameEngine, createInitialState } from '../../src/game/engine';
 import { clickMapAt } from './map';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import type { GameState, Level } from '../../src/game/types';
+import { getMap } from '../../src/content/maps';
 
 function purpleState() {
   const state = createDefenseState('level1', undefined, false, 'defense-2');
@@ -30,7 +32,7 @@ async function seed(page: Page, state: GameState, completedLevels: Level[] = [])
 }
 
 for (const viewport of [
-  { width: 375, height: 812 },
+  { width: 812, height: 375 },
   { width: 844, height: 390 },
 ]) {
   test(`alternate evolution choices remain usable and restore at ${viewport.width}x${viewport.height}`, async ({
@@ -75,11 +77,16 @@ test('keyboard places snapped cells and cancellation never spends food', async (
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-new="0"]').click();
   await page.locator('[data-level="level1"]').click();
+  const initial = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
+  const firstCell = getMap(initial.activeLevel, initial.defense?.ruleset, initial.defense?.mobileLayout).perches[0];
   await page.locator('[data-type="poison"]').click();
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
   await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
-  await expect(page.locator('#towers .tower-marker')).toHaveAttribute('transform', 'translate(75 25)');
+  await expect(page.locator('#towers .tower-marker')).toHaveAttribute(
+    'transform',
+    `translate(${firstCell.x + 50} ${firstCell.y})`,
+  );
   await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /yellow-1/);
   await page.locator('[data-type="fire"]').click();
   await page.keyboard.press('Escape');
@@ -215,6 +222,7 @@ test('offline cold launch switches historical and new profiles on the same map a
     if (grid) await expect(offline.locator('#towerGrid rect')).not.toHaveCount(0);
     else await expect(offline.locator('#towerGrid rect')).toHaveCount(0);
     await expect(offline.locator('#towers .tower-marker')).toHaveAttribute('transform', position);
+    await openPause(offline);
     await offline.locator('#returnMenu').click();
     await offline.locator('#journeyExit').click();
   }

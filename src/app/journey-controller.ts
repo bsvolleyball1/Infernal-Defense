@@ -1,7 +1,7 @@
 import { newBattleProfile } from '../content/battle-profiles';
 import { createDefenseState } from '../game/defense-state';
 import { createJourney, importJourney } from '../game/journey';
-import type { GameCommand, GameState, SimulationEngine } from '../game/types';
+import type { GameCommand, GameState, SimulationEngine, MobileMapLayout } from '../game/types';
 import type { SlotResult } from '../services/storage';
 import type { BestiaryStore } from './bestiary-store';
 import { copy } from './copy';
@@ -13,6 +13,7 @@ export interface JourneyRepository {
 }
 
 export interface JourneyHooks {
+  mapLayout?: () => MobileMapLayout;
   session: GameSession;
   engine: SimulationEngine;
   repository: JourneyRepository;
@@ -40,7 +41,13 @@ export class JourneyController {
     }
     if (existing.status === 'valid' && !this.hooks.confirm(copy.confirmNewJourney(index))) return;
     repository.readSlot(index, true);
-    if (session.commit(index, createDefenseState('level1', undefined, false, newBattleProfile), createJourney()))
+    if (
+      session.commit(
+        index,
+        createDefenseState('level1', undefined, false, newBattleProfile, this.hooks.mapLayout?.()),
+        createJourney(),
+      )
+    )
       this.hooks.navigation.navigate('levels');
   }
 
@@ -103,7 +110,7 @@ export class JourneyController {
     if (!session.save()) return;
     session.slot = null;
     session.journey = createJourney();
-    engine.restore(createDefenseState('tutorial', undefined, true, newBattleProfile));
+    engine.restore(createDefenseState('tutorial', undefined, true, newBattleProfile, this.hooks.mapLayout?.()));
     this.hooks.onTestModeStarted();
     this.hooks.navigation.showBattleScreen();
   }

@@ -23,8 +23,8 @@ export default defineConfig(({ command, mode, isPreview }) => ({
               description: 'Defend the dragon nest in Infernal Defense.',
               start_url: productionBase,
               scope: productionBase,
-              display: 'standalone',
-              orientation: 'any',
+              display: 'fullscreen',
+              orientation: 'landscape-primary',
               background_color: '#111711',
               theme_color: '#111711',
               icons: [

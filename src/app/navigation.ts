@@ -3,7 +3,7 @@ import { getMap } from '../content/catalog';
 import { nextBattle } from '../game/defense-state';
 import { isLevelUnlocked, levelPrerequisite } from '../game/journey';
 import type { JourneyProgress } from '../game/journey';
-import type { GameCommand, GameEvent, GameState, Level, SimulationEngine } from '../game/types';
+import type { GameCommand, GameEvent, GameState, Level, SimulationEngine, MobileMapLayout } from '../game/types';
 import type { MenuPage } from '../ui/menus';
 import { copy } from './copy';
 import type { GameSession } from './session';
@@ -21,6 +21,7 @@ export interface MenuViews {
 }
 
 export interface NavigationHooks {
+  mapLayout?: () => MobileMapLayout;
   session: GameSession;
   engine: Pick<SimulationEngine, 'state' | 'dispatch'>;
   views: MenuViews;
@@ -104,7 +105,7 @@ export class NavigationController {
       if (prerequisite) this.hooks.notify(copy.clearFirst(getMap(prerequisite).name, getMap(level).name));
       return;
     }
-    const state = nextBattle(engine.state, level);
+    const state = nextBattle(engine.state, level, this.hooks.mapLayout?.());
     if (state.defense) state.defense.countdown = defenseRules.waveCountdownMs;
     state.knownMonsters = [...engine.state.knownMonsters];
     if (session.commit(session.slot, state, { ...session.journey, activeBattle: true })) this.showBattleScreen();

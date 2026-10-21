@@ -1,10 +1,11 @@
+import { openPause } from './pause';
 import { test, expect } from '@playwright/test';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createInitialState, GameEngine } from '../../src/game/engine';
 import { clickMapAt } from './map';
 
 for (const viewport of [
-  { width: 375, height: 812 },
+  { width: 812, height: 375 },
   { width: 844, height: 390 },
 ]) {
   for (const level of [
@@ -78,6 +79,7 @@ test('switches geometry and controls between all three battlefields without a pa
       id === 'meadow' ? 183 : id === 'volcanic' ? 140 : 202,
     );
     await expect(page.locator('#gold')).toHaveText('65');
+    await openPause(page);
     await page.locator('#returnMenu').click();
     await page.locator('#journeyExit').click();
   }
@@ -87,6 +89,7 @@ test('switches geometry and controls between all three battlefields without a pa
     await page.locator('#journeyResume').click();
     await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Blue, tier 1, dragon 1', exact: true })).toBeVisible();
+    await openPause(page);
     await page.locator('#returnMenu').click();
     await page.locator('#journeyExit').click();
   }
@@ -107,6 +110,7 @@ test('elemental fork trials unlock in order and show only their dragon and spell
   await expect(page.locator('#battleDragons [data-type="fire"]')).toBeVisible();
   await expect(page.locator('#battleSpells [data-spell]:visible')).toHaveCount(1);
   await expect(page.locator('#battleSpells [data-spell="fire"]')).toBeVisible();
+  await openPause(page);
   await page.locator('#returnMenu').click();
   await expect(page.locator('[data-level="iceTrial"]')).toBeDisabled();
   await expect(page.locator('[data-level="poisonTrial"]')).toBeDisabled();
@@ -148,6 +152,7 @@ test('offline cold launch restores forked enemies, an egg and future route assig
   await offline.locator('#resumeBattle').click();
   await offline.waitForTimeout(250);
   await offline.locator('#pause').click();
+  await openPause(offline);
   await offline.locator('#saveProgress').click();
   const saved = await offline.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(saved.simulationTime).toBeGreaterThan(state.simulationTime);

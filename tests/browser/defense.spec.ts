@@ -1,3 +1,4 @@
+import { openPause } from './pause';
 import { test, expect, type Page } from '@playwright/test';
 import { createDefenseState } from '../../src/game/defense-state';
 import { createEnemy } from '../../src/game/enemy-factory';
@@ -78,12 +79,13 @@ test('a restored countdown waits for Resume and early summoning retains its bonu
   await putSave(page, state);
   await page.locator('#journeyResume').click();
   await expect(page.locator('#pauseOverlay')).toBeVisible();
-  await expect(page.locator('#start')).toBeHidden();
+  await expect(page.locator('#start')).toBeVisible();
   const summon = page.locator('.summon-control');
   await expect(summon).toHaveAttribute('visibility', 'visible');
   await expect(summon).toHaveAttribute('aria-label', /early summon mana bonus/);
   await expect(summon.locator('.summon-icon')).toHaveText('👹');
   await expect(summon.locator('.summon-progress')).toHaveAttribute('stroke-dashoffset', /[1-9]/);
+  await openPause(page);
   await page.locator('#saveProgress').click();
   const paused = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
   expect(paused.defense.countdown).toBe(4500);
@@ -97,7 +99,7 @@ test('a restored countdown waits for Resume and early summoning retains its bonu
   expect(saved.defense.countdown).toBeNull();
 });
 for (const viewport of [
-  { width: 375, height: 812 },
+  { width: 812, height: 375 },
   { width: 844, height: 390 },
 ]) {
   test(`Test Mode is isolated and touch-operable at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
@@ -113,9 +115,11 @@ for (const viewport of [
       await expect(page.locator('#gold')).toHaveText('∞');
       await expect(page.locator('#tutorialTree')).toHaveCount(1);
       await expect(page.locator('[data-test-count]')).toHaveCount(17);
+      await openPause(page);
       await page.locator('[data-test-count="imp"]').fill('0');
       await page.locator('[data-test-count="witch"]').fill('2');
       await page.locator('[data-test-count="witch"]').blur();
+      await page.locator('#resumeBattle').click();
       await page.locator('[data-type="ice"]').tap();
       await clickMapAt(page, 90, 202);
       // Each upgrade closes the action popover, so the dragon is selected again before the next one.
@@ -133,6 +137,7 @@ for (const viewport of [
         path: test.info().outputPath(`sandbox-${viewport.width}.png`),
         fullPage: true,
       });
+      await openPause(page);
       await page.locator('#returnMenu').tap();
       expect(await page.evaluate(() => localStorage.getItem('infernalDefense.save.0'))).toBe(before);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);

@@ -17,9 +17,36 @@ export interface MenuBindingTargets {
   continueFromResults(): void;
 }
 
+function bindOptionsPopup(): void {
+  const options = element<HTMLDialogElement>('#optionsDialog');
+  element('#closeOptions').addEventListener('click', () => options.close());
+  options.addEventListener('keydown', (event) => {
+    event.stopPropagation();
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(options.querySelectorAll<HTMLElement>('button, input'));
+    const index = controls.indexOf(document.activeElement as HTMLElement);
+    if (index < 0 || (event.shiftKey && index === 0) || (!event.shiftKey && index === controls.length - 1)) {
+      event.preventDefault();
+      (event.shiftKey ? controls.at(-1) : controls[0])?.focus();
+    }
+  });
+  options.addEventListener('click', (event) => {
+    if (event.target !== options) return;
+    const bounds = options.getBoundingClientRect();
+    if (
+      event.clientX < bounds.left ||
+      event.clientX > bounds.right ||
+      event.clientY < bounds.top ||
+      event.clientY > bounds.bottom
+    )
+      options.close();
+  });
+}
+
 /** Wires menu DOM events to the controllers. Holds no state of its own. */
 export function bindMenuControls(targets: MenuBindingTargets): void {
   const { navigation, journeys, settings } = targets;
+  bindOptionsPopup();
   element('#sound').addEventListener('click', () => settings.toggleQuiet());
   for (const field of ['music', 'sound'] as const) {
     element<HTMLInputElement>(`#${field}Volume`).addEventListener('input', (event) => {

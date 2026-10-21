@@ -1,4 +1,5 @@
-import type { DefenseProfile, DragonType, Level, SpellKind } from '../domain/model';
+import type { DefenseProfile, DragonType, Level, SpellKind, MobileMapLayout } from '../domain/model';
+import { mobileBattlefield } from './mobile-maps';
 
 export type Point = [number, number];
 export type BonusAreaKind = 'damage' | 'range' | 'mana' | 'food' | 'gold';
@@ -9,6 +10,8 @@ export interface BonusArea {
   radius: number;
 }
 export interface Battlefield {
+  mobile?: boolean;
+  placementBounds?: { left: number; right: number; top: number; bottom: number };
   width: number;
   height: number;
   name: string;
@@ -300,8 +303,9 @@ const gridBattlefields = Object.fromEntries(
   ]),
 ) as Record<Level, Battlefield>;
 
-export function getMap(level: Level, profile?: DefenseProfile): Battlefield {
-  return (profile === 'defense-2' ? gridBattlefields : battlefields)[level];
+export function getMap(level: Level, profile?: DefenseProfile, layout?: MobileMapLayout): Battlefield {
+  const base = (profile === 'defense-2' ? gridBattlefields : battlefields)[level];
+  return layout && profile === 'defense-2' ? mobileBattlefield(base, layout) : base;
 }
 
 export function routesFor(geometry: Battlefield): [number, number][][] {

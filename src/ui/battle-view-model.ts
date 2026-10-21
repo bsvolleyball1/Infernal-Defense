@@ -1,4 +1,5 @@
 import { challengeAllowsDragon } from '../content/maps';
+import { formatGold } from './currency-format';
 import { dragonForms, colorForDragon } from '../content/dragon-forms';
 import { evolutionOwner } from './evolution-view-model';
 import { dragons, getMap } from '../content/catalog';
@@ -44,7 +45,7 @@ export interface BattleViewModel {
   nestCount: string;
   startLabel: string;
   startDisabled: boolean;
-  /** Journeys summon from the map control instead. */
+  /** The overlay button supplements the journey's map summon control. */
   startHidden: boolean;
   waveState: string;
   waveTitle: string;
@@ -119,7 +120,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
 
   return {
     evolutionOwner: evolutionOwner(state),
-    gold: sandbox ? '∞' : String(Math.floor(state.gold)),
+    gold: sandbox ? '∞' : state.defense ? String(Math.floor(state.gold)) : formatGold(state.gold),
     wave: sandbox ? String(state.wave) : `${state.wave} / ${battleRules.waveCount}`,
     lives: String(lives),
     hpText: `${lives} / ${state.eggs.length}`,
@@ -127,7 +128,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     nestCount: `${state.eggs.filter((egg) => egg.status === 'nest').length} in nest`,
     startLabel,
     startDisabled: battle || ended,
-    startHidden: state.defense?.mode === 'journey',
+    startHidden: false,
     waveState: battle
       ? state.paused
         ? 'PAUSED'
@@ -155,11 +156,11 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
             : 'Place your dragons, then begin the wave.',
     levelHeading: sandbox
       ? 'Test Mode'
-      : `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel, state.defense?.ruleset).name}`,
+      : `${state.activeLevel === 'tutorial' ? 'Tutorial · ' : ''}${getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).name}`,
     speed: `${state.speed}×`,
     pauseGlyph: state.paused ? '▶' : 'Ⅱ',
     pauseAria: state.paused ? 'Resume' : 'Pause',
-    pauseDisabled: !battle && state.defense?.countdown == null,
+    pauseDisabled: false,
     pauseOverlayHidden: !((battle || state.defense) && state.paused),
     upgradeDisabled:
       !selected ||
@@ -189,7 +190,7 @@ export function presentBattle(state: GameState, showResults: boolean): BattleVie
     resultTitle: state.phase === 'won' ? 'Valley defended' : 'The nest has fallen',
     resultEnemies: `${state.enemiesKilled} / ${state.enemiesSummoned}`,
     resultEggs: `${lives} / ${state.eggs.length}`,
-    resultGold: `${state.rewardGold} gold`,
-    bankedGold: `${state.bankedGold} gold`,
+    resultGold: `${formatGold(state.rewardGold)} gold`,
+    bankedGold: `${formatGold(state.bankedGold)} gold`,
   };
 }

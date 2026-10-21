@@ -1,7 +1,8 @@
 import { syncEvolutionChoices } from './evolution-controls';
 import { dragons, getMap } from '../content/catalog';
 import type { GameState, Point, Projectile } from '../game/types';
-import { battlefieldArtwork } from './battlefield';
+import { battlefieldArtwork, battlefieldScenery } from './battlefield';
+import { BattlefieldViewport } from './battlefield-viewport';
 import {
   presentBattle,
   presentEggs,
@@ -40,6 +41,7 @@ const towerMarkup =
 
 /** Draws the battlefield from simulation state. Input handling lives in BattlefieldInput. */
 export class SvgRenderer implements Renderer {
+  private readonly viewport = new BattlefieldViewport();
   private readonly placement = new PlacementView();
   private readonly summon = new SummonView();
   private readonly range = node('circle');
@@ -121,17 +123,18 @@ export class SvgRenderer implements Renderer {
 
   /** Redraws terrain only when the level changes; entity nodes are rebuilt with it. */
   private ensureBattlefield(state: GameState): void {
-    const mapKey = `${state.activeLevel}:${state.defense?.ruleset ?? 'legacy'}`;
+    const mapKey = `${state.activeLevel}:${state.defense?.ruleset ?? 'legacy'}:${JSON.stringify(state.defense?.mobileLayout)}`;
     if (this.activeLevel === mapKey) return;
     this.activeLevel = mapKey;
-    const geometry = getMap(state.activeLevel, state.defense?.ruleset);
+    const geometry = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
     const map = element<SVGSVGElement>('#map');
-    map.innerHTML = battlefieldArtwork(state.activeLevel, state.defense?.ruleset);
+    map.innerHTML = battlefieldArtwork(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
     map.setAttribute(
       'aria-label',
       `${geometry.name}. ${geometry.description} ${state.defense?.ruleset === 'defense-2' ? 'Choose an empty, open grid cell.' : 'Dragons can be placed on clear ground away from the road.'}`,
     );
-    map.style.background = geometry.background;
+    element('#battleScenery').innerHTML = battlefieldScenery(geometry);
+    this.viewport.setMap(geometry);
     for (const layer of [this.enemies, this.eggs, this.shots, this.towers]) layer.clear();
     element('#effects').append(this.range);
   }

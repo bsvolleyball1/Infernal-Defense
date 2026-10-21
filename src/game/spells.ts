@@ -12,14 +12,14 @@ export function castSpell(state: GameState, spell: SpellKind, point: Point | und
   if (
     !d ||
     !['fire', 'ice', 'poison'].includes(spell) ||
-    !challengeAllowsSpell(getMap(state.activeLevel, state.defense?.ruleset), spell) ||
+    !challengeAllowsSpell(getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout), spell) ||
     state.phase !== 'battle' ||
     state.paused ||
     (d.mana < defenseRules.spellCost && d.mode !== 'sandbox') ||
     d.spellCooldowns[spell] > 0
   )
     return [];
-  const battlefield = getMap(state.activeLevel, state.defense?.ruleset);
+  const battlefield = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
   if (spell !== 'ice' && (!point || !isInsideBattlefield(point, battlefield))) return [];
   if (!state.enemies.some((e) => e.hp > 0)) return [{ type: 'message', text: 'No monsters on the map' }];
   if (d.mode !== 'sandbox') d.mana -= defenseRules.spellCost;

@@ -3,13 +3,23 @@ import { createInitialState } from './state';
 import { defenseRules, maximumMana, upgradedEggCount } from '../content/defense-rules';
 import { nodeIndex } from '../content/upgrades';
 import type { UpgradeNodeId } from '../content/upgrades';
-import type { DefenseBattle, DefenseProfile, DefenseState, DragonType, GameState, Level, Tower } from './types';
+import type {
+  DefenseBattle,
+  DefenseProfile,
+  DefenseState,
+  DragonType,
+  GameState,
+  Level,
+  Tower,
+  MobileMapLayout,
+} from './types';
 
 export function createDefenseState(
   level: Level = 'level1',
   previous?: GameState,
   sandbox = false,
   profile: DefenseProfile = previous?.defense?.ruleset ?? 'defense-1',
+  layout: MobileMapLayout | undefined = previous?.defense?.mobileLayout,
 ): DefenseBattle {
   const initial = createInitialState(level, previous?.bankedGold ?? 0);
   const ranks: DefenseState['ranks'] = previous?.defense
@@ -23,6 +33,7 @@ export function createDefenseState(
   const startingFood = ranks.ice[nodeIndex('ice', 'startingFood')];
   const defense: DefenseState = {
     ruleset: profile,
+    ...(layout && profile === 'defense-2' ? { mobileLayout: structuredClone(layout) } : {}),
     mode: sandbox ? 'sandbox' : 'journey',
     ranks,
     mana: Math.min(
@@ -53,8 +64,8 @@ export function createDefenseState(
   return state;
 }
 
-export function nextBattle(previous: GameState, level: Level): DefenseBattle {
-  return createDefenseState(level, previous, false, newBattleProfile);
+export function nextBattle(previous: GameState, level: Level, layout?: MobileMapLayout): DefenseBattle {
+  return createDefenseState(level, previous, false, newBattleProfile, layout);
 }
 
 export function rankOf(state: GameState, dragon: DragonType, id: UpgradeNodeId): number {

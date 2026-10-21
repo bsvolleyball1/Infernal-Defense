@@ -3,6 +3,7 @@ import { defenseRules } from '../content/defense-rules';
 import { clampToBattlefield } from '../game/geometry';
 import type { DragonType, GameCommand, GameState, Point, SpellKind } from '../game/types';
 import { element, elements } from './dom';
+import { bindBattlefieldDrag } from './battlefield-drag';
 
 /** Presentation effects of battlefield input that are not simulation commands. */
 export interface BattlefieldView {
@@ -35,7 +36,7 @@ function toMap(event: MouseEvent, map: SVGSVGElement): Point | null {
 }
 
 function aimPoint(state: GameState): Point {
-  const geometry = getMap(state.activeLevel, state.defense?.ruleset);
+  const geometry = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
   return { x: geometry.width / 2, y: geometry.height / 2 };
 }
 
@@ -48,10 +49,14 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
   const controller = new AbortController();
   const { signal } = controller;
   const map = element<SVGSVGElement>('#map');
+  const drag = bindBattlefieldDrag({ dispatch, readState, view }, map, toMap, signal);
   let pointer: Point | null = null;
 
   const spellPoint = (event: MouseEvent): Point =>
-    clampToBattlefield(toMap(event, map) ?? { x: event.clientX, y: event.clientY }, getMap(readState().activeLevel));
+    clampToBattlefield(
+      toMap(event, map) ?? { x: event.clientX, y: event.clientY },
+      getMap(readState().activeLevel, readState().defense?.ruleset, readState().defense?.mobileLayout),
+    );
   const previewPlacement = () => view.previewPlacement(readState().chosen ? pointer : null);
   const summon = () => {
     if (!readState().paused) dispatch({ type: 'startWave' });
@@ -115,7 +120,7 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
     else if (event.key === 'Enter' || event.key === ' ') dispatch({ type: 'place', point: current });
     else {
       const nudge = nudges[event.key];
-      const geometry = getMap(state.activeLevel, state.defense.ruleset);
+      const geometry = getMap(state.activeLevel, state.defense.ruleset, state.defense.mobileLayout);
       pointer = {
         x: Math.max(25, Math.min(geometry.width - 25, current.x + Math.sign(nudge.x) * 50)),
         y: Math.max(25, Math.min(Math.floor(geometry.height / 50) * 50 - 25, current.y + Math.sign(nudge.y) * 50)),
@@ -137,7 +142,10 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
     else if (event.key === 'Enter' || event.key === ' ') dispatch({ type: 'spell', spell, point: aim });
     else {
       const nudge = nudges[event.key];
-      const point = clampToBattlefield({ x: aim.x + nudge.x, y: aim.y + nudge.y }, getMap(readState().activeLevel));
+      const point = clampToBattlefield(
+        { x: aim.x + nudge.x, y: aim.y + nudge.y },
+        getMap(readState().activeLevel, readState().defense?.ruleset, readState().defense?.mobileLayout),
+      );
       dispatch({ type: 'previewSpell', point });
     }
     return true;
@@ -146,6 +154,7 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
   map.addEventListener(
     'pointermove',
     (event) => {
+      if (drag.active) return;
       if (readState().defense?.targeting) dispatch({ type: 'previewSpell', point: spellPoint(event) });
       pointer = toMap(event, map) ?? { x: -1, y: -1 };
       previewPlacement();
@@ -168,7 +177,9 @@ export function bindBattlefieldInput({ dispatch, readState, view }: BattlefieldI
       () => {
         dispatch({ type: 'choose', dragon: button.dataset.type as DragonType });
         if (readState().defense?.ruleset === 'defense-2') {
-          pointer ??= { x: 25, y: 25 };
+          const state = readState();
+          const geometry = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout);
+          pointer ??= geometry.mobile ? { ...geometry.perches[0] } : { x: 25, y: 25 };
           map.focus();
         }
         previewPlacement();

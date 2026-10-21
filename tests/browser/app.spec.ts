@@ -1,6 +1,8 @@
+import { openPause } from './pause';
 import { test, expect, type Page } from '@playwright/test';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createInitialState, GameEngine } from '../../src/game/engine';
+import { getMap } from '../../src/content/maps';
 import { clickMapAt, movePointerToMap } from './map';
 
 async function startJourney(page: Page): Promise<void> {
@@ -36,7 +38,7 @@ test('grid placement and evolution support upgrading, selling and reload', async
   expect((await savedState(page)).towers[0]).toBeNull();
 });
 
-test('dragon and spell icon controls sit below the map', async ({ page }) => {
+test('dragon and spell icon controls occupy the bottom corners of the fullscreen map', async ({ page }) => {
   await startJourney(page);
   await expect(page.locator('#battleDragons .tower')).toHaveCount(3);
   await expect(page.locator('#battleSpells [data-spell]')).toHaveCount(3);
@@ -48,16 +50,16 @@ test('dragon and spell icon controls sit below the map', async ({ page }) => {
     '#battleStatus .nest',
     '#battleControls #pause',
     '#battleControls #speed',
-    '#battleControls #sound',
-    '#battleControls #saveProgress',
-    '#battleControls #returnMenu',
   ]) {
     await expect(page.locator(selector)).toBeVisible();
   }
   await expect(page.locator('#battleControls #pause')).toHaveAttribute('aria-label', 'Pause');
-  await expect(page.locator('#battleControls #sound')).toHaveAttribute('aria-label', 'Turn sound off');
-  await expect(page.locator('#battleControls #saveProgress')).toHaveAttribute('aria-label', 'Save progress');
-  await expect(page.locator('#battleControls #returnMenu')).toHaveAttribute('aria-label', 'Return to menu');
+  await expect(page.locator('#sound')).toBeHidden();
+  await openPause(page);
+  await expect(page.locator('#sound')).toHaveAttribute('aria-label', 'Turn sound off');
+  await expect(page.locator('#saveProgress')).toHaveAttribute('aria-label', 'Save progress');
+  await expect(page.locator('#returnMenu')).toHaveAttribute('aria-label', 'Return to menu');
+  await page.locator('#resumeBattle').click();
   await expect(page.locator('#battleDragons [data-type="fire"]')).toHaveAttribute('aria-label', /Red dragon.*60 food/);
   await expect(page.locator('#battleDragons [data-type="fire"] .dragon-portrait')).toHaveAttribute('src', /fire-1/);
   const mapBox = await page.locator('#map').boundingBox();
@@ -67,13 +69,18 @@ test('dragon and spell icon controls sit below the map', async ({ page }) => {
   const dragonsBox = await page.locator('#battleDragons').boundingBox();
   expect(mapBox).not.toBeNull();
   expect(toolbarBox).not.toBeNull();
-  expect(toolbarBox!.y + toolbarBox!.height).toBeGreaterThan(mapBox!.y + mapBox!.height - 2);
-  expect(toolbarBox!.y).toBeGreaterThanOrEqual(mapBox!.y + mapBox!.height);
+  expect(mapBox!.x).toBe(0);
+  expect(mapBox!.y).toBe(0);
+  expect(mapBox!.height).toBe(await page.evaluate(() => innerHeight));
+  expect(toolbarBox!.y).toBeLessThan(30);
+  expect(toolbarBox!.height).toBe(mapBox!.height);
   expect(spellsBox).not.toBeNull();
   expect(middleBox).not.toBeNull();
   expect(dragonsBox).not.toBeNull();
-  expect(middleBox!.x).toBeGreaterThanOrEqual(spellsBox!.x + spellsBox!.width);
-  expect(middleBox!.x + middleBox!.width).toBeLessThanOrEqual(dragonsBox!.x);
+  expect(middleBox!.y).toBeLessThan(30);
+  expect(spellsBox!.y).toBeGreaterThan(mapBox!.height - 70);
+  expect(dragonsBox!.y).toBe(spellsBox!.y);
+  expect(spellsBox!.x + spellsBox!.width).toBeLessThan(dragonsBox!.x);
 });
 
 test('selected dragon shows a translucent placement preview that follows the pointer', async ({ page }) => {
@@ -85,7 +92,9 @@ test('selected dragon shows a translucent placement preview that follows the poi
   await expect(preview).toHaveAttribute('opacity', '.58');
   await expect(preview.locator('.placement-icon')).toHaveAttribute('href', /fire-1/);
   await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#c5f39a');
-  await movePointerToMap(page, 350, 315);
+  const state = await savedState(page);
+  const roadPoint = getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).path[6];
+  await movePointerToMap(page, roadPoint[0], roadPoint[1]);
   await expect(preview.locator('.placement-ring')).toHaveAttribute('stroke', '#ff8671');
   await clickMapAt(page, 90, 202);
   await expect(preview).toHaveAttribute('visibility', 'hidden');
@@ -118,6 +127,7 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await expect(page.locator('#pauseOverlay')).toBeVisible();
   const state = await savedState(page);
   await page.waitForTimeout(300);
+  await openPause(page);
   await page.locator('#saveProgress').click();
   expect((await savedState(page)).simulationTime).toBe(state.simulationTime);
   await page.locator('#pauseMenu').click();
@@ -193,6 +203,7 @@ test('reload restores an exact battle with enemies, effects, carriers and projec
   await expect(page.locator('#enemies > g .enemy-icon').nth(0)).toHaveAttribute('href', /gargoyle/);
   await expect(page.locator('#enemies > g .enemy-icon').nth(1)).toHaveAttribute('href', /imp/);
   await expect(page.locator('#eggObjects > g')).toHaveCount(5);
+  await openPause(page);
   await page.locator('#saveProgress').click();
   expect(await savedState(page)).toEqual({ ...state, paused: true });
   await page.reload();
@@ -225,6 +236,7 @@ test('backgrounding pauses and captures the battle before returning', async ({ p
     document.dispatchEvent(new Event('visibilitychange'));
   });
   await expect(page.locator('#pauseOverlay')).toBeVisible();
+  await openPause(page);
   await page.locator('#saveProgress').click();
   expect((await savedState(page)).simulationTime).toBe(state.simulationTime);
 });
@@ -270,6 +282,7 @@ test('corrupt saves are preserved and storage failures never claim success', asy
       throw new DOMException('Device storage is full.', 'QuotaExceededError');
     };
   });
+  await openPause(page);
   await page.locator('#saveProgress').click();
   await expect(page.locator('#toast')).toContainText('storage is full');
   await expect(page.locator('#toast')).not.toContainText('Journey saved');
@@ -359,8 +372,8 @@ test('keyboard dragon selection and renderer preserve live entity nodes', async 
 test.describe('phone touch input', () => {
   test.use({ hasTouch: true, isMobile: true });
   for (const viewport of [
-    { width: 375, height: 812 },
-    { width: 320, height: 640 },
+    { width: 812, height: 375 },
+    { width: 568, height: 320 },
     { width: 844, height: 390 },
   ]) {
     test(`touch controls and layout at ${viewport.width}×${viewport.height}`, async ({ page }) => {
@@ -368,7 +381,7 @@ test.describe('phone touch input', () => {
       await startJourney(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(page.locator('[data-type="fire"] .price')).toBeVisible();
-      for (const id of ['pause', 'speed', 'sound', 'saveProgress', 'returnMenu']) {
+      for (const id of ['pause', 'speed', 'start']) {
         const control = await page.locator(`#${id}`).boundingBox();
         expect(control!.x, id).toBeGreaterThanOrEqual(0);
         expect(control!.x + control!.width, id).toBeLessThanOrEqual(viewport.width);
@@ -407,8 +420,8 @@ test('manifest, icons, service worker and offline cold launch work at repository
   const manifest = await response.json();
   expect(manifest.scope).toBe('/Infernal-Defense/');
   expect(manifest.start_url).toBe('/Infernal-Defense/');
-  expect(manifest.display).toBe('standalone');
-  expect(manifest.orientation).toBe('any');
+  expect(manifest.display).toBe('fullscreen');
+  expect(manifest.orientation).toBe('landscape-primary');
   for (const icon of manifest.icons) expect((await request.get(new URL(icon.src, page.url()).href)).ok()).toBe(true);
   await page.locator('.summon-control').click();
   await page.locator('#pause').click();
@@ -424,6 +437,7 @@ test('manifest, icons, service worker and offline cold launch work at repository
   await expect(cold.locator('#pauseOverlay')).toBeVisible();
   await cold.evaluate(() => document.fonts.ready);
   expect(await cold.evaluate(() => document.fonts.check('14px "DM Sans"'))).toBe(true);
+  await openPause(cold);
   await cold.locator('#saveProgress').click();
   expect(await savedState(cold)).toEqual(before);
   await cold.locator('#resumeBattle').click();

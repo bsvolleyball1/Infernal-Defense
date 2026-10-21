@@ -8,6 +8,7 @@ import type { DragonType, GameCommand, GameState, SpellKind } from '../game/type
 import { currencyOf } from '../game/ruleset';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
+import { formatGold } from './currency-format';
 
 /** Fills the sandbox roster from the playable monster list. */
 export function renderTestRoster(): void {
@@ -38,7 +39,7 @@ export function renderPermanent(state: GameState): void {
               cost = upgradeCost(rank),
               retired = state.defense?.ruleset === 'defense-2' && node.id === 'maxLevel',
               capped = retired || rank >= (node.cap ?? defenseRules.maximumUpgradeRank);
-            return `<div class="upgrade-row"><div><strong>${node.name} · Rank ${rank}</strong><small>${retired ? 'New dragons evolve through three tiers. Existing ranks still grant their passive bonus.' : node.effect}</small></div><button data-permanent="${type}" data-node="${i}" ${capped || state.bankedGold < cost || state.phase === 'battle' ? 'disabled' : ''}>${retired ? 'Three tiers' : capped ? 'Maximum rank' : `Upgrade · ${cost} gold`}</button></div>`;
+            return `<div class="upgrade-row"><div><strong>${node.name} · Rank ${rank}</strong><small>${retired ? 'New dragons evolve through three tiers. Existing ranks still grant their passive bonus.' : node.effect}</small></div><button data-permanent="${type}" data-node="${i}" ${capped || state.bankedGold < cost || state.phase === 'battle' ? 'disabled' : ''}>${retired ? 'Three tiers' : capped ? 'Maximum rank' : `Upgrade · ${formatGold(cost)} gold`}</button></div>`;
           })
           .join('')}</section>`,
     )
@@ -134,18 +135,21 @@ export function bindTestWaveInputs(dispatch: (command: GameCommand) => void): ()
     input.addEventListener(
       'change',
       () => {
-        const counts = Object.fromEntries(
-          elements<HTMLInputElement>('[data-test-count]').map((i) => [
-            i.dataset.testCount,
-            Math.max(0, Math.min(999, Math.floor(Number(i.value) || 0))),
-          ]),
-        );
-        dispatch({ type: 'testWave', counts });
+        dispatch({ type: 'testWave', counts: readTestWaveCounts() });
       },
       { signal: controller.signal },
     ),
   );
   return () => controller.abort();
+}
+/** Configuration edited while paused is submitted after Resume unblocks commands. */
+export function readTestWaveCounts(): Partial<Record<import('../game/types').MonsterKind, number>> {
+  return Object.fromEntries(
+    elements<HTMLInputElement>('[data-test-count]').map((input) => [
+      input.dataset.testCount,
+      Math.max(0, Math.min(999, Math.floor(Number(input.value) || 0))),
+    ]),
+  );
 }
 export const permanentCommand = (button: HTMLElement): GameCommand => ({
   type: 'buyPermanent',

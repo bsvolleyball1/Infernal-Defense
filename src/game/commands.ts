@@ -77,7 +77,10 @@ function setSpellTarget(state: GameState, spell: 'poison' | 'fire' | null): Game
 
 function previewSpell(state: GameState, point: Point): GameEvent[] {
   if (state.defense?.targeting && Number.isFinite(point.x) && Number.isFinite(point.y))
-    state.defense.preview = clampToBattlefield(point, getMap(state.activeLevel, state.defense?.ruleset));
+    state.defense.preview = clampToBattlefield(
+      point,
+      getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout),
+    );
   return [];
 }
 
@@ -143,7 +146,7 @@ function placeTower(state: GameState, point: Point): GameEvent[] {
   const free = state.towers.findIndex((tower) => tower === null);
   const position =
     state.defense?.ruleset === 'defense-2'
-      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset))
+      ? towerGridPosition(point, getMap(state.activeLevel, state.defense.ruleset, state.defense.mobileLayout))
       : point;
   return position ? purchaseTower(state, free < 0 ? state.towers.length : free, position) : [];
 }

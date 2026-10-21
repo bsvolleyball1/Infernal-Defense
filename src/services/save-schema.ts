@@ -147,7 +147,11 @@ export function validateState(value: unknown): asserts value is GameState {
   boolean(value.rewardsApplied, 'Rewards applied');
   choice(value.activeLevel, Object.keys(battlefields), 'Level');
   const profile = (value.defense as GameState['defense'])?.ruleset;
-  const geometry = getMap(value.activeLevel as GameState['activeLevel'], profile);
+  const geometry = getMap(
+    value.activeLevel as GameState['activeLevel'],
+    profile,
+    (value.defense as GameState['defense'])?.mobileLayout,
+  );
   kinds(value.knownMonsters);
   towers(value.towers, geometry, false, geometry.perches.length, profile);
   if (value.selected !== null) integer(value.selected, 'Selected dragon', 0, value.towers.length - 1);

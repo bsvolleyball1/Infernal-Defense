@@ -3,18 +3,45 @@ import type { DefenseProfile, Level } from '../game/types';
 import type { Battlefield } from '../content/maps';
 import { themedBattlefield } from './themed-battlefield';
 import { battlefieldLayers } from './battlefield-layers';
+import { mobileBattlefieldArtwork } from './mobile-battlefield';
+import type { MobileMapLayout } from '../game/types';
 
 /** Map artwork is vector-native, offline, and aligned with simulation geometry. */
 /** The tutorial shares the gorge and marks its training ground with a lone tree. */
 const tutorialTree =
   '<g id="tutorialTree" aria-hidden="true" transform="translate(286 330)"><path d="M-2 8L1 42H10L8 8Z" fill="#514936"/><path d="M3-22L-17 15H-6L-22 34H25L10 15H20Z" fill="#3f5b43" stroke="#354b39" stroke-width="2"/><path d="M3-18L-8 4H-1L-12 20H15L7 4H13Z" fill="#506c4b" opacity=".8"/></g>';
 
-export function battlefieldArtwork(level: Level = 'level1', profile?: DefenseProfile): string {
-  const geometry = getMap(level, profile);
+export function battlefieldArtwork(
+  level: Level = 'level1',
+  profile?: DefenseProfile,
+  layout?: MobileMapLayout,
+): string {
+  const geometry = getMap(level, profile, layout);
+  if (geometry.mobile) return mobileBattlefieldArtwork(geometry, level === 'tutorial');
   const scenery = level === 'tutorial' ? tutorialTree : '';
   return geometry.theme === 'gorge'
     ? gorgeArtwork(geometry, scenery, profile === 'defense-2')
     : themedBattlefield(geometry, scenery, profile === 'defense-2');
+}
+
+/** Decorative terrain fills the screen beyond the unchanged playable rectangle. */
+export function battlefieldScenery(map: Battlefield): string {
+  const [floor, grain, tree] =
+    map.theme === 'volcanic'
+      ? ['obsidianFloor', 'obsidianTiles', 'basalt']
+      : map.theme === 'meadow'
+        ? ['meadowFloor', 'meadowGrass', 'willow']
+        : ['gorgeFloor', 'gorgeGrain', 'gorgePine'];
+  // Both SVGs share world coordinates and the artwork's gradient/pattern definitions.
+  return `<rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#${floor})"/>
+    <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#${grain})"/>
+    ${[-900, -720, -540, -360, -180, -70, 770, 880, 1060, 1240, 1420, 1600]
+      .map((x, i) =>
+        [40, 170, 300, 470]
+          .map((y, j) => `<use href="#${tree}" x="${x + (j % 2) * 22}" y="${y + (i % 3) * 24}"/>`)
+          .join(''),
+      )
+      .join('')}`;
 }
 
 function gorgeArtwork(map: Battlefield, scenery: string, grid: boolean): string {
@@ -22,7 +49,7 @@ function gorgeArtwork(map: Battlefield, scenery: string, grid: boolean): string 
 
   return `
   <defs>
-    <linearGradient id="gorgeFloor" x2=".7" y2="1"><stop stop-color="#52675b"/><stop offset="1" stop-color="#2c4646"/></linearGradient>
+    <linearGradient id="gorgeFloor" gradientUnits="userSpaceOnUse" x2="490" y2="430"><stop stop-color="#52675b"/><stop offset="1" stop-color="#2c4646"/></linearGradient>
     <linearGradient id="gorgeWater" x2="1" y2=".5"><stop stop-color="#214f54"/><stop offset=".5" stop-color="#4e9190"/><stop offset="1" stop-color="#173c45"/></linearGradient>
     <pattern id="gorgeGrain" width="37" height="31" patternUnits="userSpaceOnUse"><path d="M5 8l5-2M24 24l4-3" stroke="#c5cda0" stroke-width="1" opacity=".16"/><circle cx="17" cy="15" r="1.2" fill="#dce1bc" opacity=".13"/></pattern>
     <g id="gorgePine"><ellipse cy="14" rx="13" ry="5" fill="#152f30" opacity=".4"/><path d="M0-30L-14-7H-9L-19 8H-5V17H5V8H19L9-7H14Z" fill="#203c37"/><path d="M0-30L0 8H19L9-7H14Z" fill="#335749"/><path d="M-5-5L0-14 5-5" fill="#688574"/></g>

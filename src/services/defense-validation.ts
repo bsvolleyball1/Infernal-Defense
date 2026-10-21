@@ -13,14 +13,36 @@ const finite = (n: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): boolean =>
   typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 const integer = (n: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): boolean =>
   finite(n, min, max) && Number.isSafeInteger(n);
-function point(value: unknown): void {
+function point(value: unknown, width: number, height: number): void {
   record(value);
-  check(finite(value.x, 0, 700) && finite(value.y, 0, 430), 'Invalid spell coordinates.');
+  check(finite(value.x, 0, width) && finite(value.y, 0, height), 'Invalid spell coordinates.');
 }
 
 export function validateDefense(value: unknown): asserts value is DefenseState {
   record(value);
   check(['defense-1', 'defense-2'].includes(value.ruleset as string), 'Unknown combat ruleset.');
+  let width = 700,
+    height = 430;
+  if (value.mobileLayout !== undefined) {
+    const layout = value.mobileLayout;
+    record(layout);
+    check(value.ruleset === 'defense-2' && layout.version === 1, 'Invalid mobile map version.');
+    check(finite(layout.width, 600, 4000) && finite(layout.height, 400, 3000), 'Invalid mobile map dimensions.');
+    width = layout.width as number;
+    height = layout.height as number;
+    check(width / height >= 1.2 && width / height <= 3.1, 'Invalid mobile map proportions.');
+    record(layout.insets);
+    for (const side of ['left', 'right', 'top', 'bottom'])
+      check(
+        integer(layout.insets[side], 0, Math.min(width, height) / 3) && (layout.insets[side] as number) % 50 === 0,
+        'Invalid mobile map safe area.',
+      );
+    check(
+      (layout.insets.left as number) + (layout.insets.right as number) < width - 200 &&
+        (layout.insets.top as number) + (layout.insets.bottom as number) < height - 100,
+      'Mobile map has no playable area.',
+    );
+  }
   check(value.mode === 'journey' || value.mode === 'sandbox', 'Invalid mode.');
   record(value.ranks);
   for (const type of ['fire', 'ice', 'poison']) {
@@ -40,16 +62,16 @@ export function validateDefense(value: unknown): asserts value is DefenseState {
     value.targeting === null || value.targeting === 'fire' || value.targeting === 'poison',
     'Invalid spell targeting.',
   );
-  if (value.preview !== null) point(value.preview);
+  if (value.preview !== null) point(value.preview, width, height);
   check(Array.isArray(value.impacts) && Array.isArray(value.visuals), 'Invalid spell effects.');
   for (const impact of value.impacts as unknown[]) {
     record(impact);
-    point(impact);
+    point(impact, width, height);
     check(integer(impact.id, 1) && finite(impact.remaining, 0, 500) && finite(impact.damage), 'Invalid impact.');
   }
   for (const visual of value.visuals as unknown[]) {
     record(visual);
-    point(visual);
+    point(visual, width, height);
     if (visual.color !== undefined)
       check(typeof visual.color === 'string' && /^#[0-9a-f]{6}$/i.test(visual.color), 'Invalid visual color.');
     check(
@@ -131,7 +153,7 @@ export function validateDefenseEntities(state: GameState): void {
     }
     if (shot.retarget !== undefined) {
       record(shot.retarget);
-      point(shot.retarget.origin);
+      point(shot.retarget.origin, d.mobileLayout?.width ?? 700, d.mobileLayout?.height ?? 430);
       check(finite(shot.retarget.range, 0, 10000), 'Invalid retarget range.');
     }
     if (shot.color !== undefined) check(/^#[0-9a-f]{6}$/i.test(shot.color), 'Invalid projectile color.');

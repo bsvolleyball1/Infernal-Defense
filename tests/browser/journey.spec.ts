@@ -1,3 +1,4 @@
+import { openPause } from './pause';
 import { test, expect, type Page } from '@playwright/test';
 import { createInitialState } from '../../src/game/engine';
 import { clickMapAt } from './map';
@@ -30,13 +31,13 @@ test('startup is save-first and creates player progress before level selection',
   await page.locator('[data-open="saves"]').click();
   await page.locator('[data-new="0"]').click();
   expect((await saved(page)).journey).toEqual({ activeBattle: false, completedLevels: [] });
-  await expect(page.locator('#journeyGold')).toHaveText('0 gold banked');
+  await expect(page.locator('#journeyGold')).toHaveText('0 gold');
   await expect(page.locator('#journeyResume')).toBeHidden();
   await page.locator('#journeyExit').click();
   await page.reload();
   await expect(page.locator('#continueJourney')).toBeVisible();
   await page.locator('#continueJourney').click();
-  await expect(page.locator('#journeyHeading')).toContainText('Save slot 1');
+  await expect(page.locator('#journeyHeading')).toHaveCount(0);
   expect((await saved(page)).journey.activeBattle).toBe(false);
 });
 
@@ -46,6 +47,7 @@ test('one active attempt locks level selection and resumes the same player witho
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 100, 180);
   await page.locator('.summon-control').click();
+  await openPause(page);
   await page.locator('#returnMenu').click();
   const before = await saved(page);
   for (const level of ['tutorial', 'level1', 'meadow', 'volcanic'])
@@ -96,7 +98,7 @@ test('two completed levels and rewards carry into a third level in the same play
   expect(next.state.towers).toHaveLength(10);
   await page.reload();
   await page.locator('#continueJourney').click();
-  await expect(page.locator('#journeyGold')).toHaveText('112 gold banked');
+  await expect(page.locator('#journeyGold')).toHaveText('112 gold');
   await expect(page.locator('.level-cleared')).toHaveCount(2);
   expect((await saved(page)).state.bankedGold).toBe(112);
 });
@@ -104,6 +106,7 @@ test('two completed levels and rewards carry into a third level in the same play
 test('ending an attempt is explicit and preserves player progress', async ({ page }) => {
   await newPlayer(page);
   await page.locator('[data-level="meadow"]').click();
+  await openPause(page);
   await page.locator('#returnMenu').click();
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.locator('#abandonBattle').click();
@@ -135,6 +138,7 @@ test('failed level selection or abandonment keeps the previous journey intact', 
   expect(await saved(page)).toEqual(empty);
   await page.evaluate(() => (window as unknown as { restoreStorage: () => void }).restoreStorage());
   await page.locator('[data-level="meadow"]').click();
+  await openPause(page);
   await page.locator('#returnMenu').click();
   const active = await saved(page);
   await failWrites(page);

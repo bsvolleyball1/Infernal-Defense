@@ -6,6 +6,10 @@ New journeys include fire beams/area pulses, charged ice, rapid poison, 17 playa
 
 Area spells support touch targeting or arrow keys and Enter while the map is focused; Escape cancels. Manual early summoning awards 10 mana per remaining rounded-up countdown second. Backgrounded or restored battles/countdowns require Resume; no time away is simulated.
 
+The installed PWA requests fullscreen and a fixed landscape orientation automatically, with no fullscreen or rotation controls. On platforms that cannot enforce the orientation lock, touch devices display a blocking rotate-device message in portrait; interrupted battles and countdowns are saved and remain paused until Resume. Ordinary browser tabs retain their browser chrome. Existing installations may need to be relaunched or receive a platform-managed manifest refresh before their launch presentation changes.
+
+New attempts and Test Mode use authored mobile maps whose coordinate frame matches the device's landscape proportions. Gorge switchbacks, meadow bends, volcanic forks, placement cells, bonus areas, and scenery are composed for that frame without stretching the artwork or cropping the playable map. The chosen dimensions and safe areas are saved with each battle; historical battles keep their original geometry until the next attempt. Overlay controls remain outside valid placement cells. Drag dragon or spell buttons onto the map and release to place or cast; tap and keyboard controls remain available. Ice Freeze still affects all vulnerable monsters. Drops outside the map or over controls cancel without spending resources; Escape cancels an active drag. Open Pause for Save, Sound, Menu, wave details, and Test Mode wave configuration. Resume applies sandbox configuration edits without automatically starting a wave. Menu and dialog content scroll internally; the battlefield does not scroll.
+
 Use Node.js 24 and npm. From the repository root:
 
 ```sh

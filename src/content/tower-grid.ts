@@ -41,6 +41,15 @@ export function towerGridCellKey(cell: TowerGridCell): string {
 }
 
 export function isTowerGridCellBlocked(geometry: Battlefield, cell: TowerGridCell): boolean {
+  const bounds = geometry.placementBounds;
+  if (
+    bounds &&
+    (cell.x < bounds.left ||
+      cell.y < bounds.top ||
+      cell.x + cell.width > bounds.right ||
+      cell.y + cell.height > bounds.bottom)
+  )
+    return true;
   const left = cell.x;
   const right = cell.x + cell.width;
   const top = cell.y;

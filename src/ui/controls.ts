@@ -24,6 +24,16 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   const onClick = (selector: string, callback: () => void) => {
     element(selector).addEventListener('click', callback, { signal });
   };
+  const resume = () => {
+    element('#gameScreen').removeAttribute('data-pause-open');
+    actions.resume();
+  };
+  const pause = () => {
+    choices.cancel();
+    element('#gameScreen').setAttribute('data-pause-open', '');
+    actions.dispatch({ type: 'pause' });
+    element('#resumeBattle').focus();
+  };
   onClick('#start', () => actions.dispatch({ type: 'startWave' }));
   const choices = bindEvolutionControls(actions, signal);
   onClick('#upgrade', () => {
@@ -32,8 +42,11 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
   });
   onClick('#sell', () => actions.dispatch({ type: 'sell' }));
   onClick('#speed', () => actions.dispatch({ type: 'speed', speed: nextGameSpeed(actions.readState().speed) }));
-  onClick('#pause', () => actions.dispatch({ type: actions.readState().paused ? 'resume' : 'pause' }));
-  onClick('#resumeBattle', actions.resume);
+  onClick('#pause', () => {
+    if (actions.readState().paused || element('#gameScreen').hasAttribute('data-pause-open')) resume();
+    else pause();
+  });
+  onClick('#resumeBattle', resume);
   onClick('#pauseMenu', () => {
     choices.cancel();
     actions.returnHome();
@@ -43,7 +56,35 @@ export function bindBattleControls(actions: BattleControlActions): () => void {
     actions.returnHome();
   });
   onClick('#saveProgress', actions.save);
-  window.addEventListener('keydown', (event) => handleKeyboard(event, actions), { signal });
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      if (!actions.isVisible()) {
+        if (event.key === 'Escape') actions.returnHome();
+        return;
+      }
+      const overlay = element('#pauseOverlay');
+      if (event.key === 'Escape' && !element('#gameOver').classList.contains('show')) {
+        event.preventDefault();
+        if (overlay.hidden) pause();
+        else resume();
+        return;
+      }
+      if (event.key === 'Tab' && !overlay.hidden) {
+        const focusable = Array.from(
+          overlay.querySelectorAll<HTMLElement>('button:not(:disabled), summary, input:not(:disabled)'),
+        ).filter((node) => node.getClientRects().length > 0);
+        const current = focusable.indexOf(document.activeElement as HTMLElement);
+        if (current < 0 || (!event.shiftKey && current === focusable.length - 1) || (event.shiftKey && current === 0)) {
+          event.preventDefault();
+          (event.shiftKey ? focusable.at(-1) : focusable[0])?.focus();
+        }
+        return;
+      }
+      handleKeyboard(event, actions);
+    },
+    { signal },
+  );
   return () => {
     controller.abort();
   };

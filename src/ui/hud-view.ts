@@ -14,6 +14,8 @@ export class HudView {
     start.disabled = view.startDisabled;
     start.hidden = view.startHidden;
     setText('#start', view.startLabel);
+    start.setAttribute('aria-label', view.startLabel);
+    start.title = view.startLabel;
     setText('#waveState', view.waveState);
     setText('#waveTitle', view.waveTitle);
     setText('#waveDesc', view.waveDesc);
@@ -27,7 +29,26 @@ export class HudView {
     pause.setAttribute('aria-label', view.pauseAria);
     pause.title = view.pauseAria;
     pause.disabled = view.pauseDisabled;
-    element<HTMLElement>('#pauseOverlay').hidden = view.pauseOverlayHidden;
+    const panelOpen = !view.pauseOverlayHidden || element('#gameScreen').hasAttribute('data-pause-open');
+    const overlay = element<HTMLElement>('#pauseOverlay');
+    const wasHidden = overlay.hidden;
+    overlay.hidden = !panelOpen;
+    if (panelOpen) {
+      setText('#pause', '▶');
+      pause.setAttribute('aria-label', 'Resume');
+      pause.title = 'Resume';
+    }
+    for (const selector of [
+      '#battleWorld',
+      '#battleSpells',
+      '#battleDragons',
+      '#battleStatus',
+      '#speed',
+      '#start',
+      '.actions',
+    ])
+      element<HTMLElement>(selector).inert = panelOpen;
+    if (panelOpen && wasHidden) element('#resumeBattle').focus();
     const upgrade = element<HTMLButtonElement>('#upgrade');
     upgrade.disabled = view.upgradeDisabled;
     upgrade.setAttribute('aria-label', view.upgradeLabel);

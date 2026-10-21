@@ -1,3 +1,4 @@
+import { openPause } from './pause';
 import { test, expect } from '@playwright/test';
 import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './service-worker';
 import { createServer } from 'node:http';
@@ -100,6 +101,7 @@ test('updates automatically at a safe point, blocking failed saves and preservin
     await page.locator('[data-load="0"]').click();
     await page.locator('#journeyResume').click();
     await expect(page.locator('#pauseOverlay')).toBeVisible();
+    await openPause(page);
     await page.locator('#saveProgress').click();
     const after = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
     expect(after.paused).toBe(true);
@@ -119,6 +121,7 @@ test('updates automatically at a safe point, blocking failed saves and preservin
     await page.locator('[data-open="saves"]').click();
     await page.locator('[data-load="0"]').click();
     await page.locator('#journeyResume').click();
+    await openPause(page);
     await page.locator('#saveProgress').click();
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state)).toEqual(after);
   } finally {

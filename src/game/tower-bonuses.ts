@@ -17,12 +17,18 @@ export interface TowerBonus {
 export function towerBonus(state: GameState, index: number): TowerBonus | null {
   const tower = state.towers[index];
   if (!tower) return null;
-  const match = bonusAreaAt(getMap(state.activeLevel, state.defense?.ruleset), towerPosition(state, index));
+  const match = bonusAreaAt(
+    getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout),
+    towerPosition(state, index),
+  );
   if (!match) return null;
   for (let other = 0; other < index; other++) {
     if (
       state.towers[other] &&
-      bonusAreaAt(getMap(state.activeLevel, state.defense?.ruleset), towerPosition(state, other))?.index === match.index
+      bonusAreaAt(
+        getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout),
+        towerPosition(state, other),
+      )?.index === match.index
     )
       return null;
   }

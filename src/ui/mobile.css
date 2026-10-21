@@ -1,19 +1,139 @@
-/* Keep the original forest palette and battlefield, with room for touch. */
-body {
-  min-height: 100dvh;
-  padding: 22px;
+/* The viewport is the game surface. Only menus and dialogs scroll. */
+.tower,
+[data-spell] {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
+.tower:not(:disabled),
+[data-spell]:not(:disabled) {
+  cursor: grab;
+}
+.tower.is-dragging,
+[data-spell].is-dragging {
+  cursor: grabbing;
+}
+.battlefield-drag-ghost {
+  position: fixed;
+  z-index: 90;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -120%);
+  pointer-events: none;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: var(--panel);
+  opacity: 0.85;
+}
+.battlefield-drag-ghost .orb,
+.battlefield-drag-ghost .spell-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  font-size: 26px;
+}
+.battlefield-drag-ghost img {
+  width: 36px;
+  height: 36px;
+}
+.battlefield-drag-ghost.outside-map {
+  opacity: 0.4;
+}
+.options-gear {
+  position: absolute;
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  z-index: 4;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  font-size: 30px;
+  cursor: pointer;
+}
+.options-gear[hidden] {
+  display: none;
+}
+.menu-shell .menu-stage {
+  padding-bottom: 64px;
+}
+.options-dialog {
+  width: min(420px, calc(100% - var(--safe-left) - var(--safe-right) - 24px));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
+  margin: auto;
+  padding: 16px 20px 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #6d7655;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 16px 60px #0009;
+}
+.options-dialog::backdrop {
+  background: #080d0bbd;
+}
+.options-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.options-heading h2 {
+  margin: 0;
+  font: 22px 'Uncial Antiqua';
+}
+.options-close {
+  width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 28px;
+  cursor: pointer;
+}
+.options-dialog .options-list {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.options-dialog input[type='range'] {
+  min-height: 44px;
+}
+:root {
+  --safe-top: max(8px, env(safe-area-inset-top));
+  --safe-right: max(8px, env(safe-area-inset-right));
+  --safe-bottom: max(8px, env(safe-area-inset-bottom));
+  --safe-left: max(8px, env(safe-area-inset-left));
+}
+html,
+body,
 #app {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
-.shell {
+body {
+  display: block;
+  overscroll-behavior: none;
+}
+#app {
   position: relative;
+  height: 100dvh;
 }
-button {
+button,
+summary {
   touch-action: manipulation;
 }
 button,
@@ -23,23 +143,71 @@ button,
   min-height: 44px;
 }
 button:focus-visible,
+summary:focus-visible,
 [role='button']:focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: 3px;
 }
-.tower {
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.shell {
   width: 100%;
-  color: var(--ink);
-  text-align: left;
-  font-family: inherit;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
-.tower[aria-pressed='true'] {
-  border-color: var(--gold);
-  background: #302e21;
+.shell main,
+.shell .arena,
+.battlefield,
+#battleWorld,
+#battleScenery,
+.battlefield .map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
 }
-.controls {
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.shell {
+  position: relative;
+}
+.shell main {
+  display: block;
+}
+.battlefield {
+  isolation: isolate;
+  overflow: hidden;
+  background: #2c4646;
+}
+#battleWorld {
+  z-index: 0;
+}
+.battlefield .map {
+  background: transparent;
+  touch-action: none;
+}
+#battleScenery {
+  pointer-events: none;
+}
+#viewportSafeArea {
+  position: absolute;
+  inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  pointer-events: none;
 }
 .tower-marker {
   cursor: pointer;
@@ -48,72 +216,164 @@ button:focus-visible,
   stroke: var(--gold);
   stroke-width: 5px;
 }
-.legend {
-  flex-wrap: wrap;
-}
-.stats {
-  flex-wrap: wrap;
-}
 .toast {
   position: fixed;
   z-index: 80;
-  top: max(12px, env(safe-area-inset-top));
-  max-width: calc(100% - 24px);
-  text-align: center;
+  top: calc(var(--safe-top) + 58px);
+  max-width: calc(100% - var(--safe-left) - var(--safe-right));
   display: flex;
   align-items: center;
   gap: 8px;
+  text-align: center;
+  pointer-events: none;
 }
-/* The overlay has no z-index so it shares the battlefield stacking context: its backdrop blocks the map,
-   the battle dock (z-index 4) stays above it so Save, Menu and the other controls work while paused,
-   and the card stays above both. */
-.pause-overlay {
-  position: absolute;
+.pause-overlay,
+.orientation-gate {
+  position: fixed;
   inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #080d0baa;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: #080d0bd9;
 }
-.battlefield {
-  position: relative;
-}
-.pause-overlay[hidden] {
+.pause-overlay[hidden],
+.orientation-gate[hidden] {
   display: none;
 }
+.pause-overlay {
+  padding-top: calc(var(--safe-top) + 56px);
+}
 .pause-card {
-  position: relative;
-  z-index: 5;
-  background: var(--panel);
+  width: min(620px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
   border: 1px solid #6d7655;
   border-radius: 12px;
-  padding: 12px;
-  width: min(360px, 90%);
-  text-align: center;
+  background: var(--panel);
 }
 .pause-card h2 {
-  font: 20px 'Uncial Antiqua';
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  font: 22px 'Uncial Antiqua';
+  text-align: center;
+}
+.pause-card h3 {
+  margin: 0 0 12px;
+  color: var(--gold);
+  font-size: 14px;
 }
 .pause-card p {
-  margin: 4px 0;
-}
-.pause-card p {
-  line-height: 1.6;
   color: var(--muted);
+  line-height: 1.5;
 }
-.pause-card .btn {
-  margin-top: 8px;
+.pause-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pause-buttons .btn {
+  flex: 1 0 140px;
+  width: auto;
+  margin: 0;
+}
+.pause-buttons .mini {
+  flex: 1;
+  margin: 0;
+}
+.pause-card summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--gold);
+}
+.wave-details,
+#testControls {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.pause-card #pauseMenu {
+  margin-top: 12px;
 }
 .game-over.show {
   position: fixed;
+  z-index: 40;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 .game-over .result-card {
-  max-height: calc(100dvh - 32px);
+  max-height: 100%;
   overflow: auto;
 }
-.error-card {
-  border-color: var(--red);
+.orientation-gate {
+  z-index: 100;
+  background: #111711;
+  text-align: center;
+}
+.orientation-card {
+  max-width: 300px;
+  outline: none;
+}
+.orientation-card h2 {
+  font: 24px 'Uncial Antiqua';
+  color: var(--gold);
+}
+.orientation-card p {
+  line-height: 1.6;
+  color: var(--muted);
+}
+.orientation-icon {
+  font-size: 64px;
+  color: var(--gold);
+}
+.menu-heading {
+  max-width: 80%;
+}
+.dragon-mark {
+  pointer-events: none;
+}
+.menu-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 12px;
+  max-width: 600px;
+}
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 104px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+.menu-card:hover {
+  background: transparent;
+}
+.menu-icon {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #53604d;
+  border-radius: 9px;
+  background: linear-gradient(120deg, #293328ef, #20291fef);
+  font-size: 28px;
+}
+.menu-card:hover .menu-icon {
+  border-color: #b39b62;
+  background: #31392b;
+}
+.menu-card strong {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.menu-copy {
+  margin-bottom: 16px;
 }
 .menu-card[hidden],
 .journey-actions button[hidden] {
@@ -124,8 +384,7 @@ button:focus-visible,
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
   color: var(--gold);
 }
 .journey-summary span {
@@ -135,11 +394,14 @@ button:focus-visible,
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 18px 0;
+  margin: 12px 0;
 }
 .journey-actions .btn {
   width: auto;
-  padding: 12px 18px;
+  padding: 10px 16px;
+}
+.level-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .level-card:disabled {
   opacity: 0.55;
@@ -152,174 +414,39 @@ button:focus-visible,
   color: var(--red);
   line-height: 1.5;
 }
-@media (max-width: 760px) {
-  body {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    align-items: flex-start;
+.error-card {
+  border-color: var(--red);
+}
+@media (max-height: 500px) {
+  .menu-brand h1 {
+    font-size: 18px;
   }
-  .shell,
-  .menu-shell {
-    border-radius: 0;
-    min-height: 100dvh;
-  }
-  .menu-shell {
-    padding-bottom: 90px;
-  }
-  .top {
-    height: auto;
-    min-height: 84px;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 12px;
-  }
-  .stats {
-    width: 100%;
-    justify-content: space-between;
-    gap: 6px;
-  }
-  .map-top {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .controls {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 4px;
-  }
-  .mini {
-    font-size: 11px;
-    padding: 8px;
-  }
-  .towerlist {
-    gap: 6px;
-  }
-  .towerrow {
-    flex-wrap: wrap;
-  }
-  .price {
-    display: block;
-    margin-left: 0;
-    width: 100%;
-    font-size: 12px;
-  }
-  .towername {
-    font-size: 12px;
-  }
-  .towerrole {
-    font-size: 10px;
-  }
-  .map {
-    min-height: 220px;
+  .menu-brand small,
+  .menu-top > .eyebrow {
+    display: none;
   }
   .menu-top {
-    flex-wrap: wrap;
-    gap: 8px;
+    padding-bottom: 6px;
   }
   .menu-heading {
-    max-width: 80%;
-  }
-  .menu-footer {
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .menu-card strong {
-    font-size: 13px;
+    font-size: 25px;
   }
   .menu-card small {
-    font-size: 11px;
+    font-size: 10px;
   }
 }
-@media (orientation: landscape) and (max-height: 600px) and (min-width: 600px) {
-  body {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    align-items: flex-start;
+@media (max-width: 700px) {
+  .level-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .shell {
-    width: 100%;
+  .save-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .top {
-    min-height: 56px;
-    flex-wrap: nowrap;
-    padding: 8px 12px;
-  }
-  .stats {
-    width: auto;
-    gap: 12px;
-  }
-  main {
-    grid-template-columns: minmax(0, 1fr) 230px;
-  }
-  .shell main {
-    height: calc(100dvh - 132px);
-    min-height: 248px;
-    overflow: hidden;
-  }
-  .arena {
-    padding: 8px;
-    border-right: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-  }
-  .side {
-    display: block;
-    padding: 12px;
-    overflow-y: auto;
-    max-height: 100%;
-  }
-  .battlefield {
-    flex: 1;
-    min-height: 0;
-  }
-  .map-top {
-    margin-bottom: 8px;
-    gap: 8px;
-  }
-  .map-top h2 {
-    font-size: 14px;
-  }
-  .controls {
-    width: auto;
-    gap: 4px;
-  }
-  .legend {
-    gap: 8px;
-  }
-  .legend span:last-child {
-    display: none;
-  }
-  .towerlist {
-    display: block;
-  }
-  .tower {
-    margin-bottom: 6px;
-  }
-  .towerrow {
-    flex-wrap: nowrap;
-  }
-  .price {
-    width: auto;
-    margin-left: auto;
-  }
-  .nest {
-    margin-bottom: 12px;
-  }
-  .map {
-    min-height: 0;
-    height: 100%;
-  }
-  .brand small {
-    display: none;
-  }
-  .pause-card p {
-    display: none;
-  }
-  .pause-card {
-    padding: 8px;
-  }
-  .pause-card .btn {
-    margin-top: 4px;
+}
+@media (max-width: 440px) {
+  .level-list,
+  .save-list {
+    grid-template-columns: 1fr;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -329,8 +456,4 @@ button:focus-visible,
     transition: none !important;
     scroll-behavior: auto !important;
   }
-}
-.map {
-  background: #2c4646;
-  border-color: #5d7569;
 }

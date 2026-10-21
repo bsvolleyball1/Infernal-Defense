@@ -1,11 +1,12 @@
-import { getMap, monsters } from '../content/catalog';
+import { getMap } from '../content/catalog';
 import { battlefields, challengeLabel } from '../content/maps';
-import { enemyRoster, isDefenseMonster } from '../content/enemies';
+export { renderBestiary } from './bestiary';
 import type { Settings, SlotResult } from '../services/storage';
 import type { GameState } from '../game/types';
 import type { JourneyProgress } from '../game/journey';
 import { importJourney, isLevelUnlocked, levelPrerequisite } from '../game/journey';
 import { element, elements, setText } from './dom';
+import { formatGold } from './currency-format';
 
 const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
 export type MenuPage = (typeof menuPages)[number];
@@ -15,8 +16,15 @@ export function isMenuPage(value: unknown): value is MenuPage {
 }
 
 export function showMenu(page: MenuPage): void {
+  const options = element<HTMLDialogElement>('#optionsDialog');
+  if (page === 'options') {
+    if (!options.open) options.showModal();
+    return;
+  }
+  if (options.open) options.close();
   element<HTMLElement>('#upgradeChoices').hidden = true;
-  element('#menuScreen').style.display = 'block';
+  element('#menuScreen').style.display = 'flex';
+  element('#gameScreen').removeAttribute('data-pause-open');
   element('#gameScreen').style.display = 'none';
   elements('.menu-page').forEach((section) => section.classList.toggle('active', section.dataset.page === page));
   element('#gameOver').classList.remove('show');
@@ -41,21 +49,20 @@ export function renderLevelSelect(): void {
     .join('');
 }
 
-export function renderJourney(slot: number, state: GameState, journey: JourneyProgress): void {
-  setText('#journeyHeading', `Save slot ${slot + 1} · Your journey`);
-  setText('#journeyGold', `${state.bankedGold} gold banked`);
+export function renderJourney(_slot: number, state: GameState, journey: JourneyProgress): void {
+  setText('#journeyGold', `${formatGold(state.bankedGold)} gold`);
   setText('#journeyCleared', `${journey.completedLevels.length} / ${Object.keys(battlefields).length} levels cleared`);
   setText(
     '#journeyLevelNotice',
     journey.activeBattle
-      ? `${getMap(state.activeLevel, state.defense?.ruleset).name} is in progress. Continue it, or end this attempt before choosing another level.`
-      : 'Choose your next level. Your banked gold and cleared levels stay with this player save.',
+      ? `${getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).name} is in progress. Continue it, or end this attempt before choosing another level.`
+      : '',
   );
   const resume = element<HTMLButtonElement>('#journeyResume');
   const terminal = state.phase === 'won' || state.phase === 'lost';
   resume.hidden = !journey.activeBattle && !terminal;
   resume.textContent = journey.activeBattle
-    ? `Continue ${getMap(state.activeLevel, state.defense?.ruleset).name}`
+    ? `Continue ${getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).name}`
     : 'View last result';
   element('#abandonBattle').hidden = !journey.activeBattle;
   const upgrades = document.querySelector<HTMLButtonElement>('#openPermanent');
@@ -88,7 +95,6 @@ export function renderContinue(readSlot: (index: number) => SlotResult): number 
   }
   const button = element<HTMLButtonElement>('#continueJourney');
   button.hidden = latest === null;
-  if (latest) setText('#continueJourneyDetail', `Load player save ${latest.slot + 1} and keep your progress`);
   return latest?.slot ?? null;
 }
 
@@ -112,9 +118,9 @@ function createSaveCard(index: number, read: SlotResult): HTMLElement {
     const state = read.data.state;
     const journey = read.data.journey ?? importJourney(state);
     const current = journey.activeBattle
-      ? `${getMap(state.activeLevel, state.defense?.ruleset).name} · Wave ${state.wave}/5`
+      ? `${getMap(state.activeLevel, state.defense?.ruleset, state.defense?.mobileLayout).name} · Wave ${state.wave}/5`
       : 'Choose a level';
-    meta.textContent = `${journey.completedLevels.length} levels cleared · ${state.bankedGold} gold banked · ${current} · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
+    meta.textContent = `${journey.completedLevels.length} levels cleared · ${formatGold(state.bankedGold)} gold banked · ${current} · Last played ${new Date(read.data.savedAt).toLocaleDateString()}`;
   } else {
     meta.textContent =
       read.status === 'error'
@@ -141,33 +147,6 @@ function createSaveCard(index: number, read: SlotResult): HTMLElement {
   buttons.append(fresh);
   card.append(buttons);
   return card;
-}
-
-export function renderBestiary(bestiary: string[]): void {
-  const host = element('#bestiaryContent');
-  host.replaceChildren();
-  if (!bestiary.length) {
-    host.innerHTML =
-      '<div class="empty-state"><div class="empty-icon">⌕</div><h3>No creatures recorded yet</h3><p>Your field notes are blank. Encounter and defeat new creatures during a level to uncover them here.</p></div>';
-    return;
-  }
-  const list = document.createElement('div');
-  list.className = 'level-list';
-  for (const kind of bestiary) {
-    const entry = monsters[kind as keyof typeof monsters];
-    if (!entry) continue;
-    const card = document.createElement('article');
-    card.className = 'level-card';
-    const title = document.createElement('strong');
-    const description = document.createElement('small');
-    title.textContent = entry.name;
-    description.textContent = isDefenseMonster(kind)
-      ? `Speed rating ${enemyRoster[kind].rating} · ${enemyRoster[kind].hp} HP · ${entry.description}`
-      : entry.description;
-    card.append(title, description);
-    list.append(card);
-  }
-  host.append(list);
 }
 
 export function renderOptions(settings: Settings): void {

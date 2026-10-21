@@ -1,7 +1,6 @@
 import { element } from './dom';
 import type { GameState } from '../game/types';
 
-const margin = 8;
 const gap = 8;
 
 function marker(index: number): SVGGElement | null {
@@ -21,6 +20,7 @@ export class TowerActionsPopover {
     const reposition = () => this.position();
     window.addEventListener('resize', reposition, { signal: this.controller.signal });
     window.addEventListener('scroll', reposition, { capture: true, signal: this.controller.signal });
+    window.visualViewport?.addEventListener('resize', reposition, { signal: this.controller.signal });
   }
 
   /** Follows the simulation's selected dragon; a different selection clears a dismissal. */
@@ -64,15 +64,23 @@ export class TowerActionsPopover {
   position(): void {
     const actions = element<HTMLElement>('.actions');
     const perch = this.isOpenFor(this.selected) && this.selected !== null ? marker(this.selected) : null;
-    if (!perch) {
+    if (!perch || !element<HTMLElement>('#pauseOverlay').hidden) {
       actions.hidden = true;
       return;
     }
     actions.hidden = false;
+    const safe = element('#viewportSafeArea').getBoundingClientRect();
+    const controls = element('#battleMiddle').getBoundingClientRect();
+    const status = element('#battleStatus').getBoundingClientRect();
+    const dragons = element('#battleDragons').getBoundingClientRect();
+    const spells = element('#battleSpells').getBoundingClientRect();
+    const topEdge = Math.max(safe.top, controls.bottom + gap, status.bottom + gap);
+    const bottomEdge = Math.min(safe.bottom, dragons.top - gap, spells.height ? spells.top - gap : safe.bottom);
+    actions.style.maxHeight = `${Math.max(44, bottomEdge - topEdge)}px`;
     const tower = perch.getBoundingClientRect();
     const popup = actions.getBoundingClientRect();
     const centerX = tower.left + tower.width / 2;
-    const left = Math.max(popup.width / 2 + margin, Math.min(centerX, window.innerWidth - popup.width / 2 - margin));
+    const left = Math.max(popup.width / 2 + safe.left, Math.min(centerX, safe.right - popup.width / 2));
     const above = tower.top - gap;
     // Keep the entrance control tappable when a nearby tower is selected.
     const summon = document
@@ -84,11 +92,11 @@ export class TowerActionsPopover {
       left + popup.width / 2 > summon.left &&
       above - popup.height < summon.bottom &&
       above > summon.top;
-    const fitsAbove = above - popup.height >= margin && !coversSummon;
-    const top = fitsAbove ? above : Math.min(tower.bottom + gap, window.innerHeight - popup.height - margin);
+    const fitsAbove = above - popup.height >= topEdge && !coversSummon;
+    const top = fitsAbove ? above : Math.min(tower.bottom + gap, bottomEdge - popup.height);
     actions.dataset.placement = fitsAbove ? 'above' : 'below';
     actions.style.left = `${left}px`;
-    actions.style.top = `${Math.max(margin, top)}px`;
+    actions.style.top = `${Math.max(topEdge, top)}px`;
   }
 
   dispose(): void {

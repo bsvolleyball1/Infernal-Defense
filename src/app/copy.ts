@@ -1,6 +1,6 @@
 /** Player-facing application copy, kept in one place so each sentence exists once. */
 export const copy = {
-  saveIntro: 'Each slot is one player journey across all levels. Create or load a player save.',
+  saveIntro: '',
   saveIntroNeedsSave: 'Create or load a player save before choosing a level.',
   finishAttemptFirst: 'Finish or end your current attempt before choosing another level.',
   permanentPurchased: 'Permanent upgrade purchased',

@@ -4,7 +4,7 @@ import { battlefieldLayers } from './battlefield-layers';
 
 function meadowTerrain(): string {
   return `<defs>
-    <linearGradient id="meadowFloor" x2="0" y2="1"><stop stop-color="#a5b980"/><stop offset="1" stop-color="#648262"/></linearGradient>
+    <linearGradient id="meadowFloor" gradientUnits="userSpaceOnUse" x2="0" y2="430"><stop stop-color="#a5b980"/><stop offset="1" stop-color="#648262"/></linearGradient>
     <pattern id="meadowGrass" width="43" height="37" patternUnits="userSpaceOnUse"><path d="M9 27l-2-5m2 5 3-7M32 10l-3-5" stroke="#476b50" opacity=".35"/><circle cx="25" cy="29" r="1.8" fill="#edd997" opacity=".65"/></pattern>
     <g id="willow"><path d="M0 0L4-55M3-20L-18-38M3-34L23-49" fill="none" stroke="#5d6544" stroke-width="5"/><path d="M-32-52Q-30-89 5-83Q41-83 37-50L29-20 19-54 11-11 2-51-9-18-15-55-29-30Z" fill="#527451"/><path d="M-27-54Q-12-82 8-75Q31-73 33-53" fill="none" stroke="#91ab70" stroke-width="9"/></g>
   </defs><rect width="700" height="430" fill="url(#meadowFloor)"/>
@@ -22,7 +22,7 @@ function meadowTerrain(): string {
 
 function volcanicTerrain(): string {
   return `<defs>
-    <linearGradient id="obsidianFloor" x2="0" y2="1"><stop stop-color="#514559"/><stop offset="1" stop-color="#302e3e"/></linearGradient>
+    <linearGradient id="obsidianFloor" gradientUnits="userSpaceOnUse" x2="0" y2="430"><stop stop-color="#514559"/><stop offset="1" stop-color="#302e3e"/></linearGradient>
     <pattern id="obsidianTiles" width="53" height="46" patternUnits="userSpaceOnUse"><path d="M0 0H53V46H0ZM26 0V46" fill="none" stroke="#89778c" opacity=".12"/></pattern>
     <g id="basalt"><path d="M-19 9V-19L-7-33 10-31 22-17V13L5 22Z" fill="#242332" stroke="#68596f" stroke-width="2"/><path d="M-19-19L-7-33 10-31 22-17 5-8Z" fill="#796779"/><path d="M5-8V22M-7-33L-7-12" stroke="#a48a99" opacity=".5"/></g>
   </defs><rect width="700" height="430" fill="url(#obsidianFloor)"/>

@@ -75,11 +75,11 @@ describe('single-owner HUD overrides', () => {
     expect(view.startLabel).toBe('Summon');
   });
 
-  it('labels the early-summon bonus during a journey countdown and hides the start button', () => {
+  it('labels the early-summon bonus on the overlay button during a journey countdown', () => {
     const state = createDefenseState('level1');
     state.defense.countdown = 4200;
     const view = presentBattle(state, true);
-    expect(view.startHidden).toBe(true);
+    expect(view.startHidden).toBe(false);
     expect(view.startLabel).toBe('Summon wave 1 · +50 mana (5s)');
   });
 
