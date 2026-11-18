@@ -1,5 +1,6 @@
 import { dragonForms } from '../content/dragon-forms';
 import { entityPosition, towerPosition } from '../game/geometry';
+import { mapBeamEndpoint } from '../game/evolution-combat';
 import type { GameState } from '../game/types';
 import { element } from './dom';
 
@@ -24,7 +25,26 @@ export class DefenseEffects {
       state.towers.forEach((t, i) => {
         if (!t?.beamIds || state.phase !== 'battle') return;
         const p = towerPosition(state, i);
+        if (t.evolution?.form === 'white' && t.beamIds.length) {
+          const target = state.enemies.find((enemy) => enemy.id === t.beamIds![0]);
+          if (target) {
+            if (state.defense) {
+              const endpoint = mapBeamEndpoint(state, { x: p.x, y: p.y - 18 }, target);
+              const line = use(`map-beam-${i}`, 'line');
+              for (const [key, value] of Object.entries({
+                x1: p.x,
+                y1: p.y - 18,
+                x2: endpoint.x,
+                y2: endpoint.y,
+                stroke: dragonForms.white.color,
+                'stroke-width': 3,
+              }))
+                line.setAttribute(key, String(value));
+            }
+          }
+        }
         for (const id of t.beamIds) {
+          if (t.evolution?.form === 'white') continue;
           const enemy = state.enemies.find((e) => e.id === id);
           if (!enemy) continue;
           const [x, y] = entityPosition(state, enemy),

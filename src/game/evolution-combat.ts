@@ -1,11 +1,41 @@
 import { dragonForms } from '../content/dragon-forms';
 import type { DragonFormDefinition } from '../content/dragon-forms';
 import { defenseRules } from '../content/defense-rules';
+import { getMap } from '../content/catalog';
 import { applyDamage, damageMultiplier } from './damage';
 import { rankOf, rankTotal } from './defense-state';
 import { entityPosition } from './geometry';
 import type { TowerContext } from './tower-bonuses';
-import type { DefenseBattle, Enemy, EvolutionTower, GameEvent } from './types';
+import type { DefenseBattle, Enemy, EvolutionTower, GameEvent, Point } from './types';
+
+export const mapBeamWidth = 24;
+
+export function mapBeamEndpoint(state: DefenseBattle, origin: Point, target: Enemy): Point {
+  const [tx, ty] = entityPosition(state, target);
+  const dx = tx - origin.x;
+  const dy = ty - origin.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance === 0) return { ...origin };
+  const direction = { x: dx / distance, y: dy / distance };
+  const geometry = getMap(state.activeLevel, state.defense.ruleset, state.defense.mobileLayout);
+  let furthest = Number.POSITIVE_INFINITY;
+  if (direction.x !== 0)
+    for (const boundary of [0, geometry.width])
+      if (Number.isFinite((boundary - origin.x) / direction.x)) {
+        const candidate = (boundary - origin.x) / direction.x;
+        if (candidate > 0 && candidate < furthest) furthest = candidate;
+      }
+  if (direction.y !== 0)
+    for (const boundary of [0, geometry.height])
+      if (Number.isFinite((boundary - origin.y) / direction.y)) {
+        const candidate = (boundary - origin.y) / direction.y;
+        if (candidate > 0 && candidate < furthest) furthest = candidate;
+      }
+  return {
+    x: origin.x + direction.x * furthest,
+    y: origin.y + direction.y * furthest,
+  };
+}
 
 /** New area effects obey the same targeting protections as direct attacks. */
 export function formTargetable(enemy: Enemy): boolean {
@@ -37,10 +67,34 @@ export function tickEvolvedTower(
   const targets = candidates.filter(formTargetable);
   const damage = profile.damage * damageMultiplier(state, tower.type) * context.damageMultiplier;
   if (['beam', 'focus', 'mapBeam'].includes(profile.ability)) {
-    const affected =
-      profile.ability === 'mapBeam'
-        ? state.enemies.filter(formTargetable)
-        : targets.slice(0, profile.ability === 'focus' ? 1 : (profile.count ?? 1));
+    if (profile.ability === 'mapBeam') {
+      if (!targets.length) {
+        tower.beamIds = [];
+        return;
+      }
+      const trigger = targets[0];
+      const [tx, ty] = entityPosition(state, trigger);
+      const dx = tx - context.position.x;
+      const dy = ty - context.position.y;
+      const length = Math.hypot(dx, dy);
+      const dirX = length > 0 ? dx / length : 0;
+      const dirY = length > 0 ? dy / length : 0;
+      const endpoint = mapBeamEndpoint(state, context.position, trigger);
+      const rayLength = Math.hypot(endpoint.x - context.position.x, endpoint.y - context.position.y);
+      const affected = state.enemies.filter((enemy) => {
+        if (!formTargetable(enemy)) return false;
+        const [x, y] = entityPosition(state, enemy);
+        const ex = x - context.position.x;
+        const ey = y - context.position.y;
+        const along = ex * dirX + ey * dirY;
+        const across = Math.abs(ex * dirY - ey * dirX);
+        return along >= 0 && along <= rayLength + mapBeamWidth && across <= mapBeamWidth;
+      });
+      tower.beamIds = [trigger.id, ...affected.filter((enemy) => enemy.id !== trigger.id).map((enemy) => enemy.id)];
+      for (const enemy of affected) applyDamage(state, enemy, (damage * dt) / 1000, tower.type, events);
+      return;
+    }
+    const affected = targets.slice(0, profile.ability === 'focus' ? 1 : (profile.count ?? 1));
     tower.beamIds = affected.map((enemy) => enemy.id);
     for (const enemy of affected) applyDamage(state, enemy, (damage * dt) / 1000, tower.type, events);
     return;

@@ -316,6 +316,20 @@ describe('evolved combat and exact persistence', () => {
     expect(state.enemies[0].hp).toBeLessThan(100);
     expect(state.enemies[1].hp).toBe(100);
   });
+  it('white map beams start only in range but damage enemies crossed beyond range', () => {
+    const state = battle('white');
+    state.activeLevel = 'volcanic';
+    state.towers[0]!.position = { x: 75, y: 215 };
+    const target = createEnemy(state, 'demon', 10000, 0.01, 2);
+    const crossed = createEnemy(state, 'demon', 10000, 0.01, 12);
+    const offRay = createEnemy(state, 'demon', 10000, 0.01, 10, 1);
+    state.enemies = [target, crossed, offRay];
+    tickDefenseTowers(state, 16, []);
+    expect(target.hp).toBeLessThan(target.max);
+    expect(crossed.hp).toBeLessThan(crossed.max);
+    expect(offRay.hp).toBe(offRay.max);
+    expect(state.towers[0]!.beamIds![0]).toBe(target.id);
+  });
   it('area deaths award each reward once', () => {
     const state = battle('orange');
     for (const enemy of state.enemies) {
