@@ -127,8 +127,12 @@ for (const viewport of [
         await page
           .getByRole('button', { name: `${level === 1 ? 'Blue' : 'Blue 2'}, tier ${level}, dragon 1`, exact: true })
           .tap();
-        await page.locator('#upgrade').tap();
-        await page.locator('[data-upgrade-color="blue"]').tap();
+        if (level === 1) {
+          await page.locator('#mixBlue').tap();
+        } else {
+          await page.locator('#upgrade').tap();
+          await page.locator('[data-upgrade-form="blue3"]').tap();
+        }
       }
       await expect(page.getByRole('button', { name: 'Blue 3, tier 3, dragon 1', exact: true })).toBeVisible();
       await page.locator('#start').tap();

@@ -20,7 +20,6 @@ test('grid placement and evolution support upgrading, selling and reload', async
   await clickMapAt(page, 90, 202);
   await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-1/);
   await page.locator('#upgrade').click();
-  await page.locator('[data-upgrade-color="red"]').click();
   await expect(page.locator('#towers .tower-icon')).toHaveAttribute('href', /fire-2/);
   const placed = (await savedState(page)).towers[0];
   expect(placed).toMatchObject({ type: 'fire', level: 2 });
@@ -112,7 +111,6 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await clickMapAt(page, 90, 202);
   await expect(page.locator('#gold')).toHaveText('60');
   await page.locator('#upgrade').click();
-  await page.locator('[data-upgrade-color="red"]').click();
   await expect(page.locator('#gold')).toHaveText('15');
   await expect(page.locator('#info')).toContainText('Tier 2');
   // Upgrading closes the action popover, so the dragon is selected again before selling.
@@ -304,7 +302,6 @@ test('stale background tabs cannot overwrite a newer journey', async ({ page, co
   await expect(newer.locator('#pauseOverlay')).toBeVisible();
   await newer.locator('#resumeBattle').click();
   await newer.locator('#upgrade').click();
-  await newer.locator('[data-upgrade-color="red"]').click();
   expect((await savedState(newer)).towers[0].level).toBe(2);
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });

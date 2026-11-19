@@ -72,8 +72,7 @@ for (const viewport of [
       await page.locator('[data-type="fire"]').tap();
       await clickMapAt(page, 75, 225);
       await expect(page.locator('#towers .tower-marker')).toHaveCount(1);
-      await page.locator('#upgrade').tap();
-      await page.locator('[data-upgrade-color="blue"]').tap();
+      await page.locator('#mixBlue').tap();
       await expect(page.locator('#towers .tower-marker')).toHaveAttribute('aria-label', /Purple/);
       await page.locator('#pause').tap();
       await expect(page.locator('#pauseOverlay')).toBeVisible();
@@ -200,13 +199,16 @@ test('cutout bounds and touch coordinates remain correct after a landscape resiz
     await page.locator('[data-type="ice"]').tap();
     await page.touchscreen.tap(position.x, position.y);
     await expect(page.locator('#towers .tower-marker')).toHaveAttribute('transform', 'translate(675 375)');
-    await page.locator('#upgrade').tap();
+    await expect(page.locator('.actions')).toBeVisible();
     const popup = await page.locator('.actions').boundingBox();
-    expect(popup!.x).toBeGreaterThanOrEqual(44);
-    expect(popup!.x + popup!.width).toBeLessThanOrEqual(623);
-    expect(popup!.y).toBeGreaterThanOrEqual(60);
-    expect(popup!.y + popup!.height).toBeLessThanOrEqual(355);
-    await page.locator('[data-upgrade-color="blue"]').tap();
+    expect(popup).not.toBeNull();
+    if (!popup) throw new Error('The selected dragon action popover should have layout bounds.');
+    expect(popup.x).toBeGreaterThanOrEqual(44);
+    expect(popup.x + popup.width).toBeLessThanOrEqual(623);
+    expect(popup.y).toBeGreaterThanOrEqual(60);
+    expect(popup.y + popup.height).toBeLessThanOrEqual(355);
+    await page.locator('#upgrade').tap();
+    await expect(page.locator('#towers .tower-marker')).toHaveAttribute('aria-label', /Purple/);
     await page.locator('#pause').tap();
     await page.screenshot({ path: test.info().outputPath('pause-panel.png') });
   } finally {
