@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { enemyTraits } from '../src/content/enemies';
+import {
+  difficultyByMonster,
+  enemyTraits,
+  monsterDifficulty,
+  monsterDifficultyRanking,
+  playableMonsters,
+} from '../src/content/enemies';
 import { nodeIndex } from '../src/content/upgrades';
 import { createDefenseState, rankOf, rankTotal } from '../src/game/defense-state';
 import { clampToBattlefield, isInsideBattlefield } from '../src/game/geometry';
@@ -28,6 +34,20 @@ describe('enemy traits', () => {
     expect(enemyTraits('witch').spellImmune).toBe(true);
     expect(enemyTraits('shade').directPath).toBe(true);
     expect(enemyTraits('scout')).toEqual({});
+  });
+  it('provides a 1–10 difficulty rank for every monster', () => {
+    expect(Object.keys(difficultyByMonster)).toHaveLength(21);
+    for (const kind of Object.keys(difficultyByMonster) as (keyof typeof difficultyByMonster)[]) {
+      expect(monsterDifficulty(kind)).toBeGreaterThanOrEqual(1);
+      expect(monsterDifficulty(kind)).toBeLessThanOrEqual(10);
+    }
+    expect(playableMonsters).toHaveLength(17);
+    expect(monsterDifficulty('zombieTrain')).toBe(10);
+    expect(monsterDifficulty('chief')).toBe(10);
+    expect(monsterDifficultyRanking().slice(0, 2).map((entry) => entry.kind).sort()).toEqual([
+      'chief',
+      'zombieTrain',
+    ]);
   });
 });
 

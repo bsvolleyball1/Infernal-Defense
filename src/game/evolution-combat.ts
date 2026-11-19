@@ -103,6 +103,21 @@ export function tickEvolvedTower(
     tickCharges(state, tower, index, targets, dt, damage, context);
     return;
   }
+  if (profile.ability === 'radius') {
+    if (tower.cooldown > defenseRules.balanceEpsilon) return;
+    const [radiusX, radiusY] = [context.position.x, context.position.y];
+    const radius = context.range;
+    const affected = state.enemies.filter((enemy) => {
+      if (!formTargetable(enemy)) return false;
+      const [x, y] = entityPosition(state, enemy);
+      return Math.hypot(x - radiusX, y - radiusY) <= radius;
+    });
+    if (!affected.length) return;
+    attackArea(state, tower, targets, damage, events, context, profile);
+    tower.cooldown = formInterval(state, tower);
+    events.push({ type: 'sound', dragon: tower.type });
+    return;
+  }
   if (!targets.length || tower.cooldown > defenseRules.balanceEpsilon) return;
   if (['rapid', 'acid', 'sniper'].includes(profile.ability)) {
     fireFormProjectile(state, tower, index, targets[0], damage, context, profile);
@@ -189,7 +204,9 @@ function attackArea(
   profile: DragonFormDefinition,
 ): void {
   const target = targets[0];
-  const [centerX, centerY] = entityPosition(state, target);
+  const targetPosition = target ? entityPosition(state, target) : null;
+  const centerX = profile.ability === 'radius' ? context.position.x : (targetPosition?.[0] ?? context.position.x);
+  const centerY = profile.ability === 'radius' ? context.position.y : (targetPosition?.[1] ?? context.position.y);
   const centered = ['explosion', 'radius', 'tar', 'earthquake'].includes(profile.ability);
   const affected =
     profile.ability === 'cone'
@@ -197,7 +214,8 @@ function attackArea(
       : centered
         ? state.enemies.filter((enemy) => {
             const [x, y] = entityPosition(state, enemy);
-            return formTargetable(enemy) && Math.hypot(x - centerX, y - centerY) <= (profile.radius ?? 48);
+            const radius = profile.ability === 'radius' ? context.range : (profile.radius ?? 48);
+            return formTargetable(enemy) && Math.hypot(x - centerX, y - centerY) <= radius;
           })
         : [target];
   for (const enemy of affected) {
@@ -212,9 +230,18 @@ function attackArea(
     kind: tower.type,
     x: centered ? centerX : context.position.x,
     y: centered ? centerY : context.position.y,
-    radius: profile.radius ?? 38,
+    radius: profile.ability === 'radius' ? context.range : (profile.radius ?? 38),
     remaining: defenseRules.fireWaveVisualMs,
     color: profile.color,
+    ...(profile.ability === 'cone'
+      ? {
+          shape: 'cone' as const,
+          targetId: target.id,
+          length: context.range,
+          directionX: (centerX - context.position.x) / (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
+          directionY: (centerY - context.position.y) / (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
+        }
+      : {}),
   });
 }
 

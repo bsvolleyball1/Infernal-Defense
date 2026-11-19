@@ -16,6 +16,7 @@ export interface MenuViews {
   renderLevels(slot: number, state: GameState, journey: JourneyProgress): void;
   renderSaves(): void;
   renderBestiary(): void;
+  renderTowerary(): void;
   renderOptions(): void;
   renderUpgrades(state: GameState): void;
 }
@@ -59,6 +60,9 @@ export class NavigationController {
         break;
       case 'bestiary':
         views.renderBestiary();
+        break;
+      case 'towerary':
+        views.renderTowerary();
         break;
       case 'options':
         views.renderOptions();

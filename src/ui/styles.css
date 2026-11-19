@@ -728,6 +728,97 @@ main {
 .creature-stats dd {
   margin: 0;
   text-align: right;
+}
+.towerary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  max-height: calc(100dvh - 150px);
+  overflow: auto;
+  padding: 4px 2px 16px;
+}
+.towerary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 178px;
+  padding: 14px 10px;
+  border: 1px solid #53604d;
+  border-radius: 9px;
+  background: linear-gradient(120deg, #293328ef, #20291fef);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.towerary-card:hover,
+.towerary-card:focus-visible {
+  border-color: var(--gold);
+  background: #31392b;
+}
+.towerary-card img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+.towerary-card small {
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+}
+.towerary-dialog {
+  width: min(440px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #6d7655;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.towerary-dialog::backdrop {
+  background: #080d0bd9;
+}
+.towerary-close {
+  display: block;
+  margin-left: auto;
+}
+.towerary-portrait {
+  text-align: center;
+}
+.towerary-portrait img {
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+}
+.towerary-dialog h2 {
+  margin: 8px 0 16px;
+  text-align: center;
+  font: 26px 'Uncial Antiqua';
+}
+.towerary-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-block: 14px;
+  border-block: 1px solid var(--line);
+}
+.towerary-stats dt {
+  color: var(--muted);
+}
+.towerary-stats dd {
+  margin: 0;
+  text-align: right;
+}
+.towerary-description,
+.towerary-recipe {
+  color: var(--muted);
+}
+.towerary-recipe ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--ink);
   color: var(--gold);
 }
 .creature-dialog h3 {

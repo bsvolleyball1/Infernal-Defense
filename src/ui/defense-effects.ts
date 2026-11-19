@@ -61,6 +61,31 @@ export class DefenseEffects {
         }
       });
       for (const effect of state.defense.visuals) {
+        if (effect.shape === 'cone') {
+          const ux = effect.directionX ?? 1;
+          const uy = effect.directionY ?? 0;
+          const px = -uy;
+          const py = ux;
+          const coneLength = effect.length ?? effect.radius;
+          const ex = effect.x + ux * coneLength;
+          const ey = effect.y + uy * coneLength;
+          const points = [
+            `${effect.x},${effect.y}`,
+            `${ex + px * effect.radius},${ey + py * effect.radius}`,
+            `${ex},${ey}`,
+            `${ex - px * effect.radius},${ey - py * effect.radius}`,
+          ].join(' ');
+          const polygon = use(`cone-${effect.id}`, 'polygon');
+          for (const [key, value] of Object.entries({
+            points,
+            fill: effect.color ?? '#a26ce0',
+            opacity: 0.16,
+            stroke: effect.color ?? '#a26ce0',
+            'stroke-width': 2,
+          }))
+            polygon.setAttribute(key, String(value));
+          continue;
+        }
         const circle = use(`spell-${effect.id}`, 'circle');
         for (const [key, value] of Object.entries({
           cx: effect.x,

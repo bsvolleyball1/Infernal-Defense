@@ -251,6 +251,34 @@ const tripleForms: Record<string, DragonForm[]> = {
   'yellow,yellow,yellow': ['yellow3'],
 };
 
+export const dragonFormRecipes: Record<DragonForm, DragonColor[][]> = {
+  red: [['red']],
+  blue: [['blue']],
+  yellow: [['yellow']],
+  red2: [['red', 'red']],
+  purple: [['blue', 'red']],
+  orange: [['red', 'yellow']],
+  blue2: [['blue', 'blue']],
+  green: [['blue', 'yellow']],
+  yellow2: [['yellow', 'yellow']],
+  red3: [['red', 'red', 'red']],
+  bloodRed: [['blue', 'red', 'red']],
+  purple2: [['blue', 'red', 'red']],
+  pink: [['red', 'red', 'yellow']],
+  orange2: [
+    ['red', 'red', 'yellow'],
+    ['red', 'yellow', 'yellow'],
+  ],
+  blue3: [['blue', 'blue', 'blue']],
+  black: [['blue', 'blue', 'red']],
+  gray: [['blue', 'blue', 'yellow']],
+  green2: [['blue', 'blue', 'yellow']],
+  yellow3: [['yellow', 'yellow', 'yellow']],
+  sun: [['red', 'yellow', 'yellow']],
+  turquoise: [['blue', 'yellow', 'yellow']],
+  white: [['blue', 'red', 'yellow']],
+};
+
 export function normalizedColors(colors: DragonColor[]): DragonColor[] {
   return [...colors].sort();
 }

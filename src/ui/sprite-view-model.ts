@@ -57,6 +57,7 @@ export interface PlacedTowerView {
   type: DragonType;
   level: number;
   evolved: boolean;
+  form?: import('../domain/model').DragonForm;
 }
 
 /** One placed dragon, with its map position already resolved. */
@@ -74,6 +75,7 @@ export function presentPlacedTowers(state: GameState): PlacedTowerView[] {
         inactive,
         color: tower.evolution ? dragonForms[tower.evolution.form].color : dragons[tower.type].color,
         evolved: Boolean(tower.evolution),
+        form: tower.evolution?.form,
         type: tower.type,
         level: tower.level,
       },

@@ -18,18 +18,34 @@ export interface EnemyDefinition {
   name: string;
   hp: number;
   rating: number;
+  difficulty: number;
   color: string;
   description: string;
   traits?: EnemyTraits;
 }
 export const enemyRoster = {
-  imp: { name: 'Imp', hp: 10, rating: 5, color: '#b75c45', description: 'No special ability.' },
-  seaSerpent: { name: 'Sea Serpent', hp: 10, rating: 9, color: '#428b91', description: 'Fast and fragile.' },
-  demon: { name: 'Demon', hp: 100, rating: 1, color: '#693d3b', description: 'Slow and tough.' },
+  imp: { name: 'Imp', hp: 10, rating: 5, difficulty: 3, color: '#b75c45', description: 'No special ability.' },
+  seaSerpent: {
+    name: 'Sea Serpent',
+    hp: 10,
+    rating: 9,
+    difficulty: 5,
+    color: '#428b91',
+    description: 'Fast and fragile.',
+  },
+  demon: {
+    name: 'Demon',
+    hp: 100,
+    rating: 1,
+    difficulty: 4,
+    color: '#693d3b',
+    description: 'Slow and tough.',
+  },
   hellhound: {
     name: 'Hellhound',
     hp: 50,
     rating: 5,
+    difficulty: 6,
     color: '#9a4937',
     description: '75% resistance to fire dragons.',
     traits: { resist: { fire: 0.25 } },
@@ -38,6 +54,7 @@ export const enemyRoster = {
     name: 'Fury',
     hp: 50,
     rating: 9,
+    difficulty: 7,
     color: '#a54f64',
     description: '75% resistance to poison dragons.',
     traits: { resist: { poison: 0.25 } },
@@ -46,6 +63,7 @@ export const enemyRoster = {
     name: 'Devil',
     hp: 100,
     rating: 1,
+    difficulty: 6,
     color: '#533a3e',
     description: '75% resistance to ice dragons.',
     traits: { resist: { ice: 0.25 } },
@@ -54,6 +72,7 @@ export const enemyRoster = {
     name: 'Ghost',
     hp: 10,
     rating: 9,
+    difficulty: 6,
     color: '#a9bdc1',
     description: 'Untargetable for 3 seconds after its first dragon hit.',
     traits: { untargetableAfterHitMs: 3000 },
@@ -62,6 +81,7 @@ export const enemyRoster = {
     name: 'Gargoyle',
     hp: 60,
     rating: 4,
+    difficulty: 7,
     color: '#77756b',
     description: 'Remains targetable but invulnerable for 2 seconds after lethal damage.',
     traits: { lethalDelay: { residualHp: 0.01, delayMs: 2000 } },
@@ -70,6 +90,7 @@ export const enemyRoster = {
     name: 'Witch',
     hp: 80,
     rating: 3,
+    difficulty: 8,
     color: '#6f536c',
     description: 'Immune to spells.',
     traits: { spellImmune: true },
@@ -78,6 +99,7 @@ export const enemyRoster = {
     name: 'Hag',
     hp: 90,
     rating: 2,
+    difficulty: 8,
     color: '#627b4f',
     description: 'Heals others within 50 units for 3% maximum health per second.',
     traits: { healAura: { radius: 50, fractionPerSecond: 0.03 } },
@@ -86,6 +108,7 @@ export const enemyRoster = {
     name: 'Troll',
     hp: 100,
     rating: 3,
+    difficulty: 7,
     color: '#5d7547',
     description: 'After 1 second without damage, regenerates 4% health per second.',
     traits: { regen: { delayMs: 1000, fractionPerSecond: 0.04 } },
@@ -94,6 +117,7 @@ export const enemyRoster = {
     name: 'Necromancer',
     hp: 100,
     rating: 1,
+    difficulty: 9,
     color: '#514950',
     description: 'Travels for 5 seconds, pauses for 1 second, then summons a discovered enemy.',
     traits: { summoner: { travelMs: 5000, pauseMs: 1000 } },
@@ -102,6 +126,7 @@ export const enemyRoster = {
     name: 'Zombie Train',
     hp: 200,
     rating: 1,
+    difficulty: 10,
     color: '#69785a',
     description: 'On death releases 5–10 Imps, Demons and Sea Serpents.',
     traits: { onDeath: { minimum: 5, span: 6, kinds: ['imp', 'demon', 'seaSerpent'] } },
@@ -110,6 +135,7 @@ export const enemyRoster = {
     name: 'Lich',
     hp: 90,
     rating: 4,
+    difficulty: 7,
     color: '#786a87',
     description: 'First egg pickup grants 100 health and speed rating 7.',
     traits: { onCarry: { bonusHp: 100, speedRating: 7 } },
@@ -118,6 +144,7 @@ export const enemyRoster = {
     name: 'Skeleton',
     hp: 10,
     rating: 5,
+    difficulty: 6,
     color: '#b8aa82',
     description: '50% resistance to all dragon attacks.',
     traits: { resist: { all: 0.5 } },
@@ -126,6 +153,7 @@ export const enemyRoster = {
     name: 'Phantom',
     hp: 80,
     rating: 2,
+    difficulty: 7,
     color: '#8893a0',
     description: 'Invulnerable for 3 seconds after spawning.',
     traits: { spawnInvulnerableMs: 3000 },
@@ -134,6 +162,7 @@ export const enemyRoster = {
     name: 'Shade',
     hp: 50,
     rating: 2,
+    difficulty: 6,
     color: '#3e464e',
     description: 'Travels straight to the nest, ignoring the trail.',
     traits: { directPath: true },
@@ -141,6 +170,49 @@ export const enemyRoster = {
 } satisfies Partial<Record<MonsterKind, EnemyDefinition>>;
 export type DefenseMonster = keyof typeof enemyRoster;
 export const playableMonsters = Object.keys(enemyRoster) as DefenseMonster[];
+export const difficultyByMonster: Record<MonsterKind, number> = {
+  imp: enemyRoster.imp.difficulty,
+  seaSerpent: enemyRoster.seaSerpent.difficulty,
+  demon: enemyRoster.demon.difficulty,
+  hellhound: enemyRoster.hellhound.difficulty,
+  fury: enemyRoster.fury.difficulty,
+  devil: enemyRoster.devil.difficulty,
+  ghost: enemyRoster.ghost.difficulty,
+  gargoyle: enemyRoster.gargoyle.difficulty,
+  witch: enemyRoster.witch.difficulty,
+  hag: enemyRoster.hag.difficulty,
+  troll: enemyRoster.troll.difficulty,
+  necromancer: enemyRoster.necromancer.difficulty,
+  zombieTrain: enemyRoster.zombieTrain.difficulty,
+  lich: enemyRoster.lich.difficulty,
+  skeleton: enemyRoster.skeleton.difficulty,
+  phantom: enemyRoster.phantom.difficulty,
+  shade: enemyRoster.shade.difficulty,
+  scout: 3,
+  shield: 5,
+  runner: 6,
+  chief: 10,
+};
+export function monsterDifficulty(kind: MonsterKind): number {
+  return difficultyByMonster[kind];
+}
+export function monsterDifficultyRanking(): { kind: MonsterKind; name: string; difficulty: number }[] {
+  return (Object.keys(difficultyByMonster) as MonsterKind[])
+    .map((kind) => ({
+      kind,
+      name: isDefenseMonster(kind)
+        ? enemyRoster[kind].name
+        : kind === 'scout'
+          ? 'Pass raider'
+          : kind === 'shield'
+            ? 'Iron guard'
+            : kind === 'runner'
+              ? 'Ash runner'
+              : 'Raid chief',
+      difficulty: difficultyByMonster[kind],
+    }))
+    .sort((a, b) => b.difficulty - a.difficulty || a.name.localeCompare(b.name));
+}
 export const futureMonsters = [
   'Minotaur',
   'Basilisk',

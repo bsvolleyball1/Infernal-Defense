@@ -2,10 +2,16 @@ import { colorForDragon, dragonColors, dragonForms, formsForColors } from '../co
 import { challengeAllowsDragon, getMap } from '../content/maps';
 import { dragonTypeForColor } from '../content/dragon-forms';
 import { towerUpgradeCost } from './rules';
+import { levelCap } from './defense-state';
 import type { DragonColor, DragonForm, EvolutionTower, GameEvent, GameState, Tower } from './types';
 
 export function evolutionOptions(state: GameState, tower: Tower, color: DragonColor): DragonForm[] {
-  if (state.defense?.ruleset !== 'defense-2' || !tower.evolution || tower.level >= 3 || !dragonColors.includes(color))
+  if (
+    state.defense?.ruleset !== 'defense-2' ||
+    !tower.evolution ||
+    tower.level >= levelCap(state, tower) ||
+    !dragonColors.includes(color)
+  )
     return [];
   if (!challengeAllowsDragon(getMap(state.activeLevel), dragonTypeForColor[color])) return [];
   return formsForColors([...tower.evolution.colors, color]);

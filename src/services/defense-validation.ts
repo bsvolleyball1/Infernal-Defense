@@ -78,7 +78,12 @@ export function validateDefense(value: unknown): asserts value is DefenseState {
       integer(visual.id, 1) &&
         ['fire', 'ice', 'poison'].includes(visual.kind as string) &&
         finite(visual.remaining, 0, 3000) &&
-        finite(visual.radius, 0, 10000),
+        finite(visual.radius, 0, 10000) &&
+        (visual.shape === undefined || visual.shape === 'cone') &&
+        (visual.length === undefined || finite(visual.length, 0, 10000)) &&
+        (visual.directionX === undefined || finite(visual.directionX, -1, 1)) &&
+        (visual.directionY === undefined || finite(visual.directionY, -1, 1)) &&
+        (visual.targetId === undefined || integer(visual.targetId, 1)),
       'Invalid spell visual.',
     );
   }

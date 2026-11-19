@@ -99,7 +99,7 @@ export class SvgRenderer implements Renderer {
     this.results.render(view);
     this.defenseEffects.render(state);
     this.popover.position();
-    syncEvolutionChoices(view.evolutionOwner, this.popover.isOpenFor(state.selected));
+    syncEvolutionChoices(state, this.popover.isOpenFor(state.selected));
     this.popover.position();
   }
 
@@ -153,7 +153,7 @@ export class SvgRenderer implements Renderer {
     attr(group, 'aria-disabled', String(tower.inactive));
     attr(group, 'tabindex', tower.inactive ? -1 : 0);
     attr(group.querySelector('.tower-aura')!, 'fill', tower.color);
-    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level, tower.evolved));
+    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level, tower.evolved, tower.form));
     const state = this.current();
     group.style.filter =
       tower.index === state.selected && !this.popover.isDismissed(tower.index) ? 'drop-shadow(0 0 7px #ffdd82)' : '';

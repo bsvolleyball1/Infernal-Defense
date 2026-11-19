@@ -35,38 +35,26 @@ for (const viewport of [
   { width: 812, height: 375 },
   { width: 844, height: 390 },
 ]) {
-  test(`alternate evolution choices remain usable and restore at ${viewport.width}x${viewport.height}`, async ({
+  test(`tier 2 evolution choices remain inconspicuous and restore at ${viewport.width}x${viewport.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await seed(page, purpleState());
-    await page.locator('#upgrade').click();
-    await expect(page.locator('#upgradeChoices')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('#upgradeChoices')).toBeHidden();
-    await expect(page.locator('#upgrade')).toBeFocused();
-    await page.locator('#upgrade').click();
-    await page.locator('[data-upgrade-color="red"]').click();
-    await expect(page.locator('[data-upgrade-form]')).toHaveCount(2);
-    const box = await page.locator('#upgradeChoices').boundingBox();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.y).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
-    await page.screenshot({ path: test.info().outputPath(`evolution-choices-${viewport.width}.png`), fullPage: true });
-    await page.locator('[data-upgrade-form="purple2"]').click();
-    await expect(page.locator('#upgradeChoices')).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Purple 2, tier 3, dragon 1', exact: true })).toBeVisible();
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
-    expect(saved.towers[0].evolution).toEqual({ colors: ['blue', 'red', 'red'], form: 'purple2' });
-    expect(saved.gold).toBe(805);
+      await page.locator('#towers .tower-marker').first().click();
+      await expect(page.locator('#upgrade')).toBeDisabled();
+      await expect(page.locator('#mixBlue')).toBeHidden();
+      await expect(page.locator('#mixYellow')).toBeHidden();
+      await page.screenshot({ path: test.info().outputPath(`tier-2-actions-${viewport.width}.png`), fullPage: true });
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
+      expect(saved.towers[0].level).toBe(2);
+      expect(saved.gold).toBe(895);
     await page.reload();
     await page.locator('#continueJourney').click();
     await page.locator('#journeyResume').click();
     await page.locator('#resumeBattle').click();
-    await page.getByRole('button', { name: 'Purple 2, tier 3, dragon 1', exact: true }).click();
+    await page.getByRole('button', { name: 'Purple, tier 2, dragon 1', exact: true }).click();
     await expect(page.locator('#upgrade')).toBeDisabled();
     expect(errors).toEqual([]);
   });
@@ -96,7 +84,7 @@ test('keyboard places snapped cells and cancellation never spends food', async (
   expect(state.gold).toBe(70);
 });
 
-test('all 22 forms can be created through the player controls', async ({ page }) => {
+test('tier 2 mix forms can be created through the compact player controls', async ({ page }) => {
   test.setTimeout(120_000);
   const cases = [
     ['red', 'red'],
@@ -108,19 +96,6 @@ test('all 22 forms can be created through the player controls', async ({ page })
     ['blue,blue', 'blue2'],
     ['blue,yellow', 'green'],
     ['yellow,yellow', 'yellow2'],
-    ['red,red,red', 'red3'],
-    ['red,red,blue', 'bloodRed'],
-    ['red,red,blue', 'purple2'],
-    ['red,red,yellow', 'pink'],
-    ['red,red,yellow', 'orange2'],
-    ['blue,blue,blue', 'blue3'],
-    ['blue,blue,red', 'black'],
-    ['blue,blue,yellow', 'gray'],
-    ['blue,blue,yellow', 'green2'],
-    ['yellow,yellow,yellow', 'yellow3'],
-    ['red,yellow,yellow', 'sun'],
-    ['blue,yellow,yellow', 'turquoise'],
-    ['red,blue,yellow', 'white'],
   ] as const;
   const types = { red: 'fire', blue: 'ice', yellow: 'poison' };
   for (const [recipe, form] of cases) {
@@ -133,10 +108,8 @@ test('all 22 forms can be created through the player controls', async ({ page })
     await clickMapAt(page, 75, 225);
     for (const color of colors.slice(1)) {
       await page.locator('#towers .tower-marker').first().click();
-      await page.locator('#upgrade').click();
-      await page.locator(`[data-upgrade-color="${color}"]`).click();
-      if (await page.locator('[data-upgrade-form]').count())
-        await page.locator(`[data-upgrade-form="${form}"]`).click();
+      const selector = color === 'red' ? '#upgrade' : color === 'blue' ? '#mixBlue' : '#mixYellow';
+      await page.locator(selector).click();
     }
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
     expect(saved.towers[0].evolution.form, recipe).toBe(form);
@@ -144,7 +117,7 @@ test('all 22 forms can be created through the player controls', async ({ page })
   }
 });
 
-test('open color choices close when another tower is selected', async ({ page }) => {
+test('tier 2 action popover follows the selected tower', async ({ page }) => {
   const state = purpleState();
   state.gold = 1000;
   const engine = new GameEngine(state);
@@ -152,9 +125,9 @@ test('open color choices close when another tower is selected', async ({ page })
   engine.dispatch({ type: 'place', point: { x: 25, y: 25 } });
   await seed(page, engine.snapshot());
   await page.getByRole('button', { name: 'Purple, tier 2, dragon 1', exact: true }).click();
-  await page.locator('#upgrade').click();
+  await expect(page.locator('#upgrade')).toBeDisabled();
   await page.getByRole('button', { name: /Blue, tier 1, dragon 2/ }).click();
-  await expect(page.locator('#upgradeChoices')).toBeHidden();
+  await expect(page.locator('#info')).toContainText('Blue');
 });
 
 for (const [level, forbidden] of [
@@ -171,10 +144,9 @@ for (const [level, forbidden] of [
     await expect(page.locator('#battleDragons .tower:visible')).toHaveCount(2);
     await page.locator('#battleDragons .tower:visible').first().click();
     await clickMapAt(page, 75, 125);
-    await page.locator('#upgrade').click();
-    await expect(page.locator('[data-upgrade-color]')).toHaveCount(2);
     const colors = { fire: 'red', ice: 'blue', poison: 'yellow' };
-    await expect(page.locator(`[data-upgrade-color="${colors[forbidden]}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-mix-color="${colors[forbidden]}"]`)).toBeHidden();
+    await expect(page.locator('[data-mix-color]:visible')).toHaveCount(2);
     const stateAfter = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
     expect(stateAfter.towers.filter(Boolean)).toHaveLength(1);
   });

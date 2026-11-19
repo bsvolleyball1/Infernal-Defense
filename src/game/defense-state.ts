@@ -80,7 +80,13 @@ export const rankTotal = (state: GameState, dragon: DragonType): number => {
 
 export const levelCap = (state: GameState, tower: Tower): number =>
   state.defense?.ruleset === 'defense-2'
-    ? defenseProfiles[state.defense.ruleset].maximumTier
+    ? state.defense.mode === 'sandbox'
+      ? defenseProfiles[state.defense.ruleset].maximumTier
+      : state.activeLevel === 'tutorial'
+      ? 1
+      : ['level1', 'meadow', 'volcanic'].includes(state.activeLevel)
+        ? 2
+        : defenseProfiles[state.defense.ruleset].maximumTier
     : state.defense
       ? Math.min(defenseRules.maximumDragonLevel, defenseRules.baseDragonLevel + rankOf(state, tower.type, 'maxLevel'))
       : Infinity;

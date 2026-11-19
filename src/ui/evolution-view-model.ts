@@ -1,14 +1,15 @@
 import { dragonColors, dragonForms } from '../content/dragon-forms';
 import { evolutionOptions } from '../game/evolution';
 import { towerUpgradeCost } from '../game/rules';
-import type { DragonColor, GameState } from '../game/types';
+import { levelCap } from '../game/defense-state';
+import type { DragonColor, DragonForm, GameState } from '../game/types';
 
 /** The identity includes the tier so an upgrade cannot leave an obsolete choice open. */
 export function evolutionOwner(state: GameState): string {
   const tower = state.selected === null ? null : state.towers[state.selected];
   if (
     !tower?.evolution ||
-    tower.level >= 3 ||
+    tower.level >= levelCap(state, tower) ||
     state.paused ||
     state.phase === 'won' ||
     state.phase === 'lost' ||
@@ -37,3 +38,26 @@ export function presentEvolutionChoices(state: GameState) {
 }
 
 export const colorName = (color: DragonColor): string => color[0].toUpperCase() + color.slice(1);
+
+export function presentDirectUpgradeChoices(state: GameState) {
+  const tower = state.selected === null ? null : state.towers[state.selected];
+  if (!tower?.evolution || tower.level < 2) return [];
+  const seen = new Set<DragonForm>();
+  return dragonColors.flatMap((color) => {
+    const forms = evolutionOptions(state, tower, color);
+    return forms.flatMap((form) =>
+      seen.has(form)
+        ? []
+        : [
+            {
+              form,
+              ...dragonForms[form],
+              mixColor: color,
+            },
+          ],
+    ).map((choice) => {
+      seen.add(choice.form);
+      return choice;
+    });
+  });
+}

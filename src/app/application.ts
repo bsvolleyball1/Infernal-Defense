@@ -5,6 +5,7 @@ import { bindBattleControls } from '../ui/controls';
 import { bindBattlefieldInput } from '../ui/battlefield-input';
 import {
   renderBestiary,
+  renderTowerary,
   renderContinue,
   renderJourney,
   renderOptions,
@@ -138,6 +139,7 @@ export function startApplication(): void {
       renderLevels: renderJourney,
       renderSaves: () => renderSaveSlots((index) => repository.readSlot(index)),
       renderBestiary: () => renderBestiary(bestiary.list),
+      renderTowerary,
       renderOptions: () => renderOptions(settings.settings),
       renderUpgrades: (state) => {
         setText('#bankedGold', `${formatGold(state.bankedGold)} gold`);

@@ -1,6 +1,7 @@
 import { getMap } from '../content/catalog';
 import { battlefields, challengeLabel } from '../content/maps';
 export { renderBestiary } from './bestiary';
+export { renderTowerary } from './towerary';
 import type { Settings, SlotResult } from '../services/storage';
 import type { GameState } from '../game/types';
 import type { JourneyProgress } from '../game/journey';
@@ -8,7 +9,7 @@ import { importJourney, isLevelUnlocked, levelPrerequisite } from '../game/journ
 import { element, elements, setText } from './dom';
 import { formatGold } from './currency-format';
 
-const menuPages = ['home', 'bestiary', 'options', 'saves', 'levels', 'upgrades'] as const;
+const menuPages = ['home', 'bestiary', 'towerary', 'options', 'saves', 'levels', 'upgrades'] as const;
 export type MenuPage = (typeof menuPages)[number];
 
 export function isMenuPage(value: unknown): value is MenuPage {

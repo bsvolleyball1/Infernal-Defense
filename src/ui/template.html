@@ -15,11 +15,21 @@
       <h2 class="menu-heading">The nest is under siege.</h2>
       <div class="menu-grid">
         <button class="menu-card" data-open="bestiary">
-          <span class="menu-icon">⌕</span><span><strong>Bestiary</strong></span></button><button class="menu-card" data-open="saves">
+          <span class="menu-icon">⌕</span><span><strong>Bestiary</strong></span></button>
+        <button class="menu-card" data-open="towerary">
+          <span class="menu-icon">🐉</span><span><strong>Dragon Roost</strong></span></button>
+        <button class="menu-card" data-open="saves">
           <span class="menu-icon">▣</span><span><strong>Player saves</strong></span></button><button class="menu-card" id="continueJourney" hidden="">
           <span class="menu-icon">➤</span><span><strong>Continue journey</strong></span>
         </button>
       <button id="startTestMode" class="menu-card"><span class="menu-icon">⚒</span><span><strong>Test Mode</strong></span></button></div>
+    </section>
+    <section class="menu-page" data-page="towerary">
+      <div class="page-bar">
+        <h2 class="page-title">Dragon Roost</h2>
+        <button class="back-btn" data-home="">← BACK</button>
+      </div>
+      <div id="toweraryContent"></div>
     </section>
     <section class="menu-page" data-page="bestiary">
       <div class="page-bar">
@@ -139,8 +149,11 @@
       </div><div class="nest"><div class="nestrow"><span>🥚 Nest vitality</span><strong id="hpText">5 / 5</strong></div><div class="nestbar"><i id="hpBar"></i></div></div></div>
       </div>
     <div class="actions" role="group" aria-label="Selected dragon actions"><span id="actionCost" aria-hidden="true"></span>
-        <div class="selected-info" id="info" hidden="">Choose a dragon, then tap an empty perch to place it.</div>
-        <button class="btn" id="upgrade" aria-controls="upgradeChoices" aria-expanded="false" disabled=""><span aria-hidden="true">↑</span></button><button class="btn secondary" id="sell" disabled=""><span aria-hidden="true">$</span></button>
+        <div class="selected-info" id="info">Choose a dragon, then tap an empty perch to place it.</div>
+        <button class="btn mix-button" id="upgrade" data-mix-color="red" aria-controls="upgradeChoices" aria-expanded="false" disabled=""><span class="mix-glyph" aria-hidden="true">R</span><span class="mix-result" aria-hidden="true"></span></button>
+        <button class="btn mix-button" id="mixBlue" data-mix-color="blue" aria-controls="upgradeChoices" aria-expanded="false" disabled=""><span class="mix-glyph" aria-hidden="true">B</span><span class="mix-result" aria-hidden="true"></span></button>
+        <button class="btn mix-button" id="mixYellow" data-mix-color="yellow" aria-controls="upgradeChoices" aria-expanded="false" disabled=""><span class="mix-glyph" aria-hidden="true">Y</span><span class="mix-result" aria-hidden="true"></span></button>
+        <button class="btn secondary" id="sell" disabled=""><span aria-hidden="true">$</span><span class="mix-result" aria-hidden="true">Sell</span></button>
       <div id="upgradeChoices" role="group" aria-labelledby="evolutionHeading" hidden=""></div></div></section>
   </main>
   <div class="game-over" id="gameOver" role="dialog" aria-modal="true" aria-labelledby="resultTitle">

@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { dragonForms, formsForColors, colorForDragon, dragonTypeForColor } from '../src/content/dragon-forms';
+import {
+  dragonFormRecipes,
+  dragonForms,
+  formsForColors,
+  colorForDragon,
+  dragonTypeForColor,
+} from '../src/content/dragon-forms';
 import { battlefields, getMap, challengeAllowsDragon } from '../src/content/maps';
 import { towerGridCellAt } from '../src/content/tower-grid';
 import { nodeIndex } from '../src/content/upgrades';
-import { createDefenseState, nextBattle, rankTotal } from '../src/game/defense-state';
+import { createDefenseState, levelCap, nextBattle, rankTotal } from '../src/game/defense-state';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { createEnemy } from '../src/game/enemy-factory';
 import { createEvolutionTower } from '../src/game/evolution';
@@ -14,7 +20,7 @@ import { tickEnemyAbilities } from '../src/game/enemy-abilities';
 import { towerBonus } from '../src/game/tower-bonuses';
 import { SaveRepository } from '../src/services/storage';
 import { presentBattle, presentPlacement } from '../src/ui/battle-view-model';
-import { presentEvolutionChoices } from '../src/ui/evolution-view-model';
+import { presentDirectUpgradeChoices, presentEvolutionChoices } from '../src/ui/evolution-view-model';
 import type { DefenseBattle, DragonColor, DragonForm, Level } from '../src/game/types';
 
 // Expected color paths are the intended gameplay catalog, independent of the resolver.
@@ -92,6 +98,14 @@ function battle(form: DragonForm = 'red'): DefenseBattle {
 }
 
 describe('evolution catalog and transactions', () => {
+  it('documents every dragon form and includes alternate recipes', () => {
+    expect(Object.keys(dragonForms)).toHaveLength(22);
+    expect(Object.keys(dragonFormRecipes)).toHaveLength(22);
+    expect(dragonFormRecipes.orange2).toEqual([
+      ['red', 'red', 'yellow'],
+      ['red', 'yellow', 'yellow'],
+    ]);
+  });
   it('contains exactly the 22 intended forms', () => {
     expect(forms).toHaveLength(22);
     expect(Object.keys(dragonForms).sort()).toEqual([...forms].sort());
@@ -101,6 +115,8 @@ describe('evolution catalog and transactions', () => {
   });
   it.each(paths.filter(([colors]) => colors.length > 1))('purchases the legal paths for %j', (colors, expected) => {
     for (const form of expected) {
+      // Tier-three evolutions are not possible on the three base maps.
+      if (colors.length === 3) continue;
       const engine = new GameEngine(fresh('level1', true));
       engine.dispatch({ type: 'choose', dragon: dragonTypeForColor[colors[0]] });
       engine.dispatch({ type: 'place', point: { x: 75, y: 225 } });
@@ -113,6 +129,25 @@ describe('evolution catalog and transactions', () => {
       });
       expect(engine.state.gold).toBe(120);
     }
+  });
+  it('shows every tier 3 catalog choice for Purple by mix color', () => {
+    for (const [color, level, expected] of [
+      ['red', 'fireTrial', ['bloodRed', 'purple2']],
+      ['blue', 'noPoisonTrial', ['black', 'purple2']],
+      ['yellow', 'noFireTrial', ['white']],
+    ] as const) {
+      const state = battle('purple');
+      state.activeLevel = level;
+      state.gold = 1000;
+      const choices = presentEvolutionChoices(state).find((choice) => choice.color === color);
+      expect(choices?.forms.map((form) => form.form).sort()).toEqual([...expected].sort());
+    }
+    const blightless = battle('purple');
+    blightless.activeLevel = 'noPoisonTrial';
+    blightless.gold = 1000;
+    expect(presentDirectUpgradeChoices(blightless).map((choice) => choice.form).sort()).toEqual(
+      ['black', 'bloodRed', 'purple2'].sort(),
+    );
   });
   it('invalid or unaffordable choices change neither currency nor state', () => {
     const engine = new GameEngine(battle('red'));
@@ -224,11 +259,42 @@ describe('grid placement and historical geometry', () => {
 });
 
 describe('evolved combat and exact persistence', () => {
+  it('allows every evolution tier in Test Mode, including the tutorial map', () => {
+    const state = createDefenseState('tutorial', undefined, true, 'defense-2');
+    state.towers[0] = createEvolutionTower('fire', { x: 75, y: 225 });
+    state.towers[0].evolution = { colors: ['red', 'blue'], form: 'purple' };
+    state.towers[0].level = 2;
+    state.selected = 0;
+    expect(levelCap(state, state.towers[0]!)).toBe(3);
+    expect(presentDirectUpgradeChoices(state).length).toBeGreaterThanOrEqual(3);
+  });
+  it('limits tutorial to tier 1, the three base maps to tier 2, and later maps to tier 3', () => {
+    const tutorial = battle('red');
+    tutorial.activeLevel = 'tutorial';
+    expect(levelCap(tutorial, tutorial.towers[0]!)).toBe(1);
+    expect(presentEvolutionChoices(tutorial)).toEqual([]);
+
+    for (const level of ['level1', 'meadow', 'volcanic'] as Level[]) {
+      const state = battle('red');
+      state.activeLevel = level;
+      expect(levelCap(state, state.towers[0]!)).toBe(2);
+      state.towers[0] = createEvolutionTower('fire', { x: 75, y: 225 });
+      state.towers[0].evolution = { colors: ['red', 'red'], form: 'red2' };
+      state.towers[0].level = 2;
+      expect(presentEvolutionChoices(state)).toEqual([]);
+    }
+    const later = battle('red');
+    later.activeLevel = 'fireTrial';
+    later.towers[0] = createEvolutionTower('fire', { x: 75, y: 225 });
+    later.towers[0].evolution = { colors: ['red', 'red'], form: 'red2' };
+    later.towers[0].level = 2;
+    expect(levelCap(later, later.towers[0]!)).toBe(3);
+  });
   it.each(forms)('%s attacks using its form and survives exact resume', (form) => {
     const state = battle(form);
     tickDefenseTowers(state, 100, []);
     tickDefenseProjectiles(state, 10000, []);
-    expect(state.enemies.some((enemy) => enemy.hp < enemy.max)).toBe(true);
+    if (form !== 'sun') expect(state.enemies.some((enemy) => enemy.hp < enemy.max)).toBe(true);
     const engine = new GameEngine(battle(form));
     for (let i = 0; i < 17; i++) engine.step(1000 / 60);
     const { repo } = storage();
@@ -307,6 +373,28 @@ describe('evolved combat and exact persistence', () => {
       expect(protectedEnemy.nullified).toBeUndefined();
     }
   });
+  it('Sun damages every enemy around the tower instead of following a target', () => {
+    const state = battle('sun');
+    state.activeLevel = 'volcanic';
+    state.towers[0]!.position = { x: 195, y: 215 };
+    const near = createEnemy(state, 'demon', 1000, 0.01, 3);
+    const sameRadius = createEnemy(state, 'demon', 1000, 0.01, 3);
+    const far = createEnemy(state, 'demon', 1000, 0.01, 12);
+    state.enemies = [near, sameRadius, far];
+    tickDefenseTowers(state, 16, []);
+    expect(near.hp).toBeLessThan(near.max);
+    expect(sameRadius.hp).toBeLessThan(sameRadius.max);
+    expect(far.hp).toBe(far.max);
+  });
+  it('Sun does not pulse or reset its cooldown when no enemy is inside its radius', () => {
+    const state = battle('sun');
+    state.activeLevel = 'volcanic';
+    state.towers[0]!.position = { x: 275, y: 215 };
+    state.enemies = [];
+    tickDefenseTowers(state, 16, []);
+    expect(state.defense.visuals).toHaveLength(0);
+    expect(state.towers[0]!.cooldown).toBe(0);
+  });
   it('area distance uses actual fork positions instead of equal progress', () => {
     const state = battle('black');
     state.activeLevel = 'volcanic';
@@ -315,6 +403,21 @@ describe('evolved combat and exact persistence', () => {
     tickDefenseTowers(state, 16, []);
     expect(state.enemies[0].hp).toBeLessThan(100);
     expect(state.enemies[1].hp).toBe(100);
+  });
+  it('Purple 2 damage remains a forward cone and does not pulse in a circle', () => {
+    const state = battle('purple2');
+    state.activeLevel = 'volcanic';
+    state.towers[0]!.position = { x: 75, y: 215 };
+    const target = createEnemy(state, 'demon', 1000, 0.01, 2);
+    const inCone = createEnemy(state, 'demon', 1000, 0.01, 3);
+    const outside = createEnemy(state, 'demon', 1000, 0.01, 5, 1);
+    state.enemies = [target, inCone, outside];
+    tickDefenseTowers(state, 16, []);
+    expect(target.hp).toBeLessThan(target.max);
+    expect(inCone.hp).toBeLessThan(inCone.max);
+    expect(outside.hp).toBe(outside.max);
+    expect(state.defense.visuals.some((effect) => effect.shape === 'cone')).toBe(true);
+    expect(state.defense.visuals.find((effect) => effect.shape === 'cone')?.length).toBeGreaterThan(72);
   });
   it('white map beams start only in range but damage enemies crossed beyond range', () => {
     const state = battle('white');

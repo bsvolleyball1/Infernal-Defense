@@ -27,7 +27,20 @@ export interface DefenseState {
   targeting: 'poison' | 'fire' | null;
   preview: Point | null;
   impacts: { id: number; x: number; y: number; remaining: number; damage: number }[];
-  visuals: { id: number; kind: SpellKind; x: number; y: number; radius: number; remaining: number; color?: string }[];
+  visuals: {
+    id: number;
+    kind: SpellKind;
+    x: number;
+    y: number;
+    radius: number;
+    remaining: number;
+    color?: string;
+    shape?: 'cone';
+    length?: number;
+    targetId?: number;
+    directionX?: number;
+    directionY?: number;
+  }[];
   testWave: Partial<Record<MonsterKind, number>>;
 }
 export type GamePhase = 'ready' | 'battle' | 'won' | 'lost';
