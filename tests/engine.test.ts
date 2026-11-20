@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dragons, map, monsters, positionAt, waves } from '../src/content/catalog';
+import { dragons, getMap, map, monsters, positionAt, waves } from '../src/content/catalog';
 import { createInitialState, GameEngine } from '../src/game/engine';
 import { createDefenseState } from '../src/game/defense-state';
 import { moveEnemy } from '../src/game/eggs';
@@ -119,6 +119,36 @@ describe('original content and initial state', () => {
 });
 
 describe('commands and economy', () => {
+  it('uses the same 50-food placement price for every dragon in the three-tier ruleset', () => {
+    for (const dragon of ['fire', 'ice', 'poison'] as const) {
+      const state = createDefenseState('level1', undefined, false, 'defense-2');
+      state.gold = 1000;
+      const engine = new GameEngine(state);
+      engine.dispatch({ type: 'choose', dragon });
+      engine.dispatch({ type: 'place', point: { x: 75, y: 225 } });
+      expect(engine.state.gold, dragon).toBe(950);
+    }
+  });
+
+  it('charges 55 and 60 food for tiers 2 and 3, then refunds half the total spent', () => {
+    const state = createDefenseState('fireTrial', undefined, false, 'defense-2');
+    state.gold = 1000;
+    const engine = new GameEngine(state);
+    engine.dispatch({ type: 'choose', dragon: 'fire' });
+    engine.dispatch({ type: 'place', point: getMap('fireTrial', 'defense-2').perches[0] });
+    expect(engine.state.gold).toBe(950);
+
+    engine.dispatch({ type: 'evolve', color: 'red', form: 'red2' });
+    expect(engine.state.gold).toBe(895);
+    engine.dispatch({ type: 'evolve', color: 'red', form: 'red3' });
+    expect(engine.state.gold).toBe(835);
+    expect(engine.dispatch({ type: 'sell' })).toContainEqual({
+      type: 'message',
+      text: 'Dragon sold · 82.5 food',
+    });
+    expect(engine.state.gold).toBe(917.5);
+  });
+
   it('places, selects, upgrades, and sells with original prices and refunds', () => {
     const engine = new GameEngine();
     expect(engine.dispatch({ type: 'perch', index: 0 })).toEqual([{ type: 'message', text: 'Choose a dragon first' }]);

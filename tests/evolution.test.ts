@@ -13,7 +13,7 @@ import { createDefenseState, levelCap, nextBattle, rankTotal } from '../src/game
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { createEnemy } from '../src/game/enemy-factory';
 import { createEvolutionTower } from '../src/game/evolution';
-import { canPlaceTower, isClearTowerPosition } from '../src/game/geometry';
+import { canPlaceTower, entityPosition, isClearTowerPosition } from '../src/game/geometry';
 import { tickDefenseTowers, tickDefenseProjectiles } from '../src/game/defense-combat';
 import { applyDamage } from '../src/game/damage';
 import { tickEnemyAbilities } from '../src/game/enemy-abilities';
@@ -145,9 +145,11 @@ describe('evolution catalog and transactions', () => {
     const blightless = battle('purple');
     blightless.activeLevel = 'noPoisonTrial';
     blightless.gold = 1000;
-    expect(presentDirectUpgradeChoices(blightless).map((choice) => choice.form).sort()).toEqual(
-      ['black', 'bloodRed', 'purple2'].sort(),
-    );
+    expect(
+      presentDirectUpgradeChoices(blightless)
+        .map((choice) => choice.form)
+        .sort(),
+    ).toEqual(['black', 'bloodRed', 'purple2'].sort());
   });
   it('invalid or unaffordable choices change neither currency nor state', () => {
     const engine = new GameEngine(battle('red'));
@@ -259,6 +261,42 @@ describe('grid placement and historical geometry', () => {
 });
 
 describe('evolved combat and exact persistence', () => {
+  it('balances Tier 1 sustained damage while preserving each attack style', () => {
+    const sustainedDps = (form: DragonForm) => {
+      const profile = dragonForms[form];
+      return profile.ability === 'beam' ? profile.damage : (profile.damage * 1000) / profile.interval;
+    };
+    expect([sustainedDps('red'), sustainedDps('blue'), sustainedDps('yellow')]).toEqual([8, 15, 10]);
+  });
+
+  it.each([
+    ['purple', 11, 1100],
+    ['orange', 15, 1500],
+  ] as const)('applies the balanced %s damage at its attack interval', (form, damage, interval) => {
+    const state = battle(form);
+    const target = state.enemies.reduce((furthest, enemy) => (enemy.progress > furthest.progress ? enemy : furthest));
+    const hp = target.hp;
+    tickDefenseTowers(state, 16, []);
+    expect(target.hp).toBe(hp - damage);
+    tickDefenseTowers(state, interval - 1, []);
+    expect(target.hp).toBe(hp - damage);
+    tickDefenseTowers(state, 1, []);
+    expect(target.hp).toBe(hp - damage * 2);
+  });
+
+  it('fires Yellow 2 for eight damage every 330 ms', () => {
+    const state = battle('yellow2');
+    tickDefenseTowers(state, 16, []);
+    expect(state.projectiles[0]?.damage).toBe(8);
+    expect(state.towers[0]?.cooldown).toBe(330);
+  });
+
+  it('uses the reduced Orange radius for its explosion effect', () => {
+    const state = battle('orange');
+    tickDefenseTowers(state, 16, []);
+    expect(state.defense.visuals[0]?.radius).toBe(44);
+  });
+
   it('allows every evolution tier in Test Mode, including the tutorial map', () => {
     const state = createDefenseState('tutorial', undefined, true, 'defense-2');
     state.towers[0] = createEvolutionTower('fire', { x: 75, y: 225 });
@@ -319,16 +357,65 @@ describe('evolved combat and exact persistence', () => {
     expect(engine.state.projectiles[0].retarget!.origin.x).toBe(75);
     expect(engine.state.projectiles[0].effect).toEqual({ kind: 'none' });
   });
-  it('preserves unused charges and applies the extra-charge rank', () => {
+  it('fires all stored Blue 2 charges at its nearest target and restores one per second', () => {
+    const state = battle('blue2');
+    state.towers[0]!.charges = 2;
+    state.towers[0]!.chargeTimer = 1000;
+    const towerPosition = state.towers[0]!.position!;
+    const nearest = state.enemies.reduce((closest, enemy) => {
+      const [x, y] = entityPosition(state, enemy);
+      const [cx, cy] = entityPosition(state, closest);
+      return Math.hypot(x - towerPosition.x, y - towerPosition.y) <
+        Math.hypot(cx - towerPosition.x, cy - towerPosition.y)
+        ? enemy
+        : closest;
+    });
+
+    tickDefenseTowers(state, 16, []);
+    expect(state.projectiles).toHaveLength(2);
+    expect(state.projectiles.map((projectile) => projectile.targetId)).toEqual([nearest.id, nearest.id]);
+    expect(state.projectiles.map((projectile) => projectile.damage)).toEqual([20, 20]);
+    expect(state.towers[0]!.charges).toBe(0);
+
+    nearest.hp = 0;
+    nearest.rewarded = true;
+    const nextNearest = state.enemies
+      .filter((enemy) => enemy.hp > 0)
+      .reduce((closest, enemy) => {
+        const [x, y] = entityPosition(state, enemy);
+        const [cx, cy] = entityPosition(state, closest);
+        return Math.hypot(x - towerPosition.x, y - towerPosition.y) <
+          Math.hypot(cx - towerPosition.x, cy - towerPosition.y)
+          ? enemy
+          : closest;
+      });
+    tickDefenseProjectiles(state, 1, []);
+    expect(state.projectiles.map((projectile) => projectile.targetId)).toEqual([nextNearest.id, nextNearest.id]);
+
+    state.enemies.forEach((enemy) => {
+      enemy.hp = 0;
+      enemy.rewarded = true;
+    });
+    tickDefenseProjectiles(state, 1, []);
+    expect(state.projectiles).toEqual([]);
+  });
+  it('applies extra charge ranks and lets Blue 3 hold three charges', () => {
     const state = battle('blue2');
     state.enemies = state.enemies.slice(0, 1);
     state.defense.ranks.ice[nodeIndex('ice', 'moreCharges')] = 2;
     tickDefenseTowers(state, 16, []);
-    expect(state.projectiles).toHaveLength(1);
-    expect(state.towers[0]!.charges).toBe(3);
+    expect(state.projectiles).toHaveLength(4);
+    expect(state.towers[0]!.charges).toBe(0);
     state.enemies = [];
+    tickDefenseTowers(state, 3000, []);
+    expect(state.towers[0]!.charges).toBe(3);
     tickDefenseTowers(state, 1000, []);
     expect(state.towers[0]!.charges).toBe(4);
+
+    const blue3 = battle('blue3');
+    blue3.enemies = [];
+    tickDefenseTowers(blue3, 16, []);
+    expect(blue3.towers[0]!.charges).toBe(3);
   });
   it('keeps partial recharge timers saveable at floating-point boundaries', () => {
     const state = battle('blue3');
@@ -343,11 +430,30 @@ describe('evolved combat and exact persistence', () => {
     tickDefenseTowers(state, 16, []);
     const payload = state.projectiles[0].effect;
     expect(payload?.kind).toBe('poison');
+    expect(payload?.kind === 'poison' && payload.slow).toBeGreaterThan(0);
     state.defense.ranks.ice[5] = 100;
     state.towers[0] = null;
     tickDefenseProjectiles(state, 10000, []);
     const target = state.enemies.find((enemy) => enemy.poison > 0)!;
     expect(payload?.kind === 'poison' && target.poisonDamage).toBe(payload?.kind === 'poison' && payload.tickDamage);
+  });
+  it('keeps Green poison ticking during repeated hits and slows its target', () => {
+    const state = battle('green');
+    const target = state.enemies.reduce((furthest, enemy) => (enemy.progress > furthest.progress ? enemy : furthest));
+    tickDefenseTowers(state, 16, []);
+    tickDefenseProjectiles(state, 10000, []);
+    expect(target.poisonDamage).toBe(target.max * 0.01);
+    expect(target.slow).toBeGreaterThan(0);
+
+    tickEnemyAbilities(state, target, 250, []);
+    const remainingTick = target.poisonD;
+    tickDefenseTowers(state, 250, []);
+    tickDefenseProjectiles(state, 10000, []);
+    expect(target.poisonD).toBe(remainingTick);
+
+    const hpBeforePoisonTick = target.hp;
+    tickEnemyAbilities(state, target, remainingTick, []);
+    expect(target.hp).toBe(hpBeforePoisonTick - target.max * 0.01);
   });
   it('expires nullification and restores resistance', () => {
     const state = battle('pink'),

@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { getMap } from '../src/content/catalog';
+import { dragons, getMap } from '../src/content/catalog';
 import { createDefenseState } from '../src/game/defense-state';
 import { defenseRange } from '../src/game/defense-combat';
 import { produceLegacyBonusGold } from '../src/game/legacy/bonus-gold';
 import { produceJourneyBonusResources, towerBonus } from '../src/game/tower-bonuses';
 import { GameEngine, createInitialState } from '../src/game/engine';
 import { updateEnemies, updateProjectiles, updateTowers } from '../src/game/legacy/combat';
-import { towerDamage, towerRange } from '../src/game/rules';
+import { battleRules, towerDamage, towerRange } from '../src/game/rules';
 import type { Enemy } from '../src/game/types';
 
 describe('battlefield tower bonus areas', () => {
+  it('uses the red dragon starting range for every upgraded dragon', () => {
+    expect(towerRange({ type: 'ice', level: 1, cooldown: 0 })).toBe(dragons.ice.range + battleRules.rangePerLevel);
+    for (const level of [2, 3]) {
+      const expectedRange = dragons.fire.range + level * battleRules.rangePerLevel;
+      expect([
+        towerRange({ type: 'fire', level, cooldown: 0 }),
+        towerRange({ type: 'ice', level, cooldown: 0 }),
+        towerRange({ type: 'poison', level, cooldown: 0 }),
+      ]).toEqual([expectedRange, expectedRange, expectedRange]);
+    }
+  });
+
   it('scales damage and range by the occupying dragon level', () => {
     const state = createDefenseState('meadow');
     const map = getMap('meadow');

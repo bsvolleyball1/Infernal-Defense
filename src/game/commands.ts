@@ -1,7 +1,7 @@
 import { createEvolutionTower, evolveTower } from './evolution';
 import { challengeAllowsDragon, challengeAllowsSpell } from '../content/maps';
 import { dragons } from '../content/catalog';
-import { towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
+import { dragonPlacementCost, towerAttackInterval, towerSaleRefund, towerUpgradeCost } from './rules';
 import { startWave } from './waves';
 import type { DragonType, GameCommand, GameEvent, GameState, MonsterKind, Point, Tower } from './types';
 import { castSpell } from './spells';
@@ -166,7 +166,7 @@ function purchaseTower(state: GameState, slot: number, position?: Point): GameEv
             : 'Choose a clear area away from the road and other dragons',
       },
     ];
-  const cost = dragons[type].cost;
+  const cost = dragonPlacementCost(state, type);
   if (state.gold < cost && !isSandbox(state))
     return [{ type: 'message', text: `Not enough ${currencyOf(state).name}` }];
   if (!isSandbox(state)) state.gold -= cost;
@@ -197,9 +197,13 @@ function isSandbox(state: GameState): boolean {
 
 function upgradeTower(state: GameState): GameEvent[] {
   const tower = state.selected === null ? null : state.towers[state.selected];
-  if (!tower || tower.level >= levelCap(state, tower) || (state.gold < towerUpgradeCost(tower) && !isSandbox(state)))
+  if (
+    !tower ||
+    tower.level >= levelCap(state, tower) ||
+    (state.gold < towerUpgradeCost(state, tower) && !isSandbox(state))
+  )
     return [];
-  if (!isSandbox(state)) state.gold -= towerUpgradeCost(tower);
+  if (!isSandbox(state)) state.gold -= towerUpgradeCost(state, tower);
   const previousInterval = towerAttackInterval(tower);
   tower.level++;
   const upgradedInterval = towerAttackInterval(tower);
@@ -211,7 +215,7 @@ function upgradeTower(state: GameState): GameEvent[] {
 function sellTower(state: GameState): GameEvent[] {
   const tower = state.selected === null ? null : state.towers[state.selected];
   if (!tower || state.selected === null) return [];
-  const refund = towerSaleRefund(tower);
+  const refund = towerSaleRefund(state, tower);
   state.gold += refund;
   state.towers[state.selected] = null;
   state.selected = null;

@@ -7,13 +7,13 @@ import { waitForServiceWorkerActivation, waitForServiceWorkerControl } from './s
 import type { GameState, Level } from '../../src/game/types';
 import { getMap } from '../../src/content/maps';
 
-function purpleState() {
-  const state = createDefenseState('level1', undefined, false, 'defense-2');
+function purpleState(level: Level = 'level1') {
+  const state = createDefenseState(level, undefined, false, 'defense-2');
   state.gold = 1000;
   state.defense.countdown = 5000;
   const engine = new GameEngine(state);
   engine.dispatch({ type: 'choose', dragon: 'fire' });
-  engine.dispatch({ type: 'place', point: { x: 75, y: 225 } });
+  engine.dispatch({ type: 'place', point: getMap(level, 'defense-2').perches[0] });
   engine.dispatch({ type: 'evolve', color: 'blue', form: 'purple' });
   return engine.snapshot();
 }
@@ -31,6 +31,35 @@ async function seed(page: Page, state: GameState, completedLevels: Level[] = [])
   if (await page.locator('#pauseOverlay').isVisible()) await page.locator('#resumeBattle').click();
 }
 
+for (const { level, capacity } of [
+  { level: 2, capacity: 2 },
+  { level: 3, capacity: 3 },
+] as const) {
+  test(`Blue ${level} shows an animated charge count on its tower`, async ({ page }) => {
+    const state = createDefenseState('iceTrial', undefined, false, 'defense-2');
+    state.gold = 1000;
+    state.defense.countdown = 5000;
+    const engine = new GameEngine(state);
+    engine.dispatch({ type: 'choose', dragon: 'ice' });
+    engine.dispatch({ type: 'place', point: getMap('iceTrial', 'defense-2').perches[0] });
+    engine.dispatch({ type: 'evolve', color: 'blue', form: 'blue2' });
+    if (level === 3) engine.dispatch({ type: 'evolve', color: 'blue', form: 'blue3' });
+    const savedState = engine.snapshot();
+    const tower = savedState.towers[0];
+    if (!tower) throw new Error('Expected the Blue dragon to be placed.');
+    tower.charges = capacity;
+    await seed(page, savedState);
+
+    const marker = page.locator('#towers .tower-marker').first();
+    const indicator = marker.locator('.tower-charge-indicator');
+    await expect(indicator).toHaveAttribute('visibility', 'visible');
+    await expect(indicator.locator('.tower-charge-count')).toHaveText(String(capacity));
+    await expect(indicator).toHaveClass(/has-charges/);
+    await expect(indicator.locator('.tower-charge-badge')).toHaveCSS('animation-name', 'tower-charge-pulse');
+    await expect(marker).toHaveAttribute('aria-label', new RegExp(`${capacity} of ${capacity} charges`));
+  });
+}
+
 for (const viewport of [
   { width: 812, height: 375 },
   { width: 844, height: 390 },
@@ -42,14 +71,14 @@ for (const viewport of [
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await seed(page, purpleState());
-      await page.locator('#towers .tower-marker').first().click();
-      await expect(page.locator('#upgrade')).toBeDisabled();
-      await expect(page.locator('#mixBlue')).toBeHidden();
-      await expect(page.locator('#mixYellow')).toBeHidden();
-      await page.screenshot({ path: test.info().outputPath(`tier-2-actions-${viewport.width}.png`), fullPage: true });
-      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
-      expect(saved.towers[0].level).toBe(2);
-      expect(saved.gold).toBe(895);
+    await page.locator('#towers .tower-marker').first().click();
+    await expect(page.locator('#upgrade')).toBeDisabled();
+    await expect(page.locator('#mixBlue')).toBeHidden();
+    await expect(page.locator('#mixYellow')).toBeHidden();
+    await page.screenshot({ path: test.info().outputPath(`tier-2-actions-${viewport.width}.png`), fullPage: true });
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
+    expect(saved.towers[0].level).toBe(2);
+    expect(saved.gold).toBe(895);
     await page.reload();
     await page.locator('#continueJourney').click();
     await page.locator('#journeyResume').click();
@@ -128,6 +157,34 @@ test('tier 2 action popover follows the selected tower', async ({ page }) => {
   await expect(page.locator('#upgrade')).toBeDisabled();
   await page.getByRole('button', { name: /Blue, tier 1, dragon 2/ }).click();
   await expect(page.locator('#info')).toContainText('Blue');
+});
+
+test('tier 3 dragon choices are visible and selectable directly from the action popover', async ({ page }) => {
+  const state = purpleState('volcanic');
+  state.defense!.mode = 'sandbox';
+  state.gold = 2000;
+  await seed(page, state);
+  await page.getByRole('button', { name: 'Purple, tier 2, dragon 1', exact: true }).click();
+  await expect(page.locator('#upgrade')).toBeHidden();
+  await expect(page.locator('#mixBlue')).toBeHidden();
+  await expect(page.locator('#mixYellow')).toBeHidden();
+  await expect(page.locator('#upgradeChoices')).toBeHidden();
+  await expect(page.locator('#directUpgradeChoices')).toBeVisible();
+  await expect(page.locator('#directUpgradeChoices [data-upgrade-form]')).toHaveCount(4);
+  const choiceLayout = await page.locator('#directUpgradeChoices [data-upgrade-form]').evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const { top, width, height } = button.getBoundingClientRect();
+      return { top: Math.round(top), width: Math.round(width), height: Math.round(height) };
+    }),
+  );
+  expect(choiceLayout.map(({ width }) => width)).toEqual([44, 44, 44, 44]);
+  expect(choiceLayout.map(({ height }) => height)).toEqual([44, 44, 44, 44]);
+  expect(new Set(choiceLayout.map(({ top }) => top)).size).toBe(1);
+  await page.locator('#directUpgradeChoices [data-upgrade-form="black"]').click();
+  await expect(page.getByRole('button', { name: 'Black, tier 3, dragon 1', exact: true })).toBeVisible();
+  await expect(page.locator('#directUpgradeChoices')).toBeHidden();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('infernalDefense.save.0')!).state);
+  expect(saved.towers[0]).toMatchObject({ level: 3, evolution: { form: 'black' } });
 });
 
 for (const [level, forbidden] of [

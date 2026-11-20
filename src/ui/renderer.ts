@@ -37,7 +37,7 @@ export interface Renderer {
 }
 
 const towerMarkup =
-  '<circle class="tower-aura" r="19" fill="#18221d" stroke="#f0d58b" stroke-width="2"/><image class="tower-icon" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/><circle class="tower-hit" r="24" fill="transparent" pointer-events="all"/>';
+  '<circle class="tower-aura" r="19" fill="#18221d" stroke="#f0d58b" stroke-width="2"/><image class="tower-icon" x="-17" y="-17" width="34" height="34" preserveAspectRatio="xMidYMid meet"/><g class="tower-charge-indicator" visibility="hidden" aria-hidden="true" pointer-events="none"><circle class="tower-charge-badge" cx="16" cy="-17" r="8"/><text class="tower-charge-count" x="16" y="-14">0</text></g><circle class="tower-hit" r="24" fill="transparent" pointer-events="all"/>';
 
 /** Draws the battlefield from simulation state. Input handling lives in BattlefieldInput. */
 export class SvgRenderer implements Renderer {
@@ -153,7 +153,20 @@ export class SvgRenderer implements Renderer {
     attr(group, 'aria-disabled', String(tower.inactive));
     attr(group, 'tabindex', tower.inactive ? -1 : 0);
     attr(group.querySelector('.tower-aura')!, 'fill', tower.color);
-    setPortrait(group.querySelector('.tower-icon')!, dragonPortrait(tower.type, tower.level, tower.evolved, tower.form));
+    setPortrait(
+      group.querySelector('.tower-icon')!,
+      dragonPortrait(tower.type, tower.level, tower.evolved, tower.form),
+    );
+    const indicator = group.querySelector<SVGGElement>('.tower-charge-indicator')!;
+    const chargeCount = tower.chargeCount;
+    const chargeCapacity = tower.chargeCapacity;
+    const hasCharges = chargeCount !== undefined && chargeCapacity !== undefined;
+    indicator.setAttribute('visibility', hasCharges ? 'visible' : 'hidden');
+    if (chargeCount !== undefined && chargeCapacity !== undefined) {
+      indicator.querySelector('.tower-charge-count')!.textContent = String(chargeCount);
+      indicator.classList.toggle('has-charges', chargeCount > 0);
+      indicator.classList.toggle('at-capacity', chargeCount >= chargeCapacity);
+    }
     const state = this.current();
     group.style.filter =
       tower.index === state.selected && !this.popover.isDismissed(tower.index) ? 'drop-shadow(0 0 7px #ffdd82)' : '';

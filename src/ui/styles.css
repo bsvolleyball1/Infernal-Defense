@@ -729,13 +729,23 @@ main {
   margin: 0;
   text-align: right;
 }
+.towerary-catalog {
+  max-height: calc(100dvh - 150px);
+  overflow: auto;
+  padding: 4px 2px 16px;
+}
+.towerary-tier + .towerary-tier {
+  margin-top: 18px;
+}
+.towerary-tier h3 {
+  margin: 0 0 10px;
+  color: var(--gold);
+  font: 16px 'Uncial Antiqua';
+}
 .towerary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
-  max-height: calc(100dvh - 150px);
-  overflow: auto;
-  padding: 4px 2px 16px;
 }
 .towerary-card {
   display: flex;

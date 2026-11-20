@@ -48,7 +48,7 @@ export const dragonTypeForColor: Record<DragonColor, DragonType> = {
 export const dragonColors: DragonColor[] = ['red', 'blue', 'yellow'];
 
 export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
-  red: { name: 'Red', color: '#ee455c', ability: 'beam', description: 'One beam', damage: 6, interval: 0 },
+  red: { name: 'Red', color: '#ee455c', ability: 'beam', description: 'One beam', damage: 8, interval: 0 },
   blue: {
     name: 'Blue',
     color: '#61a7ed',
@@ -58,7 +58,7 @@ export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
     interval: 1000,
     count: 1,
   },
-  yellow: { name: 'Yellow', color: '#e2bf48', ability: 'rapid', description: 'Fast attack', damage: 2, interval: 250 },
+  yellow: { name: 'Yellow', color: '#e2bf48', ability: 'rapid', description: 'Fast attack', damage: 2, interval: 200 },
   red2: {
     name: 'Red 2',
     color: '#e83c4c',
@@ -73,8 +73,8 @@ export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
     color: '#a26ce0',
     ability: 'cone',
     description: 'Plasma breath cone',
-    damage: 12,
-    interval: 900,
+    damage: 11,
+    interval: 1100,
     radius: 45,
   },
   orange: {
@@ -82,16 +82,16 @@ export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
     color: '#e99039',
     ability: 'explosion',
     description: 'Area explosion',
-    damage: 24,
-    interval: 1100,
-    radius: 48,
+    damage: 15,
+    interval: 1500,
+    radius: 44,
   },
   blue2: {
     name: 'Blue 2',
     color: '#428ee3',
     ability: 'charged',
     description: 'Two charged attacks',
-    damage: 15,
+    damage: 20,
     interval: 1000,
     count: 2,
   },
@@ -99,7 +99,7 @@ export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
     name: 'Green',
     color: '#72bc50',
     ability: 'acid',
-    description: 'Acid damage over time',
+    description: 'Acid deals 1% of max HP per second before modifiers and slows movement by 50% for 3 seconds',
     damage: 4,
     interval: 250,
     duration: 5000,
@@ -109,8 +109,8 @@ export const dragonForms: Record<DragonForm, DragonFormDefinition> = {
     color: '#efc928',
     ability: 'rapid',
     description: 'Faster attack and damage',
-    damage: 4,
-    interval: 200,
+    damage: 8,
+    interval: 330,
   },
   red3: {
     name: 'Red 3',

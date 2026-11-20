@@ -4,10 +4,17 @@ import { dragons, getMap } from '../content/catalog';
 import { defenseRules } from '../content/defense-rules';
 import { enemyRoster, isDefenseMonster } from '../content/enemies';
 import { defenseRange } from '../game/defense-combat';
+import { rankOf } from '../game/defense-state';
 import { canPlaceTower, entityPosition, towerPosition } from '../game/geometry';
 import { towerRange } from '../game/rules';
 import { towerBonus } from '../game/tower-bonuses';
-import type { DragonType, GameState, MonsterKind, Point } from '../game/types';
+import type { DragonType, GameState, MonsterKind, Point, Tower } from '../game/types';
+
+function chargeCapacity(state: GameState, tower: Tower): number | null {
+  const form = tower.evolution?.form;
+  if (form !== 'blue2' && form !== 'blue3') return null;
+  return (dragonForms[form].count ?? 1) + rankOf(state, 'ice', 'moreCharges');
+}
 
 export function presentSelectionRange(
   state: GameState,
@@ -44,7 +51,9 @@ export function presentTowerLabel(state: GameState, index: number): string {
         : bonus
           ? `, ${bonus.kind} bonus${state.defense?.mode === 'sandbox' ? ' (journey only)' : ` +${resourceRate.toFixed(2)}/s`}`
           : '';
-  return `${tower.evolution ? dragonForms[tower.evolution.form].name : dragons[tower.type].name}, ${tower.evolution ? 'tier' : 'level'} ${tower.level}, dragon ${index + 1}${bonusLabel}`;
+  const capacity = chargeCapacity(state, tower);
+  const chargeLabel = capacity === null ? '' : `, ${tower.charges ?? capacity} of ${capacity} charges`;
+  return `${tower.evolution ? dragonForms[tower.evolution.form].name : dragons[tower.type].name}, ${tower.evolution ? 'tier' : 'level'} ${tower.level}, dragon ${index + 1}${bonusLabel}${chargeLabel}`;
 }
 
 export interface PlacedTowerView {
@@ -58,6 +67,8 @@ export interface PlacedTowerView {
   level: number;
   evolved: boolean;
   form?: import('../domain/model').DragonForm;
+  chargeCount?: number;
+  chargeCapacity?: number;
 }
 
 /** One placed dragon, with its map position already resolved. */
@@ -66,6 +77,7 @@ export function presentPlacedTowers(state: GameState): PlacedTowerView[] {
   return state.towers.flatMap((tower, index) => {
     if (!tower) return [];
     const position = towerPosition(state, index);
+    const capacity = chargeCapacity(state, tower);
     return [
       {
         index,
@@ -78,6 +90,7 @@ export function presentPlacedTowers(state: GameState): PlacedTowerView[] {
         form: tower.evolution?.form,
         type: tower.type,
         level: tower.level,
+        ...(capacity === null ? {} : { chargeCount: tower.charges ?? capacity, chargeCapacity: capacity }),
       },
     ];
   });

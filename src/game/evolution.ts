@@ -26,7 +26,7 @@ export function createEvolutionTower(type: Tower['type'], position: { x: number;
 export function evolveTower(state: GameState, color: DragonColor, form: DragonForm): GameEvent[] {
   const tower = state.selected === null ? null : state.towers[state.selected];
   if (!tower?.evolution || !evolutionOptions(state, tower, color).includes(form)) return [];
-  const cost = towerUpgradeCost(tower);
+  const cost = towerUpgradeCost(state, tower);
   if (state.defense?.mode !== 'sandbox' && state.gold < cost) return [];
   if (state.defense?.mode !== 'sandbox') state.gold -= cost;
   tower.evolution = { colors: [...tower.evolution.colors, color].sort(), form };

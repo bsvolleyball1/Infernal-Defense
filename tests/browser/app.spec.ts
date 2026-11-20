@@ -59,8 +59,11 @@ test('dragon and spell icon controls occupy the bottom corners of the fullscreen
   await expect(page.locator('#saveProgress')).toHaveAttribute('aria-label', 'Save progress');
   await expect(page.locator('#returnMenu')).toHaveAttribute('aria-label', 'Return to menu');
   await page.locator('#resumeBattle').click();
-  await expect(page.locator('#battleDragons [data-type="fire"]')).toHaveAttribute('aria-label', /Red dragon.*60 food/);
+  await expect(page.locator('#battleDragons [data-type="fire"]')).toHaveAttribute('aria-label', /Red dragon.*50 food/);
   await expect(page.locator('#battleDragons [data-type="fire"] .dragon-portrait')).toHaveAttribute('src', /fire-1/);
+  await expect(page.locator('#battleDragons [data-type="fire"] .towerdesc')).toContainText('8 DPS');
+  await expect(page.locator('#battleDragons [data-type="ice"] .towerdesc')).toContainText('15-damage');
+  await expect(page.locator('#battleDragons [data-type="poison"] .towerdesc')).toContainText('Five shots');
   const mapBox = await page.locator('#map').boundingBox();
   const toolbarBox = await page.locator('.battle-toolbar').boundingBox();
   const spellsBox = await page.locator('#battleSpells').boundingBox();
@@ -109,14 +112,14 @@ test('placement, upgrades, selling, wave controls and save navigation', async ({
   await startJourney(page);
   await page.locator('[data-type="fire"]').click();
   await clickMapAt(page, 90, 202);
-  await expect(page.locator('#gold')).toHaveText('60');
+  await expect(page.locator('#gold')).toHaveText('70');
   await page.locator('#upgrade').click();
   await expect(page.locator('#gold')).toHaveText('15');
   await expect(page.locator('#info')).toContainText('Tier 2');
   // Upgrading closes the action popover, so the dragon is selected again before selling.
   await page.getByRole('button', { name: 'Red 2, tier 2, dragon 1', exact: true }).click();
   await page.locator('#sell').click();
-  await expect(page.locator('#gold')).toHaveText('63');
+  await expect(page.locator('#gold')).toHaveText('67');
   await page.locator('.summon-control').click();
   await expect(page.locator('#waveState')).toHaveText('UNDER ATTACK');
   await page.locator('#speed').click();
@@ -357,7 +360,7 @@ test('keyboard dragon selection and renderer preserve live entity nodes', async 
   await page.locator('[data-type="fire"]').focus();
   await page.keyboard.press('Enter');
   await clickMapAt(page, 90, 202);
-  await expect(page.locator('#gold')).toHaveText('60');
+  await expect(page.locator('#gold')).toHaveText('70');
   await page.locator('.summon-control').click();
   await expect(page.locator('#enemies > g')).not.toHaveCount(0);
   const enemy = await page.locator('#enemies > g').first().elementHandle();
@@ -389,7 +392,7 @@ test.describe('phone touch input', () => {
       expect(mapBox!.width).toBeGreaterThanOrEqual(43.9);
       await page.locator('[data-type="fire"]').tap();
       await clickMapAt(page, 90, 202);
-      await expect(page.locator('#gold')).toHaveText('60');
+      await expect(page.locator('#gold')).toHaveText('70');
       await page.screenshot({ path: test.info().outputPath(`phone-${viewport.width}.png`), fullPage: true });
     });
   }

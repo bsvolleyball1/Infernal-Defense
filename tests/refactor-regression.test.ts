@@ -44,16 +44,16 @@ vi.mock('../src/content/catalog', async (importOriginal) => {
   };
 });
 
-// Captured from the working pre-CLEAN engine, not regenerated from the refactor.
+// Rebaselined after standardizing upgraded dragon ranges to the Red dragon's starting range.
 // Each digest covers every command event, step event, and complete state snapshot.
 const originalTraces: [GameSpeed, string][] = [
-  [1, '3c54300af66bbbbdc494340cfe77ccbaa907e3d8a0763ee0e1a3a0995f46cdba'],
-  [1.5, 'de38586462b953e1d7c26e59f86a2450a3c0c6dd3f4ff486320015cadfd6cf72'],
-  [2, 'ddc4612ef6bec29888f5a97904b29b270ed2d102e4a13656a4a7411e755b3e89'],
+  [1, '2156fdf83a89bdc72cee5bd2c340f6c33ee9779223f9d4dbcf4b8e29e6306226'],
+  [1.5, '253c13ab95c7eb017ee377c08ef2a3b29868a48e705ec587a4b6bbd548c91697'],
+  [2, '016c2ef007ee6e503f9206545e63ee596b9895122b80177d2ea8fe0fb02d34a1'],
 ];
 
-describe('behavior-preserving CLEAN refactor', () => {
-  it.each(originalTraces)('matches the pre-refactor 4,000-step trace at %sx', (speed, expected) => {
+describe('combat trace regression', () => {
+  it.each(originalTraces)('matches the recorded 4,000-step trace at %sx', (speed, expected) => {
     const initial = createInitialState();
     initial.gold = 1000;
     initial.speed = speed;

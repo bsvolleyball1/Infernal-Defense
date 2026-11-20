@@ -3,7 +3,8 @@
 #manaStat[hidden],
 .battle-toolbar [hidden],
 .actions[hidden],
-#upgradeChoices[hidden] {
+#upgradeChoices[hidden],
+.actions #directUpgradeChoices[hidden] {
   display: none;
 }
 .battle-toolbar {
@@ -17,6 +18,40 @@
 }
 .battle-toolbar [inert] {
   opacity: 0.25;
+}
+.tower-charge-indicator {
+  pointer-events: none;
+}
+.tower-charge-badge {
+  fill: #153744;
+  stroke: #9deaff;
+  stroke-width: 1;
+}
+.tower-charge-count {
+  fill: #effcff;
+  font: 700 8px sans-serif;
+  text-anchor: middle;
+}
+.tower-charge-indicator.has-charges .tower-charge-badge {
+  animation: tower-charge-pulse 1.2s ease-in-out infinite alternate;
+}
+.tower-charge-indicator.at-capacity .tower-charge-badge {
+  animation-duration: 0.7s;
+}
+@keyframes tower-charge-pulse {
+  from {
+    fill: #153744;
+    stroke-width: 1;
+  }
+  to {
+    fill: #277f98;
+    stroke-width: 2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tower-charge-indicator.has-charges .tower-charge-badge {
+    animation: none;
+  }
 }
 .battle-shortcuts {
   display: contents;
@@ -275,6 +310,24 @@
 }
 .actions .mix-button[hidden] {
   display: none;
+}
+.actions #directUpgradeChoices {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.actions .tier-three-choice {
+  border-color: var(--choice-color);
+  border-top-width: 3px;
+  background: #222a21;
+  color: var(--ink);
+}
+.actions .tier-three-choice .mix-glyph {
+  color: var(--choice-color);
+  font-size: 9px;
+}
+.actions .tier-three-choice:hover {
+  background: color-mix(in srgb, var(--choice-color) 15%, #222a21);
 }
 .actions .mix-glyph {
   font: 700 12px 'DM Mono';

@@ -206,8 +206,9 @@ function applyShotEffects(state: DefenseBattle, shot: Projectile, target: Enemy)
   if (effect.kind === 'freeze' && effect.chance && randomValue(state) < effect.chance)
     target.frozen = Math.max(target.frozen ?? 0, defenseRules.iceFreezeOnHitMs);
   if (effect.kind === 'poison') {
-    target.poison = effect.duration;
-    target.poisonD = defenseRules.poisonTickMs;
+    const poisonWasActive = target.poison > 0;
+    target.poison = Math.max(target.poison, effect.duration);
+    if (!poisonWasActive) target.poisonD = defenseRules.poisonTickMs;
     target.poisonDamage =
       effect.tickDamage ??
       target.max *

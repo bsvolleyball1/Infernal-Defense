@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   presentBattle,
   presentPlacement,
+  presentPlacedTowers,
   presentSelectionRange,
   presentSummon,
   presentTowerLabel,
 } from '../src/ui/battle-view-model';
 import { createDefenseState } from '../src/game/defense-state';
+import { createEvolutionTower } from '../src/game/evolution';
 import { battleRules } from '../src/game/rules';
 import { createInitialState } from '../src/game/state';
+import { getMap } from '../src/content/maps';
 
 describe('battle view model', () => {
   it('describes a ready gorge battle from the rules', () => {
@@ -96,6 +99,24 @@ describe('single-owner HUD overrides', () => {
     const state = createDefenseState('level1');
     state.towers[0] = { type: 'ice', level: 2, cooldown: 0, position: { x: 90, y: 202 } };
     expect(presentTowerLabel(state, 0)).toMatch(/^Frost, level 2, dragon 1/);
+  });
+
+  it('presents live Blue 2 and Blue 3 charge counts and capacities', () => {
+    const state = createDefenseState('iceTrial', undefined, false, 'defense-2');
+    const tower = createEvolutionTower('ice', getMap('iceTrial', 'defense-2').perches[0]);
+    tower.level = 2;
+    tower.evolution = { colors: ['blue', 'blue'], form: 'blue2' };
+    tower.charges = 1;
+    state.towers[0] = tower;
+
+    expect(presentPlacedTowers(state)[0]).toMatchObject({ chargeCount: 1, chargeCapacity: 2 });
+    expect(presentTowerLabel(state, 0)).toContain('1 of 2 charges');
+
+    tower.evolution = { colors: ['blue', 'blue', 'blue'], form: 'blue3' };
+    tower.level = 3;
+    tower.charges = 2;
+    expect(presentPlacedTowers(state)[0]).toMatchObject({ chargeCount: 2, chargeCapacity: 3 });
+    expect(presentTowerLabel(state, 0)).toContain('2 of 3 charges');
   });
 
   it('resolves the selected dragon range without the renderer calling combat', () => {

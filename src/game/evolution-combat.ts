@@ -4,7 +4,7 @@ import { defenseRules } from '../content/defense-rules';
 import { getMap } from '../content/catalog';
 import { applyDamage, damageMultiplier } from './damage';
 import { rankOf, rankTotal } from './defense-state';
-import { entityPosition } from './geometry';
+import { byDistanceFrom, entityPosition } from './geometry';
 import type { TowerContext } from './tower-bonuses';
 import type { DefenseBattle, Enemy, EvolutionTower, GameEvent, Point } from './types';
 
@@ -151,10 +151,11 @@ function tickCharges(
   if (tower.charges >= capacity) tower.chargeTimer = defenseRules.iceChargeIntervalMs;
   // An epsilon-inclusive recharge can otherwise leave 1000 + rounding residue in a valid save.
   tower.chargeTimer = Math.min(defenseRules.iceChargeIntervalMs, Math.max(0, tower.chargeTimer));
-  const spent = targets.slice(0, tower.charges);
-  for (const enemy of spent) fireFormProjectile(state, tower, index, enemy, damage, context, profile);
-  // Only charges that actually fired are spent; recharge progress is not reset on every shot.
-  tower.charges -= spent.length;
+  const target = [...targets].sort(byDistanceFrom(state, context.position))[0];
+  if (!target) return;
+  for (let charge = 0; charge < tower.charges; charge++)
+    fireFormProjectile(state, tower, index, target, damage, context, profile);
+  tower.charges = 0;
 }
 
 function fireFormProjectile(
@@ -183,7 +184,7 @@ function fireFormProjectile(
         ? {
             kind: 'poison',
             duration: profile.duration ?? 5000,
-            slow: 0,
+            slow: defenseRules.poisonSlowMs,
             tickDamage:
               target.max *
               defenseRules.poisonShotHealthFraction *
@@ -238,8 +239,12 @@ function attackArea(
           shape: 'cone' as const,
           targetId: target.id,
           length: context.range,
-          directionX: (centerX - context.position.x) / (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
-          directionY: (centerY - context.position.y) / (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
+          directionX:
+            (centerX - context.position.x) /
+            (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
+          directionY:
+            (centerY - context.position.y) /
+            (Math.hypot(centerX - context.position.x, centerY - context.position.y) || 1),
         }
       : {}),
   });

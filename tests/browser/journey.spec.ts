@@ -41,6 +41,27 @@ test('startup is save-first and creates player progress before level selection',
   expect((await saved(page)).journey.activeBattle).toBe(false);
 });
 
+test('lists the three base levels after all fork levels', async ({ page }) => {
+  await newPlayer(page);
+  await expect(page.locator('[data-level]')).toHaveCount(10);
+  expect(
+    await page
+      .locator('[data-level]')
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('data-level'))),
+  ).toEqual([
+    'tutorial',
+    'fireTrial',
+    'iceTrial',
+    'poisonTrial',
+    'noPoisonTrial',
+    'noIceTrial',
+    'noFireTrial',
+    'level1',
+    'meadow',
+    'volcanic',
+  ]);
+});
+
 test('one active attempt locks level selection and resumes the same player without another slot', async ({ page }) => {
   await newPlayer(page);
   await page.locator('[data-level="meadow"]').click();

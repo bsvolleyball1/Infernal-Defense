@@ -1,5 +1,7 @@
 import { dragons } from '../content/catalog';
-import type { Tower } from './types';
+import { defenseRules } from '../content/defense-rules';
+import type { DragonType } from '../domain/model';
+import type { GameState, Tower } from './types';
 
 /** Original playable balance. Refactoring must not change these values. */
 export const battleRules = {
@@ -36,7 +38,8 @@ export const battleRules = {
 } as const;
 
 export function towerRange(tower: Tower): number {
-  return dragons[tower.type].range + tower.level * battleRules.rangePerLevel;
+  const startingRange = tower.level === 1 ? dragons[tower.type].range : dragons.fire.range;
+  return startingRange + tower.level * battleRules.rangePerLevel;
 }
 
 export function towerDamage(tower: Tower): number {
@@ -47,11 +50,22 @@ export function towerAttackInterval(tower: Tower): number {
   return dragons[tower.type].rate / (1 + (tower.level - 1) * battleRules.attackRatePerExtraLevel);
 }
 
-export function towerUpgradeCost(tower: Tower): number {
+export function dragonPlacementCost(state: GameState, type: DragonType): number {
+  return state.defense ? defenseRules.dragonPlacementFood : dragons[type].cost;
+}
+
+export function towerUpgradeCost(state: GameState, tower: Tower): number {
+  if (state.defense) return defenseRules.dragonUpgradeFood + (tower.level - 1) * defenseRules.dragonUpgradeFoodPerTier;
   return tower.level * battleRules.upgradeGoldPerLevel;
 }
 
-export function towerSaleRefund(tower: Tower): number {
+export function towerSaleRefund(state: GameState, tower: Tower): number {
+  if (state.defense) {
+    let totalSpent = defenseRules.dragonPlacementFood;
+    for (let level = 1; level < tower.level; level++)
+      totalSpent += defenseRules.dragonUpgradeFood + (level - 1) * defenseRules.dragonUpgradeFoodPerTier;
+    return totalSpent * battleRules.saleFraction;
+  }
   return (
     Math.floor(dragons[tower.type].cost * battleRules.saleFraction) +
     (tower.level - 1) * battleRules.saleGoldPerExtraLevel

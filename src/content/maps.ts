@@ -240,9 +240,6 @@ const excludedChallenge = (...args: Parameters<typeof challengeLevel>): Battlefi
 
 export const battlefields: Record<Level, Battlefield> = {
   tutorial: gorge,
-  level1: gorge,
-  meadow,
-  volcanic,
   fireTrial: challengeLevel(
     'Ember Fork',
     'Two paths converge at one nest. Use the Ember dragon and Fire Rain spell.',
@@ -285,6 +282,9 @@ export const battlefields: Record<Level, Battlefield> = {
     'fire',
     'fire',
   ),
+  level1: gorge,
+  meadow,
+  volcanic,
 };
 
 const gridBattlefields = Object.fromEntries(

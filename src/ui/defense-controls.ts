@@ -6,6 +6,7 @@ import { defenseRules } from '../content/defense-rules';
 import { upgradeCost, upgradeTrees } from '../content/upgrades';
 import type { DragonType, GameCommand, GameState, SpellKind } from '../game/types';
 import { currencyOf } from '../game/ruleset';
+import { dragonPlacementCost } from '../game/rules';
 import { element, elements, setText } from './dom';
 import { dragonPortrait } from './dragon-art';
 import { formatGold } from './currency-format';
@@ -87,19 +88,25 @@ export function renderDefenseControls(state: GameState): void {
     portrait.src = dragonPortrait(type, 1, evolved);
     const name = button.querySelector('.towername');
     if (name) name.textContent = evolved ? dragonForms[colorForDragon[type]].name : dragons[type].name;
-    const label = `${currency.icon} ${dragons[type].cost}`;
+    const label = `${currency.icon} ${dragonPlacementCost(state, type)}`;
     if (price.textContent !== label) price.textContent = label;
-    const descriptions = d
+    const descriptions = evolved
       ? {
-          fire: 'Level 1: one continuous 6 DPS beam.',
+          fire: 'Tier 1: one continuous 8 DPS beam.',
           ice: 'One 15-damage charge, recharging every second.',
-          poison: 'Four shots per second for 2 damage each.',
+          poison: 'Five shots per second for 2 damage each.',
         }
-      : {
-          fire: 'Scorches raiders with fierce bursts of flame.',
-          ice: 'Chills targets, giving the nest more time.',
-          poison: 'Poisons raiders with lingering venom.',
-        };
+      : d
+        ? {
+            fire: 'Level 1: one continuous 6 DPS beam.',
+            ice: 'One 15-damage charge, recharging every second.',
+            poison: 'Four shots per second for 2 damage each.',
+          }
+        : {
+            fire: 'Scorches raiders with fierce bursts of flame.',
+            ice: 'Chills targets, giving the nest more time.',
+            poison: 'Poisons raiders with lingering venom.',
+          };
     if (description.textContent !== descriptions[type]) description.textContent = descriptions[type];
   });
   const map = element<SVGSVGElement>('#map');

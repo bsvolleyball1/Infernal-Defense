@@ -28,7 +28,7 @@ for (const viewport of [
       await expect(page.locator('#towers .tower-marker')).toHaveCount(0);
       await page.locator('[data-type="fire"]').tap();
       await clickMapAt(page, level.id === 'meadow' ? 115 : 80, level.id === 'meadow' ? 183 : 140);
-      await expect(page.locator('#gold')).toHaveText('60');
+      await expect(page.locator('#gold')).toHaveText('70');
       await page.locator('#upgrade').click();
       await expect(page.getByRole('button', { name: 'Red 2, tier 2, dragon 1', exact: true })).toBeVisible();
       await page.reload();
@@ -43,7 +43,7 @@ for (const viewport of [
       await occupied.focus();
       await page.keyboard.press('Enter');
       await page.locator('#sell').click();
-      await expect(page.locator('#gold')).toHaveText('63');
+      await expect(page.locator('#gold')).toHaveText('67');
       await page.locator('.summon-control').click();
       await page.locator('#pause').click();
       await expect(page.locator('#pauseOverlay')).toBeVisible();
@@ -77,7 +77,7 @@ test('switches geometry and controls between all three battlefields without a pa
       id === 'meadow' ? 115 : id === 'volcanic' ? 80 : 90,
       id === 'meadow' ? 183 : id === 'volcanic' ? 140 : 202,
     );
-    await expect(page.locator('#gold')).toHaveText('65');
+    await expect(page.locator('#gold')).toHaveText('70');
     await openPause(page);
     await page.locator('#returnMenu').click();
     await page.locator('#journeyExit').click();

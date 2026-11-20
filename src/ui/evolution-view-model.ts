@@ -13,7 +13,7 @@ export function evolutionOwner(state: GameState): string {
     state.paused ||
     state.phase === 'won' ||
     state.phase === 'lost' ||
-    (state.defense?.mode !== 'sandbox' && state.gold < towerUpgradeCost(tower))
+    (state.defense?.mode !== 'sandbox' && state.gold < towerUpgradeCost(state, tower))
   )
     return '';
   return `${state.defense?.ruleset}:${state.activeLevel}:${state.selected}:${tower.evolution.form}`;
@@ -45,19 +45,21 @@ export function presentDirectUpgradeChoices(state: GameState) {
   const seen = new Set<DragonForm>();
   return dragonColors.flatMap((color) => {
     const forms = evolutionOptions(state, tower, color);
-    return forms.flatMap((form) =>
-      seen.has(form)
-        ? []
-        : [
-            {
-              form,
-              ...dragonForms[form],
-              mixColor: color,
-            },
-          ],
-    ).map((choice) => {
-      seen.add(choice.form);
-      return choice;
-    });
+    return forms
+      .flatMap((form) =>
+        seen.has(form)
+          ? []
+          : [
+              {
+                form,
+                ...dragonForms[form],
+                mixColor: color,
+              },
+            ],
+      )
+      .map((choice) => {
+        seen.add(choice.form);
+        return choice;
+      });
   });
 }
